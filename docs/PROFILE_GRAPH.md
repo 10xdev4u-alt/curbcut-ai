@@ -62,7 +62,13 @@ first"`. This keeps a nested value from creating a section the user never asked
 for.
 
 A disabled section reads as its defaults, so every getter returns a value
-inside the key's declared range and a read-all/write-all loop is well defined.
+inside the key's declared range. A read loop over every key is therefore well
+defined; a read-all/write-all loop is well defined once the sections it writes
+into are enabled, because a nested write requires its section.
+
+`dim` is the exception. It is always present, and `dim.enabled` is a feature
+toggle rather than an optional container, so `dim.opacity` and `dim.except`
+stay writable while dimming is off.
 
 ## Setting registry
 

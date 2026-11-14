@@ -281,7 +281,7 @@ fn align_from_str(value: &str) -> Result<TextAlign> {
         "center" => Ok(TextAlign::Center),
         "justify" => Ok(TextAlign::Justify),
         _ => Err(value_err(format!(
-            "reflow.align: expected `start`, `center`, or `justify`, found `{value}`"
+            "reflow.align: expected `start` (or its alias `left`), `center`, or `justify`, found `{value}`"
         ))),
     }
 }

@@ -189,6 +189,45 @@ fn apply_many_does_not_depend_on_the_order_of_section_toggles() {
 }
 
 #[test]
+fn a_batch_that_disables_a_section_and_writes_into_it_is_rejected() {
+    // This is the case that was order-dependent before `order_for_apply`: the
+    // nested key was written first, which created the section, and the disable
+    // then cleared it. Both orders must now fail and leave the graph alone.
+    let mut graph = ProfileGraph::new(ProfileId::focus());
+    let sink = Recording::default();
+    graph.subscribe(Box::new(sink.clone()));
+    assert!(graph.settings().icon_grid.is_some());
+    assert!(!graph.settings().icon_grid.as_ref().expect("on").symbols);
+
+    for changes in [
+        vec![
+            (SettingKey::IconGridSymbols, SettingValue::Bool(false)),
+            (SettingKey::IconGridEnabled, SettingValue::Bool(false)),
+        ],
+        vec![
+            (SettingKey::IconGridEnabled, SettingValue::Bool(false)),
+            (SettingKey::IconGridSymbols, SettingValue::Bool(false)),
+        ],
+    ] {
+        let error = graph
+            .apply_many(&changes)
+            .expect_err("the section ends off");
+        let message = error.to_string();
+        assert!(message.contains("requires"), "{message}");
+        assert!(
+            graph.settings().icon_grid.is_some(),
+            "a rejected batch must not disable the section"
+        );
+        assert!(
+            !graph.settings().icon_grid.as_ref().expect("on").symbols,
+            "a rejected batch must not write the nested key"
+        );
+    }
+    assert!(sink.events().is_empty());
+    assert!(!graph.is_modified());
+}
+
+#[test]
 fn apply_many_deduplicates_keys_and_reports_the_final_value() {
     let mut graph = ProfileGraph::new(ProfileId::focus());
     let sink = Recording::default();

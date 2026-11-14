@@ -457,6 +457,9 @@ impl ProfileGraph {
         let active = self.data.active;
         self.data = self.baseline.clone();
         self.data.active = active;
+        // Activation is document state, so the baseline must agree with it
+        // rather than keep a stale value from before the reset.
+        self.baseline.active = active;
         for event in &events {
             self.emit(event.clone());
         }
