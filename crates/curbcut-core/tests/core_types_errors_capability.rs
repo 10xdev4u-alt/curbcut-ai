@@ -59,7 +59,7 @@ fn source_set_merges_sources() {
 }
 
 #[test]
-fn capability_tokens_are_not_cloneable_and_expire_on_revoke() {
+fn capability_tokens_expire_on_revoke() {
     let mut session = Session::new(SessionId(7));
     let token = session.grant(Capability::Act);
     require(&token, Capability::Act).expect("granted token must satisfy require");

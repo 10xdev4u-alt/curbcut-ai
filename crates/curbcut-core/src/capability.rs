@@ -246,6 +246,14 @@ mod tests {
     }
 
     #[test]
+    fn require_any_rejects_empty_and_mismatched_without_panicking() {
+        let mut session = Session::new(SessionId(1));
+        let token = session.grant(Capability::Act);
+        assert!(require_any(&token, &[]).is_err());
+        assert!(require_any(&token, &[Capability::Observe]).is_err());
+    }
+
+    #[test]
     fn token_debug_has_no_content() {
         let mut session = Session::new(SessionId(1));
         let token = session.grant(Capability::Observe);
