@@ -1,0 +1,17 @@
+[package]
+name = "curbcut-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tauri app shell and frontend bridge (stub until the toolchain lands)."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }
+
+[features]
+tauri = []

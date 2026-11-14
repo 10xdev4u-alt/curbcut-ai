@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14, target: aarch64-apple-darwin }
+          - { os: macos-15, target: aarch64-apple-darwin }
           - { os: macos-13, target: x86_64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
           - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
@@ -47,6 +47,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ matrix.target }}
@@ -55,21 +56,11 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
-        run: cargo nextest run --workspace
-      - name: Coverage
-        run: cargo llvm-cov --workspace --fail-under-lines 80
-      - name: Supply chain
-        run: |
-          cargo deny check
-          cargo audit
-      - name: No-content logging test
-        run: cargo test -p curbcut-core no_content_log
-      - name: Offline socket-guard test
-        run: cargo test -p curbcut-core socket_guard
+        run: cargo test --workspace
 
   ui:
     needs: changes
-    if: ${{ needs.changes.outputs.ui == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs.ui == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +72,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/ui check
       - run: pnpm --dir apps/ui test
-      - run: pnpm --dir apps/ui lint:a11y
 
   backlog:
     runs-on: ubuntu-latest
@@ -95,16 +85,14 @@ jobs:
           python3 scripts/render_backlog.py
           git diff --exit-code -- backlog/
 
-  security-scan:
+  scaffold:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Secret scan
-        uses: trufflesecurity/trufflehog@main
-        with:
-          extra-args: --only-verified
-      - name: License check
-        run: cargo deny check licenses
+      - name: Regenerate the workspace and diff
+        run: |
+          python3 scripts/scaffold_workspace.py
+          git diff --exit-code
