@@ -70,6 +70,10 @@ reading-age measure. `ReadingLevel::from_flesch` bands the score: 70 and above
 is `Easy`, 50 to 69 is `Plain`, below 50 is `Complex`. `compare` reports
 `meets_target` as `level <= target`, so a text easier than the target passes.
 
+A text with no words, or only punctuation, scores 0. `reading_level` reports it
+as `Complex`, the hardest band: an unmeasurable text cannot be shown to meet an
+easy target.
+
 ## Distraction
 
 The score is the interruption kind's base plus 20 when it cannot be dismissed,

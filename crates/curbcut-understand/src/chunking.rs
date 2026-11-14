@@ -20,8 +20,9 @@ pub struct Chunk {
 
 /// Groups elements into chunks of at most `max_per_chunk`.
 ///
-/// A heading always starts a new chunk, so a section is never split across a
-/// chunk boundary. A `max_per_chunk` of zero returns no chunks.
+/// A heading always starts a new chunk, so a chunk never spans a heading. A
+/// section longer than `max_per_chunk` is split at the limit. A
+/// `max_per_chunk` of zero returns no chunks.
 pub fn chunk_elements(elements: &[Element], max_per_chunk: usize) -> Vec<Chunk> {
     if max_per_chunk == 0 {
         return Vec::new();
