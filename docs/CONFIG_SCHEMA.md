@@ -65,14 +65,15 @@ defaults. A nested table merges onto that starting point, so
 
 | Key | Type | Default | Validation |
 | --- | --- | --- | --- |
-| `dim` | table | disabled | `enabled` boolean, `opacity` `0.0..=1.0`, `except` array of non-empty region names. |
+| `dim` | table | disabled | `enabled` boolean, `opacity` `0.0..=1.0`, `except` array of at most 64 non-empty region names. |
 | `stop_motion` | boolean | `false` | |
+| `reduce_transparency` | boolean | `false` | Replaces transparent layers with solid ones. |
 | `interruptions` | string | `"inbox"` | `inbox`, `block`, or `allow`. |
-| `icon_grid` | table | absent | `min_tile` `16..=256`, `columns` `1..=12`, `symbols` boolean. |
+| `icon_grid` | table | absent | `min_tile` `16..=256`, `columns` `1..=12`, `symbols` boolean, `gap` `0..=64` points. |
 | `short_paths` | boolean | `false` | |
 | `reading_level` | string | `"keep"` | `keep` or `grade-N` with `N` in `1..=12`. |
-| `tts` | table | rate `1.0` | `rate` `0.25..=4.0`. |
-| `reflow` | table | absent | `font` non-empty, `size` `8.0..=72.0`, `line_height` `1.0..=3.0`, `align` `start` (alias `left`)/`center`/`justify`, `line_length` `10..=200`. |
+| `tts` | table | rate `1.0`, voice `system` | `rate` `0.25..=4.0`, `voice` non-empty. `system` uses the platform default voice. |
+| `reflow` | table | absent | `font` non-empty, `size` `8.0..=72.0`, `line_height` `1.0..=3.0`, `align` `start` (alias `left`)/`center`/`justify`, `line_length` `10..=200`, `word_spacing` `1.0..=2.0`, `letter_spacing` `1.0..=2.0`. |
 | `ruler` | boolean | `false` | |
 | `read_aloud` | table | absent | `highlight` `none`/`word`/`line`, `rate` `0.25..=4.0`. |
 | `one_step` | boolean | `false` | |
@@ -85,12 +86,14 @@ defaults. A nested table merges onto that starting point, so
 | --- | --- | --- | --- | --- |
 | `dim` | on, `0.75`, except `active_region` | off | off | on, `0.6` |
 | `stop_motion` | on | off | on | on |
+| `reduce_transparency` | off | off | off | off |
 | `interruptions` | inbox | inbox | inbox | block |
-| `icon_grid` | 72 / 3 | — | 88 / 2, symbols | — |
+| `icon_grid` | 72 / 3, gap 12 | — | 88 / 2, symbols, gap 12 | — |
 | `short_paths` | on | off | on | off |
 | `reading_level` | keep | grade-8 | grade-6 | keep |
 | `tts.rate` | 1.1 | 0.9 | 1.0 | 1.0 |
-| `reflow` | — | Atkinson Hyperlegible 20 / 1.6 / start / 38 | — | — |
+| `tts.voice` | system | system | system | system |
+| `reflow` | — | Atkinson Hyperlegible 20 / 1.6 / start / 38, spacing 1.0 / 1.0 | — | — |
 | `ruler` | off | on | off | off |
 | `read_aloud` | — | word, 0.9 | — | — |
 | `one_step` | off | off | on | off |

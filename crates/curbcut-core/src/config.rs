@@ -118,6 +118,12 @@ impl ReadingLevel {
     }
 }
 
+/// The most region names a dim setting can except.
+///
+/// The graph exposes this as the read-only `dim.except_count` key, so the bound
+/// lives here, next to the data it constrains.
+pub const MAX_REGION_EXCEPTIONS: usize = 64;
+
 /// Dimming settings.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DimSettings {
@@ -154,6 +160,12 @@ impl DimSettings {
                 )));
             }
         }
+        if self.except.len() > MAX_REGION_EXCEPTIONS {
+            return Err(config_err(format!(
+                "{path}.except: expected at most {MAX_REGION_EXCEPTIONS} regions, found {}",
+                self.except.len()
+            )));
+        }
         Ok(())
     }
 }
@@ -167,6 +179,8 @@ pub struct IconGrid {
     pub columns: u32,
     /// Whether to show symbols under labels.
     pub symbols: bool,
+    /// Gap between tiles in points.
+    pub gap: u32,
 }
 
 impl Default for IconGrid {
@@ -175,6 +189,7 @@ impl Default for IconGrid {
             min_tile: 72,
             columns: 3,
             symbols: false,
+            gap: 12,
         }
     }
 }
@@ -188,6 +203,9 @@ impl IconGrid {
         if !(1..=12).contains(&self.columns) {
             return Err(config_err(format!("{path}.columns: expected 1..=12")));
         }
+        if !(0..=64).contains(&self.gap) {
+            return Err(config_err(format!("{path}.gap: expected 0..=64")));
+        }
         Ok(())
     }
 }
@@ -197,19 +215,29 @@ impl IconGrid {
 pub struct TtsSettings {
     /// Rate multiplier.
     pub rate: f32,
+    /// Voice identifier. `"system"` uses the platform default.
+    pub voice: String,
 }
 
 impl Default for TtsSettings {
     fn default() -> Self {
-        Self { rate: 1.0 }
+        Self {
+            rate: 1.0,
+            voice: "system".to_string(),
+        }
     }
 }
 
 impl TtsSettings {
-    /// Validates the rate.
+    /// Validates the rate and the voice identifier.
     pub fn validate(&self, path: &str) -> Result<()> {
         if !self.rate.is_finite() || !(0.25..=4.0).contains(&self.rate) {
             return Err(config_err(format!("{path}.rate: expected 0.25..=4.0")));
+        }
+        if self.voice.trim().is_empty() {
+            return Err(config_err(format!(
+                "{path}.voice: must not be empty; use `system` for the default"
+            )));
         }
         Ok(())
     }
@@ -228,6 +256,10 @@ pub struct ReflowSettings {
     pub align: TextAlign,
     /// Target line length in characters.
     pub line_length: u32,
+    /// Extra word spacing as a multiple of the font's default.
+    pub word_spacing: f32,
+    /// Extra letter spacing as a multiple of the font's default.
+    pub letter_spacing: f32,
 }
 
 impl Default for ReflowSettings {
@@ -238,6 +270,8 @@ impl Default for ReflowSettings {
             line_height: 1.6,
             align: TextAlign::Start,
             line_length: 38,
+            word_spacing: 1.0,
+            letter_spacing: 1.0,
         }
     }
 }
@@ -258,6 +292,16 @@ impl ReflowSettings {
         }
         if !(10..=200).contains(&self.line_length) {
             return Err(config_err(format!("{path}.line_length: expected 10..=200")));
+        }
+        if !self.word_spacing.is_finite() || !(1.0..=2.0).contains(&self.word_spacing) {
+            return Err(config_err(format!(
+                "{path}.word_spacing: expected 1.0..=2.0"
+            )));
+        }
+        if !self.letter_spacing.is_finite() || !(1.0..=2.0).contains(&self.letter_spacing) {
+            return Err(config_err(format!(
+                "{path}.letter_spacing: expected 1.0..=2.0"
+            )));
         }
         Ok(())
     }
@@ -362,6 +406,8 @@ pub struct ProfileSettings {
     pub dim: DimSettings,
     /// Whether to stop motion.
     pub stop_motion: bool,
+    /// Whether to replace transparent layers with solid ones.
+    pub reduce_transparency: bool,
     /// How interruptions are handled.
     pub interruptions: InterruptionMode,
     /// Icon-grid layout, if enabled.
@@ -402,17 +448,24 @@ impl ProfileSettings {
                     min_tile: 72,
                     columns: 3,
                     symbols: false,
+                    ..IconGrid::default()
                 }),
                 short_paths: true,
                 reading_level: ReadingLevel::Keep,
-                tts: TtsSettings { rate: 1.1 },
+                tts: TtsSettings {
+                    rate: 1.1,
+                    ..TtsSettings::default()
+                },
                 ..Self::default()
             },
             "read" => Self {
                 stop_motion: false,
                 interruptions: InterruptionMode::Inbox,
                 reading_level: ReadingLevel::Grade(8),
-                tts: TtsSettings { rate: 0.9 },
+                tts: TtsSettings {
+                    rate: 0.9,
+                    ..TtsSettings::default()
+                },
                 reflow: Some(ReflowSettings::default()),
                 ruler: true,
                 read_aloud: Some(ReadAloud {
@@ -428,6 +481,7 @@ impl ProfileSettings {
                     min_tile: 88,
                     columns: 2,
                     symbols: true,
+                    ..IconGrid::default()
                 }),
                 short_paths: true,
                 reading_level: ReadingLevel::Grade(6),
@@ -632,6 +686,9 @@ fn profile_settings_from_toml(
         match key.as_str() {
             "dim" => settings.dim = dim_from_toml(value, &settings.dim)?,
             "stop_motion" => settings.stop_motion = value.as_bool(&format!("{path}.{key}"))?,
+            "reduce_transparency" => {
+                settings.reduce_transparency = value.as_bool(&format!("{path}.{key}"))?
+            }
             "interruptions" => {
                 settings.interruptions =
                     InterruptionMode::parse(value.as_str(&format!("{path}.{key}"))?)?
@@ -699,6 +756,7 @@ fn icon_grid_from_toml(value: &TomlValue, base: &IconGrid) -> Result<IconGrid> {
             "min_tile" => settings.min_tile = as_u32(item.as_i64(&field)?, &field)?,
             "columns" => settings.columns = as_u32(item.as_i64(&field)?, &field)?,
             "symbols" => settings.symbols = item.as_bool(&field)?,
+            "gap" => settings.gap = as_u32(item.as_i64(&field)?, &field)?,
             other => return Err(config_err(format!("{path}: unknown key `{other}`"))),
         }
     }
@@ -713,6 +771,7 @@ fn tts_from_toml(value: &TomlValue, base: &TtsSettings) -> Result<TtsSettings> {
         let field = format!("{path}.{key}");
         match key.as_str() {
             "rate" => settings.rate = item.as_f64(&field)? as f32,
+            "voice" => settings.voice = item.as_str(&field)?.to_string(),
             other => return Err(config_err(format!("{path}: unknown key `{other}`"))),
         }
     }
@@ -731,6 +790,8 @@ fn reflow_from_toml(value: &TomlValue, base: &ReflowSettings) -> Result<ReflowSe
             "line_height" => settings.line_height = item.as_f64(&field)? as f32,
             "align" => settings.align = align_from_str(item.as_str(&field)?)?,
             "line_length" => settings.line_length = as_u32(item.as_i64(&field)?, &field)?,
+            "word_spacing" => settings.word_spacing = item.as_f64(&field)? as f32,
+            "letter_spacing" => settings.letter_spacing = item.as_f64(&field)? as f32,
             other => return Err(config_err(format!("{path}: unknown key `{other}`"))),
         }
     }
@@ -1101,5 +1162,111 @@ confirm_actions = true
         assert!(slot.replace(invalid).is_err());
         assert_eq!(slot.get().version, ConfigVersion::CURRENT);
         assert_eq!(slot.revision(), 0);
+    }
+
+    #[test]
+    fn the_new_settings_parse() {
+        let config = Config::from_toml(
+            r#"
+            [profile.calm]
+            reduce_transparency = true
+            icon_grid = { gap = 24 }
+            tts = { rate = 1.2, voice = "com.apple.voice.compact.en-US.Grandma" }
+            reflow = { word_spacing = 1.4, letter_spacing = 1.1 }
+            "#,
+        )
+        .expect("valid");
+        let calm = config.profiles.get(&ProfileId::calm()).expect("calm");
+        assert!(calm.reduce_transparency);
+        assert_eq!(calm.icon_grid.as_ref().expect("grid").gap, 24);
+        assert_eq!(
+            calm.tts.voice, "com.apple.voice.compact.en-US.Grandma",
+            "a voice identifier is user-authored config, not content"
+        );
+        assert!((calm.tts.rate - 1.2).abs() < 1e-6);
+        let reflow = calm.reflow.as_ref().expect("reflow");
+        assert!((reflow.word_spacing - 1.4).abs() < 1e-6);
+        assert!((reflow.letter_spacing - 1.1).abs() < 1e-6);
+    }
+
+    #[test]
+    fn the_new_settings_default_to_neutral_values() {
+        let settings = ProfileSettings::default();
+        assert!(!settings.reduce_transparency);
+        assert_eq!(settings.tts.voice, "system");
+        assert_eq!(settings.icon_grid, None);
+        let reflow = ReflowSettings::default();
+        assert!((reflow.word_spacing - 1.0).abs() < 1e-6);
+        assert!((reflow.letter_spacing - 1.0).abs() < 1e-6);
+        assert_eq!(IconGrid::default().gap, 12);
+    }
+
+    #[test]
+    fn an_out_of_range_gap_is_rejected() {
+        let error = Config::from_toml("[profile.calm]\nicon_grid = { gap = 65 }\n")
+            .expect_err("65 is out of range");
+        let message = error.to_string();
+        assert!(message.contains("gap"), "{message}");
+        assert!(message.contains("0..=64"), "{message}");
+    }
+
+    #[test]
+    fn an_out_of_range_word_spacing_is_rejected() {
+        let error = Config::from_toml("[profile.calm]\nreflow = { word_spacing = 2.5 }\n")
+            .expect_err("2.5 is out of range");
+        let message = error.to_string();
+        assert!(message.contains("word_spacing"), "{message}");
+        assert!(message.contains("1.0..=2.0"), "{message}");
+    }
+
+    #[test]
+    fn an_empty_voice_is_rejected() {
+        let error = Config::from_toml("[profile.calm]\ntts = { voice = \"\" }\n")
+            .expect_err("an empty voice is ambiguous");
+        let message = error.to_string();
+        assert!(message.contains("voice"), "{message}");
+    }
+
+    #[test]
+    fn the_new_settings_round_trip_through_a_partial_override() {
+        // A partial override must not reset the other new fields.
+        let config = Config::from_toml("[profile.calm]\ntts = { voice = \"custom-voice\" }\n")
+            .expect("valid");
+        let calm = config.profiles.get(&ProfileId::calm()).expect("calm");
+        assert_eq!(calm.tts.voice, "custom-voice");
+        assert!(
+            (calm.tts.rate - 1.0).abs() < 1e-6,
+            "the default rate survives"
+        );
+    }
+
+    #[test]
+    fn the_region_exception_bound_is_enforced() {
+        let at_limit = format!(
+            "[profile.calm]\ndim = {{ except = [{}] }}\n",
+            (0..MAX_REGION_EXCEPTIONS)
+                .map(|index| format!("\"region-{index}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        assert!(
+            Config::from_toml(&at_limit).is_ok(),
+            "{MAX_REGION_EXCEPTIONS} regions are allowed"
+        );
+
+        let over = format!(
+            "[profile.calm]\ndim = {{ except = [{}] }}\n",
+            (0..=MAX_REGION_EXCEPTIONS)
+                .map(|index| format!("\"region-{index}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let error = Config::from_toml(&over).expect_err("one past the limit is rejected");
+        let message = error.to_string();
+        assert!(message.contains("except"), "{message}");
+        assert!(
+            message.contains(&MAX_REGION_EXCEPTIONS.to_string()),
+            "{message}"
+        );
     }
 }

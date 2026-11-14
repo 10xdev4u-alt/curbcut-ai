@@ -425,7 +425,11 @@ TEST_SECRET_THREE
 
     #[test]
     fn an_unreadable_canary_file_is_an_error() {
-        let error = Redactor::from_canary_file("/").expect_err("a directory is not a canary list");
+        // The crate directory exists on every platform and is not a file, so
+        // reading it fails with something other than `NotFound`. A bare `/` is
+        // `NotFound` on Windows, which made this test platform-specific.
+        let error = Redactor::from_canary_file(env!("CARGO_MANIFEST_DIR"))
+            .expect_err("a directory is not a canary list");
         assert_ne!(error.kind(), std::io::ErrorKind::NotFound);
     }
 

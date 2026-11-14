@@ -109,6 +109,12 @@ mod tests {
 
 
 CRATE_STATUS = {
+    "curbcut-adapt": (
+        "The profile graph is implemented: a versioned settings graph with a\n"
+        "baseline, atomic multi-setting changes, live-preview sinks, and a\n"
+        "40-key setting registry. See\n"
+        "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md)."
+    ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
         "panic commands, with stable exit codes. See\n"
