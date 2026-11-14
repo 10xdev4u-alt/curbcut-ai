@@ -1,0 +1,17 @@
+# Content canaries.
+#
+# These strings must never appear in a log, dump, crash report, or any other
+# diagnostic. They are deliberately distinctive so a leak is obvious.
+#
+# Two consumers read this file:
+#   - `Redactor::canaries()` in crates/curbcut-core/src/redact.rs
+#   - scripts/check_no_content_logging.py (CI no-content-logging test)
+#
+# Add a canary by adding a line. Do not remove one without replacing it, or a
+# past leak becomes undetectable.
+CC-CANARY-EMAIL-alice@example.com
+CC-CANARY-TOKEN-9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+CC-CANARY-OCR-your-balance-is-12345-67
+CC-CANARY-A11Y-ok-got-it
+CC-CANARY-PIXEL-00FF00FF
+CC-CANARY-REGION-active-region
