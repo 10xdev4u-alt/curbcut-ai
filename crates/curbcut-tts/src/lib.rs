@@ -1,7 +1,7 @@
 //! TTS abstraction, audio focus, and voice command grammar.
 //!
 //! Skeleton crate. The public API is added incrementally; see
-//! [`../../backlog/EPICS.md`](../../backlog/EPICS.md).
+//! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

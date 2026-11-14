@@ -5,8 +5,8 @@ Opt-in, counts-only telemetry and redaction.
 ## Status
 
 Skeleton. The API is added incrementally; see
-[`../backlog/EPICS.md`](../backlog/EPICS.md) and
-[`../backlog/ISSUES.md`](../backlog/ISSUES.md).
+[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
+[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
 
 ## Build and test
 

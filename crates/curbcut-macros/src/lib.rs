@@ -1,7 +1,7 @@
 //! Typed event and provenance macros.
 //!
 //! Skeleton crate. The public API is added incrementally; see
-//! [`../../backlog/EPICS.md`](../../backlog/EPICS.md).
+//! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

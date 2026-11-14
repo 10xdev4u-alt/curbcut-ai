@@ -10,6 +10,7 @@ but never touches source files it did not generate.
 
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -54,7 +55,7 @@ CRATES = [
 ]
 
 
-def crate_toml(name: str, description: str, deps: list[str]) -> str:
+def crate_toml(name: str, description: str, deps: list[str], features: list[str] | None = None) -> str:
     lines = [
         "[package]",
         'name = "%s"' % name,
@@ -65,19 +66,26 @@ def crate_toml(name: str, description: str, deps: list[str]) -> str:
         'description = "%s"' % description,
         "publish = false",
         "",
+        "[lints]",
+        "workspace = true",
+        "",
         "[dependencies]",
     ]
     for dep in deps:
         lines.append('%s = { path = "../%s" }' % (dep, dep))
+    if features:
+        lines += ["", "[features]"]
+        for feature in features:
+            lines.append("%s = []" % feature)
     return "\n".join(lines) + "\n"
 
 
-def lib_rs(name: str, description: str) -> str:
+def lib_rs(name: str, description: str, extra: str = "") -> str:
     return """\
 //! %(desc)s
 //!
 //! Skeleton crate. The public API is added incrementally; see
-//! [`../../backlog/EPICS.md`](../../backlog/EPICS.md).
+//! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -87,6 +95,7 @@ pub const CRATE_NAME: &str = "%(name)s";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+%(extra)s
 
 #[cfg(test)]
 mod tests {
@@ -96,7 +105,7 @@ mod tests {
         assert!(!super::CRATE_VERSION.is_empty());
     }
 }
-""" % {"name": name, "desc": description}
+""" % {"name": name, "desc": description, "extra": extra}
 
 
 def readme(name: str, description: str) -> str:
@@ -108,8 +117,8 @@ def readme(name: str, description: str) -> str:
 ## Status
 
 Skeleton. The API is added incrementally; see
-[`../backlog/EPICS.md`](../backlog/EPICS.md) and
-[`../backlog/ISSUES.md`](../backlog/ISSUES.md).
+[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
+[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
 
 ## Build and test
 
@@ -126,14 +135,31 @@ Counts and hashes only.
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--force", action="store_true", help="overwrite existing src/lib.rs")
+    args = parser.parse_args()
+
     (ROOT / "Cargo.toml").write_text(WORKSPACE_TOML, encoding="utf-8")
     crates = ROOT / "crates"
     crates.mkdir(exist_ok=True)
+    features = {"curbcut-app": ["tauri"]}
     for name, desc, deps in CRATES:
         d = crates / name
         (d / "src").mkdir(parents=True, exist_ok=True)
-        (d / "Cargo.toml").write_text(crate_toml(name, desc, deps), encoding="utf-8")
-        (d / "src" / "lib.rs").write_text(lib_rs(name, desc), encoding="utf-8")
+        (d / "Cargo.toml").write_text(
+            crate_toml(name, desc, deps, features.get(name, [])), encoding="utf-8"
+        )
+        lib = d / "src" / "lib.rs"
+        extra = (
+            "\n/// Whether the Tauri feature is enabled in this build.\n"
+            "pub fn tauri_enabled() -> bool {\n    cfg!(feature = \"tauri\")\n}\n"
+            if name == "curbcut-app"
+            else ""
+        )
+        if lib.exists() and not args.force:
+            print("kept", lib)
+        else:
+            lib.write_text(lib_rs(name, desc, extra), encoding="utf-8")
         (d / "README.md").write_text(readme(name, desc), encoding="utf-8")
         print("scaffolded", name)
     return 0

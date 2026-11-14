@@ -1,7 +1,7 @@
 //! Global shortcuts, hover/click routing, and switch access.
 //!
 //! Skeleton crate. The public API is added incrementally; see
-//! [`../../backlog/EPICS.md`](../../backlog/EPICS.md).
+//! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

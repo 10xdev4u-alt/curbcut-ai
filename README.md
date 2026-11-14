@@ -99,11 +99,13 @@ backlog/
 scripts/
   render_backlog.py        Regenerates the backlog documents from source data
   new_issue.py             Scaffold a correctly-labelled issue
+  publish_issues.py        Publish the backlog to GitHub and record the CC-># map
+  scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
 .github/
   ISSUE_TEMPLATE/          Bug, feature, and engineering-task templates
   PULL_REQUEST_TEMPLATE.md PR checklist (privacy, security, a11y, rollback)
   CODEOWNERS               Per-path human ownership
-  workflows/ci.yml         5-target matrix, coverage, supply chain, backlog drift
+  workflows/ci.yml         4-target matrix, frontend, backlog drift, scaffold drift
 CONTRIBUTING.md            How to contribute, review culture, setup
 CODE_OF_CONDUCT.md         Contributor Covenant 2.1
 SECURITY.md                Disclosure policy and security model

@@ -37,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: macos-14, target: aarch64-apple-darwin }
+          - { os: macos-15, target: aarch64-apple-darwin }
           - { os: macos-13, target: x86_64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
           - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
@@ -60,7 +60,7 @@ jobs:
 
   ui:
     needs: changes
-    if: ${{ needs.changes.outputs.ui == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.changes.outputs.ui == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,3 +84,15 @@ jobs:
         run: |
           python3 scripts/render_backlog.py
           git diff --exit-code -- backlog/
+
+  scaffold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Regenerate the workspace and diff
+        run: |
+          python3 scripts/scaffold_workspace.py
+          git diff --exit-code

@@ -5,8 +5,8 @@ Global shortcuts, hover/click routing, and switch access.
 ## Status
 
 Skeleton. The API is added incrementally; see
-[`../backlog/EPICS.md`](../backlog/EPICS.md) and
-[`../backlog/ISSUES.md`](../backlog/ISSUES.md).
+[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
+[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
 
 ## Build and test
 

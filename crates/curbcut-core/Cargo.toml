@@ -7,4 +7,7 @@ repository.workspace = true
 description = "Event bus, config, errors, capability tokens, orchestration."
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
