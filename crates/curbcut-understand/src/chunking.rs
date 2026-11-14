@@ -143,4 +143,66 @@ mod tests {
     fn an_empty_input_produces_no_chunks() {
         assert!(chunk_elements(&[], 6).is_empty());
     }
+
+    #[test]
+    fn a_limit_of_one_puts_every_element_in_its_own_chunk() {
+        let elements: Vec<Element> = (1..=3).map(|id| element(id, Role::StaticText)).collect();
+        let chunks = chunk_elements(&elements, 1);
+        let ids: Vec<Vec<u64>> = chunks.iter().map(ids).collect();
+        assert_eq!(ids, vec![vec![1], vec![2], vec![3]]);
+        assert!(chunks.iter().all(|chunk| !chunk.starts_section));
+    }
+
+    #[test]
+    fn consecutive_headings_each_start_a_chunk() {
+        let elements = vec![
+            element(1, Role::Heading),
+            element(2, Role::Heading),
+            element(3, Role::StaticText),
+        ];
+        let chunks = chunk_elements(&elements, 6);
+        let ids: Vec<Vec<u64>> = chunks.iter().map(ids).collect();
+        assert_eq!(ids, vec![vec![1], vec![2, 3]]);
+    }
+
+    #[test]
+    fn a_trailing_heading_is_kept_as_its_own_chunk() {
+        let elements = vec![element(1, Role::StaticText), element(2, Role::Heading)];
+        let chunks = chunk_elements(&elements, 6);
+        let ids: Vec<Vec<u64>> = chunks.iter().map(ids).collect();
+        assert_eq!(ids, vec![vec![1], vec![2]]);
+        assert!(!chunks[0].starts_section);
+        assert!(chunks[1].starts_section);
+    }
+
+    #[test]
+    fn a_section_longer_than_the_limit_is_split() {
+        // The section is [Heading, 1..10]; the limit of 6 splits it, and the
+        // continuation chunk is not a section start.
+        let mut elements = vec![element(1, Role::Heading)];
+        elements.extend((2..=10).map(|id| element(id, Role::StaticText)));
+        let chunks = chunk_elements(&elements, 6);
+        assert_eq!(chunks.len(), 2);
+        assert_eq!(ids(&chunks[0]), vec![1, 2, 3, 4, 5, 6]);
+        assert!(chunks[0].starts_section);
+        assert_eq!(ids(&chunks[1]), vec![7, 8, 9, 10]);
+        assert!(!chunks[1].starts_section);
+    }
+
+    #[test]
+    fn a_heading_after_a_full_chunk_starts_a_new_chunk() {
+        let elements: Vec<Element> = (1..=7)
+            .map(|id| {
+                let role = if id == 7 {
+                    Role::Heading
+                } else {
+                    Role::StaticText
+                };
+                element(id, role)
+            })
+            .collect();
+        let chunks = chunk_elements(&elements, 3);
+        let ids: Vec<Vec<u64>> = chunks.iter().map(ids).collect();
+        assert_eq!(ids, vec![vec![1, 2, 3], vec![4, 5, 6], vec![7]]);
+    }
 }

@@ -143,6 +143,10 @@ fn the_distraction_rule_uses_the_threshold() {
     let (score, _) = engine.distraction(&banner);
     assert_eq!(score.score, 40);
     assert_eq!(score.band, DistractionBand::Low);
+    assert!(!score.suppress, "threshold 90 is above the score 40");
+
+    engine.set_distraction_threshold(40);
+    assert!(engine.distraction(&banner).0.suppress);
 
     assert!(curbcut_understand::distraction::should_suppress(
         &banner, 40

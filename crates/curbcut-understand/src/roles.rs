@@ -20,8 +20,6 @@ use curbcut_core::types::Role;
 pub struct Cues {
     /// The element has children.
     pub has_children: bool,
-    /// The element is the first row of a list-like container.
-    pub in_list: bool,
     /// The platform reports a heading level, if any.
     pub heading_level: Option<u8>,
     /// The platform reports whether the element is editable, if it reported it.
@@ -43,8 +41,8 @@ impl Cues {
             .editable
             .map_or_else(|| "unknown".to_string(), |value| value.to_string());
         format!(
-            "children={},in_list={},heading={},editable={}",
-            self.has_children, self.in_list, heading, editable
+            "children={},heading={},editable={}",
+            self.has_children, heading, editable
         )
     }
 }
@@ -127,7 +125,6 @@ mod tests {
             heading_level: Some(1),
             has_children: true,
             editable: Some(true),
-            ..Cues::none()
         };
         let unknown = Role::Unknown("AXCustom".to_string());
         assert_eq!(refine_role(unknown.clone(), &cues), unknown);
@@ -173,7 +170,6 @@ mod tests {
             has_children: true,
             heading_level: Some(3),
             editable: Some(false),
-            ..Cues::none()
         };
         let summary = cues.summary();
         assert!(summary.contains("children=true"), "{summary}");

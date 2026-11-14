@@ -57,9 +57,10 @@ provenance panel.
 
 ## Chunking
 
-A heading always starts a new chunk, so a section is never split across a chunk
-boundary. Otherwise elements are grouped up to `max_per_chunk`. A limit of zero
-returns no chunks.
+A chunk never spans a heading: a heading always starts a new chunk. Otherwise
+elements are grouped up to `max_per_chunk`. A section longer than
+`max_per_chunk` is split at the limit, so the second chunk has
+`starts_section = false`. A limit of zero returns no chunks.
 
 ## Reading level
 
@@ -74,6 +75,11 @@ is `Easy`, 50 to 69 is `Plain`, below 50 is `Complex`. `compare` reports
 The score is the interruption kind's base plus 20 when it cannot be dismissed,
 capped at 100. Bands: 0-24 `None`, 25-49 `Low`, 50-79 `Medium`, 80-100 `High`.
 `should_suppress` compares the score with the profile threshold.
+
+`RuleEngine::distraction` returns `DistractionScore::suppress`, computed with the
+engine's threshold and included in the rationale. `distraction::score` takes no
+threshold and always reports `suppress: false`; use
+`distraction::score_with` when you have a threshold.
 
 ## Testing
 

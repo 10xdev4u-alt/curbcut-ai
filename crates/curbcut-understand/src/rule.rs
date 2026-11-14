@@ -122,8 +122,10 @@ impl RuleSet {
 
     /// The rationale for an enabled rule, or `None` when it is disabled.
     ///
-    /// `detail` is rule prose about counts and thresholds, never content.
-    pub fn rationale(&self, rule: Rule, detail: &str) -> Option<Rationale> {
+    /// `detail` is rule prose about counts and thresholds, never content. The
+    /// method is crate-private so an outside caller cannot build a `Rationale`
+    /// from screen content; the engine is the only producer.
+    pub(crate) fn rationale(&self, rule: Rule, detail: &str) -> Option<Rationale> {
         if !self.is_enabled(rule) {
             return None;
         }

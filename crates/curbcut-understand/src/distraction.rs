@@ -27,6 +27,11 @@ pub struct DistractionScore {
     pub score: u8,
     /// The band the score falls into.
     pub band: DistractionBand,
+    /// Whether the profile threshold suppresses this interruption.
+    ///
+    /// [`score`](distraction::score) does not take a threshold and always
+    /// reports `false`; [`score_with`](distraction::score_with) decides.
+    pub suppress: bool,
 }
 
 /// Scores an interruption. Pure.
@@ -52,12 +57,21 @@ pub fn band(score: u8) -> DistractionBand {
     }
 }
 
-/// Scores an interruption and its band together.
+/// Scores an interruption without deciding suppression.
+///
+/// `suppress` is always `false`; use [`score_with`](distraction::score_with)
+/// when a profile threshold applies.
 pub fn score(interruption: &Interruption) -> DistractionScore {
+    score_with(interruption, u8::MAX)
+}
+
+/// Scores an interruption and decides whether `threshold` suppresses it.
+pub fn score_with(interruption: &Interruption, threshold: u8) -> DistractionScore {
     let score = distraction_score(interruption);
     DistractionScore {
         score,
         band: band(score),
+        suppress: score >= threshold,
     }
 }
 
@@ -132,5 +146,20 @@ mod tests {
         let banner = interruption(InterruptionKind::Banner, true);
         assert!(should_suppress(&banner, 40));
         assert!(!should_suppress(&banner, 41));
+    }
+
+    #[test]
+    fn score_without_a_threshold_never_suppresses() {
+        let paywall = interruption(InterruptionKind::Paywall, false);
+        assert_eq!(score(&paywall).score, 100);
+        assert!(!score(&paywall).suppress, "no threshold was supplied");
+    }
+
+    #[test]
+    fn score_with_applies_the_threshold() {
+        let banner = interruption(InterruptionKind::Banner, true);
+        assert!(score_with(&banner, 40).suppress);
+        assert!(!score_with(&banner, 41).suppress);
+        assert_eq!(score_with(&banner, 40).band, DistractionBand::Low);
     }
 }

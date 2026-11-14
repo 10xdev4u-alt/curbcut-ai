@@ -58,6 +58,10 @@ fn sentences(text: &str) -> usize {
 }
 
 /// Flesch reading ease. Higher is easier; 0 means no measurable text.
+///
+/// A text with no words, or only punctuation, scores 0. [`reading_level`] then
+/// reports [`ReadingLevel::Complex`], the hardest band: an unmeasurable text
+/// cannot be shown to meet an easy target.
 pub fn flesch_reading_ease(text: &str) -> f32 {
     let words = words(text);
     if words.is_empty() {
@@ -141,5 +145,26 @@ mod tests {
     fn the_score_is_pure() {
         let text = "The cat sat on the mat.";
         assert_eq!(flesch_reading_ease(text), flesch_reading_ease(text));
+    }
+
+    #[test]
+    fn punctuation_only_text_is_unmeasurable() {
+        assert_eq!(flesch_reading_ease("... !!! ???"), 0.0);
+        assert_eq!(reading_level("... !!! ???"), ReadingLevel::Complex);
+    }
+
+    #[test]
+    fn unicode_text_is_measured_by_chars() {
+        let text = "élan vital partout.";
+        let score = flesch_reading_ease(text);
+        assert!(score.is_finite(), "score was {score}");
+        assert!(score > 0.0, "score was {score}");
+    }
+
+    #[test]
+    fn a_consonant_only_word_has_one_syllable() {
+        // `y` is treated as a vowel, so both words form a single group.
+        assert_eq!(count_syllables("hmm"), 1);
+        assert_eq!(count_syllables("rhythm"), 1);
     }
 }

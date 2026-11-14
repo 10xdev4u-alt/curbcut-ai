@@ -118,12 +118,12 @@ impl RuleEngine {
         &self,
         interruption: &Interruption,
     ) -> (DistractionScore, Option<Rationale>) {
-        let scored = distraction::score(interruption);
+        let scored = distraction::score_with(interruption, self.distraction_threshold);
         let rationale = self.rules.rationale(
             Rule::Distraction,
             &format!(
-                "score={}, band={:?}, threshold={}",
-                scored.score, scored.band, self.distraction_threshold
+                "score={}, band={:?}, threshold={}, suppress={}",
+                scored.score, scored.band, self.distraction_threshold, scored.suppress
             ),
         );
         (scored, rationale)
@@ -214,8 +214,59 @@ mod tests {
         let (verdict, _) = engine.reading("The cat sat on the mat.");
         assert_eq!(verdict.target, ReadingLevel::Easy);
 
-        let (scored, _) = engine.distraction(&interruption(InterruptionKind::Paywall));
+        let (scored, rationale) = engine.distraction(&interruption(InterruptionKind::Paywall));
         assert_eq!(scored.band, DistractionBand::High);
+        assert!(scored.suppress, "score 90 meets threshold 90");
+        let rationale = rationale.expect("enabled");
+        assert!(
+            rationale.text.contains("suppress=true"),
+            "{}",
+            rationale.text
+        );
+    }
+
+    #[test]
+    fn the_threshold_changes_the_suppression_decision() {
+        let mut engine = RuleEngine::default();
+        engine.set_distraction_threshold(40);
+        let banner = Interruption {
+            kind: InterruptionKind::Banner,
+            rect: Rect::new(0, 0, 10, 10),
+            dismissible: true,
+        };
+        assert!(engine.distraction(&banner).0.suppress);
+
+        engine.set_distraction_threshold(41);
+        assert!(!engine.distraction(&banner).0.suppress);
+    }
+
+    #[test]
+    fn disabling_any_rule_removes_only_its_rationale() {
+        for disabled in Rule::ALL {
+            let mut rules = RuleSet::new();
+            rules.disable(disabled);
+            let engine = RuleEngine::new(rules);
+
+            let cues = Cues {
+                heading_level: Some(1),
+                ..Cues::none()
+            };
+            let elements = vec![element(1, Role::StaticText)];
+            let interruption = interruption(InterruptionKind::Banner);
+            let rationales = [
+                engine.refine(Role::StaticText, &cues).1,
+                engine.chunk(&elements).1,
+                engine.reading("The cat sat on the mat.").1,
+                engine.distraction(&interruption).1,
+            ];
+            for (rule, rationale) in Rule::ALL.into_iter().zip(rationales) {
+                if rule == disabled {
+                    assert!(rationale.is_none(), "{disabled} is disabled");
+                } else {
+                    assert!(rationale.is_some(), "{rule} is still enabled");
+                }
+            }
+        }
     }
 
     #[test]
