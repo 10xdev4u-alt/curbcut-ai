@@ -1,6 +1,11 @@
 //! Classification, chunking, simplification, and reading level.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! The deterministic rule layer: [`rule`] holds the versioned, user-disableable
+//! rule set; [`roles`], [`chunking`], [`reading`], and [`distraction`] are pure
+//! functions; [`engine`] applies them and attaches a rationale to every result.
+//! No model calls.
+//!
+//! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -11,6 +16,13 @@ pub const CRATE_NAME: &str = "curbcut-understand";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub mod chunking;
+pub mod distraction;
+pub mod engine;
+pub mod reading;
+pub mod roles;
+pub mod rule;
 
 #[cfg(test)]
 mod tests {
