@@ -91,6 +91,7 @@ docs/
   CLI.md                   Headless CLI: commands, exit codes, redacted dump
   VISION.md                Vision pipeline: scheduler, stages, privacy
   PROFILE_GRAPH.md         Profile graph: 40-setting registry, preview, validation
+  LAYOUT.md                Layout solver: tile packing and reflow, invariants, fuzz
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/

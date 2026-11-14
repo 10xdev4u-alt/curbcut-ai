@@ -21,6 +21,9 @@ pub mod profile;
 /// The profile setting registry.
 pub mod settings;
 
+/// Tile and reflow layout.
+pub mod layout;
+
 #[cfg(test)]
 mod tests {
     #[test]

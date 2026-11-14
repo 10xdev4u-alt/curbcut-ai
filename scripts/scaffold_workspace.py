@@ -110,10 +110,12 @@ mod tests {
 
 CRATE_STATUS = {
     "curbcut-adapt": (
-        "The profile graph is implemented: a versioned settings graph with a\n"
-        "baseline, atomic multi-setting changes, live-preview sinks, and a\n"
-        "40-key setting registry. See\n"
-        "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md)."
+        "The profile graph and layout solver are implemented: a versioned\n"
+        "settings graph with a baseline, atomic multi-setting changes,\n"
+        "live-preview sinks, and a 40-key setting registry; and a priority-based\n"
+        "tile packer plus a no-clip reflow. See\n"
+        "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md) and\n"
+        "[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md)."
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
