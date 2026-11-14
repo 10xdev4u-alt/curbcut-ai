@@ -24,6 +24,9 @@ pub mod settings;
 /// Tile and reflow layout.
 pub mod layout;
 
+/// Dimming with except-regions.
+pub mod dim;
+
 #[cfg(test)]
 mod tests {
     #[test]

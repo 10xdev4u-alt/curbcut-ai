@@ -92,6 +92,7 @@ docs/
   VISION.md                Vision pipeline: scheduler, stages, privacy
   PROFILE_GRAPH.md         Profile graph: 40-setting registry, preview, validation
   LAYOUT.md                Layout solver: tile packing and reflow, invariants, fuzz
+  DIMMING.md               Dimming: except-regions, scrim plan, reduced motion
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/

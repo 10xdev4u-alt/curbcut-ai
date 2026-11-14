@@ -113,9 +113,11 @@ CRATE_STATUS = {
         "The profile graph and layout solver are implemented: a versioned\n"
         "settings graph with a baseline, atomic multi-setting changes,\n"
         "live-preview sinks, and a 40-key setting registry; and a priority-based\n"
-        "tile packer plus a no-clip reflow. See\n"
-        "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md) and\n"
-        "[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md)."
+        "tile packer plus a no-clip reflow; and a dimming planner that covers\n"
+        "the screen except the focused control and except-regions. See\n"
+        "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),\n"
+        "[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md), and\n"
+        "[`../../docs/DIMMING.md`](../../docs/DIMMING.md)."
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
