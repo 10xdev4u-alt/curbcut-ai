@@ -1,6 +1,7 @@
 //! Tests for the setting registry.
 
 use super::*;
+use crate::profile::ProfileGraph;
 use curbcut_core::id::ProfileId;
 
 #[test]
@@ -198,7 +199,12 @@ fn enabling_a_grid_creates_defaults_and_disabling_clears_it() {
         .apply(SettingKey::IconGridEnabled, SettingValue::Bool(false))
         .expect("valid");
     assert!(graph.settings().icon_grid.is_none());
-    assert_eq!(graph.get(SettingKey::IconGridMinTile), SettingValue::Int(0));
+    // A disabled section still reads as its defaults, so every getter stays
+    // inside the key's declared range and a round-trip write is a no-op.
+    assert_eq!(
+        graph.get(SettingKey::IconGridMinTile),
+        SettingValue::Int(72)
+    );
 
     graph
         .apply(SettingKey::IconGridEnabled, SettingValue::Bool(true))
@@ -207,6 +213,174 @@ fn enabling_a_grid_creates_defaults_and_disabling_clears_it() {
         graph.get(SettingKey::IconGridMinTile),
         SettingValue::Int(72)
     );
+}
+
+#[test]
+fn a_nested_write_into_a_disabled_section_is_an_error() {
+    // A custom profile has no icon grid, no reflow, and no read-aloud.
+    let mut graph = ProfileGraph::new(ProfileId::custom("reading-plus"));
+
+    for (key, value) in [
+        (SettingKey::IconGridSymbols, SettingValue::Bool(false)),
+        (SettingKey::IconGridMinTile, SettingValue::Int(88)),
+        (SettingKey::ReflowSizePt, SettingValue::Float(24.0)),
+        (
+            SettingKey::ReflowAlign,
+            SettingValue::Text("center".to_string()),
+        ),
+        (
+            SettingKey::ReadAloudHighlight,
+            SettingValue::Text("line".to_string()),
+        ),
+    ] {
+        let error = graph.apply(key, value).expect_err("the section is off");
+        let message = error.to_string();
+        assert!(message.contains("requires"), "{message}");
+        assert!(
+            message.contains(&format!("`{}`", key.section_enabler().unwrap().as_str())),
+            "{message}"
+        );
+    }
+
+    assert!(graph.settings().icon_grid.is_none());
+    assert!(graph.settings().reflow.is_none());
+    assert!(graph.settings().read_aloud.is_none());
+    assert!(
+        !graph.is_modified(),
+        "a rejected write must not modify the graph"
+    );
+
+    // Enabling the section first makes the same write succeed.
+    graph
+        .apply(SettingKey::IconGridEnabled, SettingValue::Bool(true))
+        .expect("valid");
+    graph
+        .apply(SettingKey::IconGridSymbols, SettingValue::Bool(false))
+        .expect("valid");
+    assert!(!graph.settings().icon_grid.as_ref().expect("on").symbols);
+}
+
+#[test]
+fn the_region_exception_bound_is_enforced_through_the_graph() {
+    let at_limit: Vec<String> = (0..MAX_REGION_EXCEPTIONS)
+        .map(|index| format!("region-{index}"))
+        .collect();
+    let mut graph = ProfileGraph::new(ProfileId::focus());
+    graph
+        .apply(SettingKey::DimExcept, SettingValue::TextList(at_limit))
+        .expect("the limit is allowed");
+
+    let over: Vec<String> = (0..=MAX_REGION_EXCEPTIONS)
+        .map(|index| format!("region-{index}"))
+        .collect();
+    let error = graph
+        .apply(SettingKey::DimExcept, SettingValue::TextList(over))
+        .expect_err("one past the limit is rejected");
+    assert!(error.to_string().contains("except"), "{error}");
+    assert_eq!(
+        graph.get(SettingKey::DimExceptCount),
+        SettingValue::Int(MAX_REGION_EXCEPTIONS as i64)
+    );
+}
+
+#[test]
+fn the_left_alignment_alias_is_accepted_and_normalized() {
+    let mut graph = ProfileGraph::new(ProfileId::calm());
+    graph
+        .apply(SettingKey::ReflowEnabled, SettingValue::Bool(true))
+        .expect("valid");
+    graph
+        .apply(
+            SettingKey::ReflowAlign,
+            SettingValue::Text("left".to_string()),
+        )
+        .expect("`left` is the documented alias for `start`");
+    assert_eq!(
+        graph.get(SettingKey::ReflowAlign),
+        SettingValue::Text("start".to_string())
+    );
+
+    let error = graph
+        .apply(
+            SettingKey::ReflowAlign,
+            SettingValue::Text("middle".to_string()),
+        )
+        .expect_err("an unknown alignment is rejected");
+    let message = error.to_string();
+    assert!(message.contains("start"), "{message}");
+    assert!(message.contains("left"), "{message}");
+}
+
+#[test]
+fn disabled_sections_read_as_defaults_inside_their_declared_ranges() {
+    let graph = ProfileGraph::new(ProfileId::custom("reading-plus"));
+    let cases = [
+        (SettingKey::IconGridMinTile, SettingValue::Int(72)),
+        (SettingKey::IconGridColumns, SettingValue::Int(3)),
+        (SettingKey::IconGridSymbols, SettingValue::Bool(false)),
+        (SettingKey::IconGridGap, SettingValue::Int(12)),
+        (
+            SettingKey::ReflowFont,
+            SettingValue::Text("Atkinson Hyperlegible".to_string()),
+        ),
+        (SettingKey::ReflowSizePt, SettingValue::Float(20.0)),
+        // `f32` in the core schema: 1.5 is exact, 1.6 is not, so the read-back
+        // is the `f32` nearest the default.
+        (
+            SettingKey::ReflowLineHeight,
+            SettingValue::Float(1.6f32 as f64),
+        ),
+        (
+            SettingKey::ReflowAlign,
+            SettingValue::Text("start".to_string()),
+        ),
+        (SettingKey::ReflowLineLength, SettingValue::Int(38)),
+        (SettingKey::ReflowWordSpacing, SettingValue::Float(1.0)),
+        (SettingKey::ReflowLetterSpacing, SettingValue::Float(1.0)),
+        (
+            SettingKey::ReadAloudHighlight,
+            SettingValue::Text("word".to_string()),
+        ),
+        (SettingKey::ReadAloudRate, SettingValue::Float(1.0)),
+    ];
+    for (key, value) in cases {
+        assert_eq!(graph.get(key), value, "{}", key.as_str());
+        // A read-back write must validate, so a read-all/write-all loop cannot
+        // fail on a key whose section is off.
+        assert!(key.validate_value(&value).is_ok(), "{}", key.as_str());
+    }
+}
+
+#[test]
+fn every_writable_key_round_trips_when_its_section_is_enabled() {
+    // A read-all/write-all loop is only well-defined if disabled sections read
+    // as defaults, so this mirrors what a settings-sync client does.
+    let mut graph = ProfileGraph::new(ProfileId::calm());
+    graph
+        .apply(SettingKey::IconGridEnabled, SettingValue::Bool(true))
+        .expect("valid");
+    graph
+        .apply(SettingKey::ReflowEnabled, SettingValue::Bool(true))
+        .expect("valid");
+    graph
+        .apply(SettingKey::ReadAloudEnabled, SettingValue::Bool(true))
+        .expect("valid");
+
+    for key in SettingKey::ALL {
+        if key.is_read_only() {
+            continue;
+        }
+        let current = graph.get(*key);
+        assert!(
+            key.validate_value(&current).is_ok(),
+            "{} reads back {} outside its declared range",
+            key.as_str(),
+            current.type_name()
+        );
+        graph
+            .apply(*key, current)
+            .expect("a read-back write is a no-op");
+    }
 }
 
 #[test]
@@ -245,15 +419,21 @@ fn the_documentation_lists_every_setting() {
     let section = &doc[start..end];
 
     let mut documented = std::collections::BTreeSet::new();
+    let mut rows: Vec<(&str, Vec<&str>)> = Vec::new();
     for line in section.lines() {
         let Some(rest) = line.strip_prefix("| `") else {
             continue;
         };
-        if let Some(name) = rest.split('`').next() {
-            if name.contains('.') {
-                documented.insert(name.to_string());
-            }
+        let Some(name) = rest.split('`').next() else {
+            continue;
+        };
+        if !name.contains('.') {
+            continue;
         }
+        documented.insert(name.to_string());
+        // `| key | category | type | notes |` -> cells[0] is the key cell.
+        let cells: Vec<&str> = rest.split('|').map(str::trim).collect();
+        rows.push((name, cells));
     }
 
     let registered: std::collections::BTreeSet<String> = SettingKey::ALL
@@ -272,4 +452,45 @@ fn the_documentation_lists_every_setting() {
         "documented but not registered: {unknown:?}"
     );
     assert_eq!(documented.len(), 40);
+
+    // Each row must name the real category and the real type, and mark the
+    // read-only keys. A table that only listed key names could drift from the
+    // registry in every other column.
+    for (name, cells) in rows {
+        let key = SettingKey::ALL
+            .iter()
+            .find(|key| key.as_str() == name)
+            .unwrap_or_else(|| panic!("{name} is not registered"));
+        assert!(
+            cells.len() >= 4,
+            "{name}: expected category, type, and notes columns, found {cells:?}"
+        );
+        assert_eq!(cells[1], key.category().as_str(), "{name}");
+        assert!(
+            cells[2].contains(kind_token(key.value_kind())),
+            "{name}: type column {:?} does not mention `{}`",
+            cells[2],
+            kind_token(key.value_kind())
+        );
+        let notes = cells.get(3).copied().unwrap_or("");
+        assert_eq!(
+            notes.contains("Read-only"),
+            key.is_read_only(),
+            "{name}: the read-only marking is wrong ({notes:?})"
+        );
+    }
+}
+
+/// The token the registry table must use for a value kind.
+fn kind_token(kind: ValueKind) -> &'static str {
+    match kind {
+        ValueKind::Bool => "boolean",
+        ValueKind::Int { .. } => "integer",
+        ValueKind::Float { .. } => "number",
+        ValueKind::Enum(_) => "enum",
+        ValueKind::Text => "text",
+        ValueKind::TextList => "list",
+        ValueKind::KeyList => "list of key",
+        ValueKind::ReadingLevel => "keep",
+    }
 }

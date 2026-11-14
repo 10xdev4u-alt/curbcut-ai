@@ -156,32 +156,202 @@ fn apply_many_is_atomic() {
 }
 
 #[test]
-fn reset_restores_the_baseline() {
+fn apply_many_does_not_depend_on_the_order_of_section_toggles() {
+    // A nested key listed before the toggle that enables its section must work
+    // as well as the reverse order.
+    let changes = [
+        (SettingKey::ReflowSizePt, SettingValue::Float(24.0)),
+        (SettingKey::ReflowEnabled, SettingValue::Bool(true)),
+    ];
+
+    let mut graph = ProfileGraph::new(ProfileId::calm());
+    graph.apply_many(&changes).expect("valid");
+
+    assert!(graph.settings().reflow.is_some());
+    assert_eq!(
+        graph.get(SettingKey::ReflowEnabled),
+        SettingValue::Bool(true)
+    );
+    assert_eq!(
+        graph.get(SettingKey::ReflowSizePt),
+        SettingValue::Float(24.0)
+    );
+
+    let mut reversed = ProfileGraph::new(ProfileId::calm());
+    reversed
+        .apply_many(&[
+            (SettingKey::ReflowEnabled, SettingValue::Bool(true)),
+            (SettingKey::ReflowSizePt, SettingValue::Float(24.0)),
+        ])
+        .expect("valid");
+    assert_eq!(graph.data.settings, reversed.data.settings);
+    assert_eq!(graph.id(), reversed.id());
+}
+
+#[test]
+fn apply_many_deduplicates_keys_and_reports_the_final_value() {
     let mut graph = ProfileGraph::new(ProfileId::focus());
     let sink = Recording::default();
     graph.subscribe(Box::new(sink.clone()));
+
+    // The last write wins, so the final value equals the baseline: no change,
+    // and therefore no event. Computing `before` from the pre-batch graph and
+    // the requested value would have emitted a false `true -> false`.
+    let events = graph
+        .apply_many(&[
+            (SettingKey::MotionStop, SettingValue::Bool(false)),
+            (SettingKey::MotionStop, SettingValue::Bool(true)),
+        ])
+        .expect("valid");
+    assert!(events.is_empty(), "{events:?}");
+    assert!(sink.events().is_empty());
+    assert!(graph.settings().stop_motion);
+
+    let events = graph
+        .apply_many(&[
+            (SettingKey::MotionStop, SettingValue::Bool(true)),
+            (SettingKey::MotionStop, SettingValue::Bool(false)),
+        ])
+        .expect("valid");
+    assert_eq!(events.len(), 1, "{events:?}");
+    assert_eq!(events[0].key, SettingKey::MotionStop);
+    assert_eq!(events[0].before, SettingValue::Bool(true));
+    assert_eq!(events[0].after, SettingValue::Bool(false));
+    assert!(!graph.settings().stop_motion);
+}
+
+#[test]
+fn a_no_op_apply_emits_no_event() {
+    let mut graph = ProfileGraph::new(ProfileId::focus());
+    let sink = Recording::default();
+    graph.subscribe(Box::new(sink.clone()));
+
+    graph
+        .apply(SettingKey::MotionStop, SettingValue::Bool(true))
+        .expect("valid");
+    assert!(
+        sink.events().is_empty(),
+        "writing the value already stored is not a change"
+    );
+    assert!(!graph.is_modified());
+
     graph
         .apply(SettingKey::MotionStop, SettingValue::Bool(false))
         .expect("valid");
+    assert_eq!(sink.events().len(), 1);
+}
+
+#[test]
+fn an_apply_event_reports_the_stored_value() {
+    let mut graph = ProfileGraph::new(ProfileId::focus());
+    let sink = Recording::default();
+    graph.subscribe(Box::new(sink.clone()));
+
     graph
-        .apply(SettingKey::ReadingRuler, SettingValue::Bool(true))
+        .apply(SettingKey::DimOpacity, SettingValue::Float(0.4))
         .expect("valid");
+
+    let events = sink.events();
+    assert_eq!(events.len(), 1);
+    // The core stores `f32`; `after` is what `get` returns, not the `f64` the
+    // caller asked for.
+    assert_eq!(events[0].after, graph.get(SettingKey::DimOpacity));
+    assert_eq!(events[0].after, SettingValue::Float(0.4f32 as f64));
+}
+
+#[test]
+fn apply_many_is_atomic_for_read_only_and_semantic_failures() {
+    // Read-only key in the middle of an otherwise valid batch.
+    let mut graph = ProfileGraph::new(ProfileId::focus());
+    let sink = Recording::default();
+    graph.subscribe(Box::new(sink.clone()));
+
+    let error = graph
+        .apply_many(&[
+            (SettingKey::MotionStop, SettingValue::Bool(false)),
+            (SettingKey::ReadingGrade, SettingValue::Int(4)),
+        ])
+        .expect_err("read-only");
+    assert!(error.to_string().contains("read-only"), "{error}");
+    assert!(graph.settings().stop_motion, "the batch must not commit");
+    assert!(sink.events().is_empty());
+
+    // Semantic failure: an unknown panic key makes the graph invalid even
+    // though the value's own type is fine.
+    let error = graph
+        .apply_many(&[
+            (SettingKey::MotionStop, SettingValue::Bool(false)),
+            (
+                SettingKey::ConfigPanicKey,
+                SettingValue::KeyList(vec!["not-a-key".to_string()]),
+            ),
+        ])
+        .expect_err("unknown panic key");
+    assert!(error.to_string().contains("panic_key"), "{error}");
+    assert!(graph.settings().stop_motion, "the batch must not commit");
+    assert!(sink.events().is_empty());
+}
+
+#[test]
+fn reset_preserves_activation() {
+    let mut graph = ProfileGraph::new(ProfileId::focus());
+    graph.set_active(false);
+    graph
+        .apply(SettingKey::MotionStop, SettingValue::Bool(false))
+        .expect("valid");
+
+    graph.reset();
+
+    assert!(!graph.is_active(), "activation is document state");
+    assert!(graph.settings().stop_motion);
+}
+
+#[test]
+fn reset_restores_the_whole_baseline() {
+    let mut graph = ProfileGraph::new(ProfileId::calm());
+    let sink = Recording::default();
+    graph.subscribe(Box::new(sink.clone()));
+
+    graph
+        .apply_many(&[
+            (
+                SettingKey::ProfileName,
+                SettingValue::Text("Temporary".to_string()),
+            ),
+            (
+                SettingKey::ProfileDescription,
+                SettingValue::Text(String::new()),
+            ),
+            (SettingKey::ConfigHotReload, SettingValue::Bool(false)),
+            (SettingKey::ReadingRuler, SettingValue::Bool(true)),
+        ])
+        .expect("valid");
+    assert_eq!(graph.name(), "Temporary");
     assert!(graph.is_modified());
 
+    let before = sink.events().len();
     let events = graph.reset();
-    assert!(!graph.is_modified());
-    assert!(graph.settings().stop_motion);
-    assert!(!graph.settings().ruler);
 
-    let keys: Vec<SettingKey> = events.iter().map(|event| event.key).collect();
-    assert!(keys.contains(&SettingKey::MotionStop), "{keys:?}");
-    assert!(keys.contains(&SettingKey::ReadingRuler), "{keys:?}");
-    assert!(
-        events
-            .iter()
-            .all(|event| event.source == ChangeSource::Reset),
-        "{events:?}"
+    assert_eq!(graph.name(), "Calm");
+    assert_eq!(graph.description(), ProfileKind::Calm.default_description());
+    assert_eq!(
+        graph.get(SettingKey::ConfigHotReload),
+        SettingValue::Bool(true)
     );
+    assert!(!graph.settings().ruler);
+    assert!(!graph.is_modified());
+    for key in [
+        SettingKey::ProfileName,
+        SettingKey::ProfileDescription,
+        SettingKey::ConfigHotReload,
+        SettingKey::ReadingRuler,
+    ] {
+        assert!(
+            events.iter().any(|event| event.key == key),
+            "{key:?} was not reported: {events:?}"
+        );
+    }
+    assert!(sink.events().len() == before + events.len());
 }
 
 #[test]

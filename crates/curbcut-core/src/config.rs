@@ -118,6 +118,12 @@ impl ReadingLevel {
     }
 }
 
+/// The most region names a dim setting can except.
+///
+/// The graph exposes this as the read-only `dim.except_count` key, so the bound
+/// lives here, next to the data it constrains.
+pub const MAX_REGION_EXCEPTIONS: usize = 64;
+
 /// Dimming settings.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DimSettings {
@@ -153,6 +159,12 @@ impl DimSettings {
                     "{path}.except[{index}]: region name must not be empty"
                 )));
             }
+        }
+        if self.except.len() > MAX_REGION_EXCEPTIONS {
+            return Err(config_err(format!(
+                "{path}.except: expected at most {MAX_REGION_EXCEPTIONS} regions, found {}",
+                self.except.len()
+            )));
         }
         Ok(())
     }
@@ -1225,6 +1237,36 @@ confirm_actions = true
         assert!(
             (calm.tts.rate - 1.0).abs() < 1e-6,
             "the default rate survives"
+        );
+    }
+
+    #[test]
+    fn the_region_exception_bound_is_enforced() {
+        let at_limit = format!(
+            "[profile.calm]\ndim = {{ except = [{}] }}\n",
+            (0..MAX_REGION_EXCEPTIONS)
+                .map(|index| format!("\"region-{index}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        assert!(
+            Config::from_toml(&at_limit).is_ok(),
+            "{MAX_REGION_EXCEPTIONS} regions are allowed"
+        );
+
+        let over = format!(
+            "[profile.calm]\ndim = {{ except = [{}] }}\n",
+            (0..=MAX_REGION_EXCEPTIONS)
+                .map(|index| format!("\"region-{index}\""))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let error = Config::from_toml(&over).expect_err("one past the limit is rejected");
+        let message = error.to_string();
+        assert!(message.contains("except"), "{message}");
+        assert!(
+            message.contains(&MAX_REGION_EXCEPTIONS.to_string()),
+            "{message}"
         );
     }
 }

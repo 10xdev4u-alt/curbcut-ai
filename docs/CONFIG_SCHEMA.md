@@ -65,7 +65,7 @@ defaults. A nested table merges onto that starting point, so
 
 | Key | Type | Default | Validation |
 | --- | --- | --- | --- |
-| `dim` | table | disabled | `enabled` boolean, `opacity` `0.0..=1.0`, `except` array of non-empty region names. |
+| `dim` | table | disabled | `enabled` boolean, `opacity` `0.0..=1.0`, `except` array of at most 64 non-empty region names. |
 | `stop_motion` | boolean | `false` | |
 | `reduce_transparency` | boolean | `false` | Replaces transparent layers with solid ones. |
 | `interruptions` | string | `"inbox"` | `inbox`, `block`, or `allow`. |

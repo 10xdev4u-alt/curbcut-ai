@@ -356,31 +356,40 @@ impl ProfileGraph {
     ///
     /// The value is validated, then the whole graph is validated, then the
     /// change commits and the sinks are notified. On error nothing changes.
+    /// A write that leaves the stored value unchanged emits no event.
     ///
     /// # Errors
     ///
     /// Returns [`CurbCutError::Config`] for a read-only key, a mistyped value, a
-    /// value out of range, or a graph that would become invalid.
+    /// value out of range, a nested key whose section is disabled, or a graph
+    /// that would become invalid.
     pub fn apply(&mut self, key: SettingKey, value: SettingValue) -> Result<()> {
         let before = self.get(key);
         let mut candidate = self.skeleton();
-        candidate.write(key, value.clone())?;
+        candidate.write(key, value)?;
         candidate.validate()?;
 
         self.data = candidate.data;
-        self.emit(PreviewEvent {
-            profile: self.data.id.clone(),
-            key,
-            before,
-            after: value,
-            source: ChangeSource::Apply,
-        });
+        let after = self.get(key);
+        if before != after {
+            self.emit(PreviewEvent {
+                profile: self.data.id.clone(),
+                key,
+                before,
+                after,
+                source: ChangeSource::Apply,
+            });
+        }
         Ok(())
     }
 
     /// Applies several settings atomically.
     ///
     /// Either every change commits and the sinks see each one, or none does.
+    /// Section toggles apply before the keys nested in them, so the result does
+    /// not depend on the order the caller listed the changes in. The returned
+    /// events are the keys whose stored value actually changed, so a duplicate
+    /// or a no-op entry produces no event.
     ///
     /// # Errors
     ///
@@ -390,20 +399,26 @@ impl ProfileGraph {
         changes: &[(SettingKey, SettingValue)],
     ) -> Result<Vec<PreviewEvent>> {
         let mut candidate = self.skeleton();
-        for (key, value) in changes {
+        for (key, value) in order_for_apply(changes) {
             candidate.write(*key, value.clone())?;
         }
         candidate.validate()?;
 
         let mut events = Vec::new();
-        for (key, value) in changes {
-            let before = self.get(*key);
-            if before != *value {
+        let mut seen: Vec<SettingKey> = Vec::new();
+        for (key, _) in changes {
+            if seen.contains(key) {
+                continue;
+            }
+            seen.push(*key);
+            let before = key.get(self);
+            let after = key.get(&candidate);
+            if before != after {
                 events.push(PreviewEvent {
                     profile: self.data.id.clone(),
                     key: *key,
                     before,
-                    after: value.clone(),
+                    after,
                     source: ChangeSource::Apply,
                 });
             }
@@ -419,7 +434,9 @@ impl ProfileGraph {
     /// Resets the graph to its baseline and returns the changes.
     ///
     /// A built-in profile returns to its starter settings; a custom profile
-    /// returns to neutral defaults. Sinks are notified once per changed key.
+    /// returns to neutral defaults; a copy returns to the state it was copied
+    /// from. Sinks are notified once per changed key. Activation is document
+    /// state rather than a profile setting, so it survives a reset.
     pub fn reset(&mut self) -> Vec<PreviewEvent> {
         let base = self.baseline_view();
         let mut events = Vec::new();
@@ -437,7 +454,9 @@ impl ProfileGraph {
             }
         }
 
+        let active = self.data.active;
         self.data = self.baseline.clone();
+        self.data.active = active;
         for event in &events {
             self.emit(event.clone());
         }
@@ -490,6 +509,17 @@ fn custom_id(slug: &str) -> Result<ProfileId> {
         )));
     }
     Ok(ProfileId::custom(slug))
+}
+
+/// Orders a batch so section toggles apply before the keys nested in them.
+///
+/// Without this, `[(ReflowSizePt, 24.0), (ReflowEnabled, true)]` would fail on
+/// the first key, while the reverse order would succeed.
+fn order_for_apply(changes: &[(SettingKey, SettingValue)]) -> Vec<&(SettingKey, SettingValue)> {
+    let mut ordered: Vec<&(SettingKey, SettingValue)> = Vec::with_capacity(changes.len());
+    ordered.extend(changes.iter().filter(|(key, _)| key.is_section_toggle()));
+    ordered.extend(changes.iter().filter(|(key, _)| !key.is_section_toggle()));
+    ordered
 }
 
 /// The display name for a profile id.
