@@ -14,7 +14,8 @@
 //!   protected rectangles, with no overlap and no gap. The tests check the
 //!   area identity and sample the plane.
 //! - **Reduced motion is static.** [`DimMotion::Static`] means the scrim
-//!   appears immediately; [`DimMotion::Fade`] carries a duration.
+//!   appears immediately; [`DimMotion::Fade`] carries a duration, and a
+//!   `Fade { duration_ms: 0 }` is treated as immediate.
 //!
 //! The complement is computed by coordinate compression: the screen is split
 //! into cells at every protected edge, a two-dimensional difference array marks
@@ -151,8 +152,13 @@ impl DimPlan {
         if right <= left || bottom <= top {
             return self.rects.is_empty();
         }
-        let screen_area = ((right - left) * (bottom - top)) as u64;
-        self.total_area() + union_area(&self.protected) == screen_area
+        // `u128` keeps the product and the sum total for any `Rect` input: the
+        // clamped screen span in each axis is at most `u32::MAX`, so the area
+        // is at most `u32::MAX²`, which `u64` can hold but an `i64` product
+        // cannot.
+        let screen_area = (right - left) as u128 * (bottom - top) as u128;
+        let scrim_area: u128 = self.rects.iter().map(|rect| u128::from(rect.area())).sum();
+        scrim_area + u128::from(union_area(&self.protected)) == screen_area
     }
 }
 
@@ -207,12 +213,16 @@ pub fn dim_plan(request: DimRequest) -> Result<DimPlan, DimError> {
 pub fn union_area(rects: &[Rect]) -> u64 {
     let mut xs: BTreeSet<i64> = BTreeSet::new();
     let mut ys: BTreeSet<i64> = BTreeSet::new();
+    let mut clipped: Vec<(i64, i64, i64, i64)> = Vec::with_capacity(rects.len());
     for rect in rects {
-        let (left, top, right, bottom) = edges(*rect);
-        xs.insert(left);
-        xs.insert(right);
-        ys.insert(top);
-        ys.insert(bottom);
+        let Some(edges) = clip_edges(*rect) else {
+            continue;
+        };
+        clipped.push(edges);
+        xs.insert(edges.0);
+        xs.insert(edges.2);
+        ys.insert(edges.1);
+        ys.insert(edges.3);
     }
     let xs: Vec<i64> = xs.into_iter().collect();
     let ys: Vec<i64> = ys.into_iter().collect();
@@ -224,10 +234,9 @@ pub fn union_area(rects: &[Rect]) -> u64 {
     for row in 0..ys.len() - 1 {
         let slab_top = ys[row];
         let slab_bottom = ys[row + 1];
-        let mut intervals: Vec<(i64, i64)> = rects
+        let mut intervals: Vec<(i64, i64)> = clipped
             .iter()
-            .filter_map(|rect| {
-                let (left, top, right, bottom) = edges(*rect);
+            .filter_map(|&(left, top, right, bottom)| {
                 if top <= slab_top && bottom >= slab_bottom {
                     Some((left, right))
                 } else {
@@ -257,6 +266,22 @@ pub fn union_area(rects: &[Rect]) -> u64 {
         area += (covered as u64) * ((slab_bottom - slab_top) as u64);
     }
     area
+}
+
+/// The rectangle's edges clamped to the `i32` range, or `None` if empty.
+///
+/// `union_area` clips before summing, so an extreme rectangle cannot overflow
+/// the `u64` accumulator.
+fn clip_edges(rect: Rect) -> Option<(i64, i64, i64, i64)> {
+    let (left, top, right, bottom) = edges(rect);
+    let left = left.max(i64::from(i32::MIN));
+    let top = top.max(i64::from(i32::MIN));
+    let right = right.min(i64::from(i32::MAX));
+    let bottom = bottom.min(i64::from(i32::MAX));
+    if right <= left || bottom <= top {
+        return None;
+    }
+    Some((left, top, right, bottom))
 }
 
 /// The screen clamped to the range `Rect` can describe.
@@ -370,7 +395,10 @@ fn complement(screen: Rect, protected: &[Rect]) -> Vec<Rect> {
 
 /// Merges rectangles that share an x-range and are vertically adjacent.
 fn merge_vertically(mut runs: Vec<Rect>) -> Vec<Rect> {
-    runs.sort_by_key(|rect| (rect.x, rect.y));
+    // Row-major reading order, so a consumer can walk the scrim top to bottom
+    // and left to right. Sorting by `(y, x)` also keeps a column's runs
+    // adjacent, which is what the vertical merge needs.
+    runs.sort_by_key(|rect| (rect.y, rect.x));
     let mut merged: Vec<Rect> = Vec::with_capacity(runs.len());
     for run in runs {
         let Some(last) = merged.last_mut() else {

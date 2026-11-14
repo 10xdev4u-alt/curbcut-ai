@@ -16,7 +16,8 @@ The renderer fills those rectangles with a scrim at the profile opacity.
    plane to confirm no point is dimmed twice or dimmed while protected.
 3. **Reduced motion is static.** `DimMotion::Static` applies the scrim
    immediately; `DimMotion::Fade { duration_ms }` carries a duration the
-   renderer may honour. `DimPlan::is_static` reports which one it is.
+   renderer may honour, and a `Fade { duration_ms: 0 }` is treated as
+   immediate. `DimPlan::is_static` reports which one it is.
 
 ## Inputs
 
@@ -33,8 +34,8 @@ outside contributes nothing.
 
 `DimPlan` carries:
 
-- `rects` — the scrim rectangles, merged vertically where they share an
-  x-range;
+- `rects` — the scrim rectangles in row-major reading order, merged
+  vertically where they share an x-range;
 - `opacity` — the validated opacity;
 - `motion` — `Static` or `Fade`;
 - `protected` — the clipped protected rectangles.
@@ -49,7 +50,10 @@ merged vertically. This is deterministic and avoids the off-by-one errors a
 hand-written band splitter invites.
 
 `union_area` computes the union area of a set of rectangles with a sweep over
-y-slabs. It is used by the exactness check and is useful on its own.
+y-slabs. Rectangles are clipped to the `i32` range before the sweep, so an
+extreme rectangle cannot overflow the `u64` accumulator: the clipped span in
+each axis is at most `u32::MAX`, so the area is at most `u32::MAX²`. It is used
+by the exactness check and is useful on its own.
 
 ## Bounds and extremes
 
@@ -57,6 +61,9 @@ The profile bounds `dim.except` to 64 regions, so a plan is computed from at
 most 65 protected rectangles. The screen is clamped to the range `Rect` can
 describe: a screen whose far edge exceeds `i32::MAX` is trimmed, and a screen
 that cannot be represented at all yields an empty plan rather than a panic.
+
+`covers_exactly` accumulates in `u128`, so the area identity cannot overflow
+even for a screen whose clamped span is `u32::MAX` in both axes.
 
 ## Privacy
 

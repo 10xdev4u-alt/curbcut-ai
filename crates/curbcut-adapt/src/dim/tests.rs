@@ -275,9 +275,49 @@ fn union_area_counts_overlaps_once() {
 }
 
 #[test]
+fn covers_exactly_does_not_overflow_on_an_extreme_screen() {
+    let screen = Rect::new(i32::MIN, i32::MIN, u32::MAX, u32::MAX);
+    let plan = dim_plan(request(screen, None, &[], 0.5)).expect("valid");
+
+    // The clamped span in each axis is `u32::MAX`; the product exceeds `i64`.
+    assert!(plan.covers_exactly(screen));
+}
+
+#[test]
+fn union_area_does_not_overflow_on_extreme_rectangles() {
+    let first = Rect::new(i32::MIN, i32::MIN, u32::MAX, u32::MAX);
+    let second = Rect::new(i32::MAX, i32::MIN, u32::MAX, u32::MAX);
+    let expected = u64::from(u32::MAX) * u64::from(u32::MAX);
+
+    // The second rectangle clips to nothing; the first is `u32::MAX²`.
+    assert_eq!(union_area(&[first]), expected);
+    assert_eq!(union_area(&[first, second]), expected);
+    assert_eq!(union_area(&[second]), 0);
+}
+
+#[test]
+fn rects_are_in_reading_order() {
+    let screen = Rect::new(0, 0, 100, 100);
+    let plan = dim_plan(request(screen, Some(Rect::new(40, 40, 20, 20)), &[], 0.5)).expect("valid");
+
+    let mut sorted = plan.rects.clone();
+    sorted.sort_by_key(|rect| (rect.y, rect.x));
+    assert_eq!(plan.rects, sorted);
+    assert_eq!(plan.len(), 4);
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/DIMMING.md");
-    for rule in ["focused", "exact", "Static", "except"] {
+    for rule in [
+        "focused",
+        "exact",
+        "Static",
+        "except",
+        "reading order",
+        "clipped",
+        "u128",
+    ] {
         assert!(
             doc.contains(rule),
             "docs/DIMMING.md does not state `{rule}`"
