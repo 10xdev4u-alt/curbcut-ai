@@ -18,6 +18,10 @@ The scan is deliberately broader than runtime redaction: matching is
 case-insensitive, because a log that lowercases a canary still leaked it. A file
 or directory that cannot be read is reported and fails the run unless
 ``--allow-skip`` is given; a silent skip would be a false all-clear.
+
+The fixture is excluded by device and inode. On a filesystem where ``st_ino`` is
+always 0 the exclusion falls back to the resolved path, which cannot identify a
+hard link to the fixture; a hard link would then be reported as a leak.
 """
 
 from __future__ import annotations
@@ -66,10 +70,24 @@ def is_fixture(path: Path) -> bool:
         fixture = CANARY_FILE.stat()
     except OSError:
         return False
-    # `st_ino` is 0 on some filesystems; fall back to the resolved path.
+    # `st_ino` is 0 on some filesystems; fall back to the resolved path. That
+    # fallback cannot identify a hard link to the fixture, so a hard link is
+    # reported there rather than silently excluded.
     if candidate.st_ino == 0 or fixture.st_ino == 0:
         return path.resolve() == CANARY_FILE.resolve()
     return (candidate.st_dev, candidate.st_ino) == (fixture.st_dev, fixture.st_ino)
+
+
+def dir_key(path: Path, stat: os.stat_result) -> tuple[int, int] | str:
+    """A dedupe key for a directory.
+
+    `st_ino` is 0 on some filesystems. There the resolved path is the only
+    identity available; using the raw pair would collapse every directory to
+    one key and silently skip the scan.
+    """
+    if stat.st_ino == 0:
+        return str(path.resolve())
+    return (stat.st_dev, stat.st_ino)
 
 
 def walk(root: Path, skipped: list[tuple[Path, str]]):
@@ -79,7 +97,7 @@ def walk(root: Path, skipped: list[tuple[Path, str]]):
     alias cannot double-count the same file.
     """
     stack = [root]
-    seen: set[tuple[int, int]] = set()
+    seen: set[tuple[int, int] | str] = set()
     while stack:
         directory = stack.pop()
         try:
@@ -87,7 +105,7 @@ def walk(root: Path, skipped: list[tuple[Path, str]]):
         except OSError as error:
             skipped.append((directory, str(error)))
             continue
-        key = (stat.st_dev, stat.st_ino)
+        key = dir_key(directory, stat)
         if key in seen:
             continue
         seen.add(key)
@@ -212,28 +230,53 @@ def self_test(canaries: list[str]) -> int:
             )
             return 1
 
-        # A canary straddling a chunk boundary must still be found. Place it
-        # so all but its last byte fall in the first chunk; a carry shorter
-        # than the canary would miss it.
+        # A canary straddling a chunk boundary must still be found. Use the
+        # longest canary, so the carry must cover it rather than the shortest.
+        # Place it so all but its last byte fall in the first chunk.
+        longest = max(canaries, key=len)
         boundary = root / "boundary.log"
-        split = len(canaries[0]) - 1
+        split = len(longest) - 1
         with boundary.open("wb") as handle:
             handle.write(b"x" * (CHUNK_BYTES - split))
-            handle.write(canaries[0].encode("utf-8"))
+            handle.write(longest.encode("utf-8"))
         leaks, skipped = scan([boundary], canaries)
-        if skipped or not any(canary == canaries[0] for _, canary in leaks):
+        if skipped or not any(canary == longest for _, canary in leaks):
             print(
                 "SELF-TEST FAILED: a canary straddling a chunk boundary was missed",
                 file=sys.stderr,
             )
             return 1
 
+        # An unreadable file must be reported as SKIP, not silently ignored.
+        # Root can read a chmod-000 file, so the check is skipped there.
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            print(
+                "self-test: running as root; unreadable-file reporting not checked"
+            )
+        else:
+            locked = root / "locked.log"
+            locked.write_text("nothing\n", encoding="utf-8")
+            locked.chmod(0)
+            try:
+                _leaks, skipped = scan([locked], canaries)
+            finally:
+                locked.chmod(0o644)
+            if not skipped:
+                print(
+                    "SELF-TEST FAILED: an unreadable file was not reported",
+                    file=sys.stderr,
+                )
+                return 1
+            print("self-test: an unreadable file was reported as SKIP")
+
         print(
             f"self-test: detected {canaries[0]!r} in crash.log and variant.log, "
-            "a boundary-straddling copy, and excluded the fixture link"
+            f"and a boundary-straddling {longest!r}"
         )
         if link_note:
             print(f"self-test: {link_note}")
+        else:
+            print("self-test: the fixture hard link was excluded")
     return 0
 
 

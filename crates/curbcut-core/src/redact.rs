@@ -114,9 +114,10 @@ impl Redactor {
     ///
     /// # Panics
     ///
-    /// Panics when the embedded fixture is missing, unreadable, or empty. A
-    /// redactor that silently loaded nothing would redact nothing, so a broken
-    /// install fails loud instead of logging raw content.
+    /// Panics when the embedded fixture is empty. A redactor that silently
+    /// loaded nothing would redact nothing, so a broken fixture fails loud
+    /// instead of logging raw content. A missing or unreadable fixture is a
+    /// compile error, because `include_str!` embeds it.
     pub fn canaries() -> Self {
         let redactor =
             Self::from_canary_list(include_str!("../tests/fixtures/content_canaries.txt"));

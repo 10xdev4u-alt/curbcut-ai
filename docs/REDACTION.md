@@ -41,9 +41,9 @@ let clean = redactor.redact("label=user@example.invalid count=1");
 assert_eq!(clean, "label=[redacted] count=1");
 ```
 
-`Redactor::canaries()` loads the fixture described below and panics if it is
-missing or unreadable: a redactor that silently loaded nothing would redact
-nothing. `RedactMode::Hash` replaces a secret with a stable keyless hash for
+`Redactor::canaries()` loads the fixture described below with `include_str!`, so
+a deployed binary does not need the source tree. It panics if the fixture is
+empty; a missing or unreadable fixture is a compile error. `RedactMode::Hash` replaces a secret with a stable keyless hash for
 values that are safe to correlate. The hash is not a secret — a low-entropy
 value can be recovered offline — so it is for correlation, not protection. The
 default is the `[redacted]` placeholder.
