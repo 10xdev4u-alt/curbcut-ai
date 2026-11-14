@@ -1,10 +1,17 @@
-//! Profiles, rules engine, layout solver, and plan cache.
+//! Profiles, rules engine, layout solver, icon grid, and plan cache.
 //!
 //! The profile graph is implemented: [`profile::ProfileGraph`] is one
 //! versioned settings graph with a baseline, live-preview sinks, and atomic
 //! multi-setting changes, and [`settings::SettingKey`] is the closed registry
 //! of the forty settings it can express. See
 //! [`../../../docs/PROFILE_GRAPH.md`](../../../docs/PROFILE_GRAPH.md).
+//!
+//! The layout solvers are implemented: [`layout::place_tiles`] packs
+//! priority-ordered boxes without overlap or clipping, [`layout::reflow`]
+//! breaks measured words into lines without splitting a word, and
+//! [`grid::icon_grid_layout`] lays out large labelled tiles. See
+//! [`../../../docs/LAYOUT.md`](../../../docs/LAYOUT.md) and
+//! [`../../../docs/GRID.md`](../../../docs/GRID.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -23,6 +30,9 @@ pub mod settings;
 
 /// Tile and reflow layout.
 pub mod layout;
+
+/// Icon-grid layout, label policy, and search.
+pub mod grid;
 
 #[cfg(test)]
 mod tests {
