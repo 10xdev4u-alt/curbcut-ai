@@ -12,6 +12,8 @@ pub const CRATE_NAME: &str = "curbcut-capture";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod ring;
+
 #[cfg(test)]
 mod tests {
     #[test]
