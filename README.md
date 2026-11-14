@@ -90,6 +90,7 @@ docs/
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
   CLI.md                   Headless CLI: commands, exit codes, redacted dump
   VISION.md                Vision pipeline: scheduler, stages, privacy
+  PROFILE_GRAPH.md         Profile graph: 40-setting registry, preview, validation
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/

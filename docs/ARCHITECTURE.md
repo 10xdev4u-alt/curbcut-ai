@@ -264,6 +264,11 @@ reading_level = "grade-6"
 confirm_actions = true
 ```
 
+The graph is implemented in `curbcut-adapt`. `SettingKey` is the closed registry
+of the forty settings a graph can express, each with a type and range, and
+`ProfileGraph` applies changes atomically and notifies live-preview sinks after
+a commit. See [`docs/PROFILE_GRAPH.md`](PROFILE_GRAPH.md).
+
 ### 8.2 Rules engine
 
 Forward-chaining over the `ScreenGraph` with priority and conflict resolution:

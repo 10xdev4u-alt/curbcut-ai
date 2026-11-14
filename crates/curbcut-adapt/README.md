@@ -4,9 +4,10 @@ Profiles, rules engine, layout solver, and plan cache.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The profile graph is implemented: a versioned settings graph with a
+baseline, atomic multi-setting changes, live-preview sinks, and a
+40-key setting registry. See
+[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md).
 
 ## Build and test
 
