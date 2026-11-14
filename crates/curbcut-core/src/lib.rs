@@ -12,6 +12,12 @@ pub const CRATE_NAME: &str = "curbcut-core";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod capability;
+pub mod command;
+pub mod error;
+pub mod id;
+pub mod types;
+
 #[cfg(test)]
 mod tests {
     #[test]
