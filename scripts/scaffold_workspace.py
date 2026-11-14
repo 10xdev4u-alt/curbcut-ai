@@ -109,6 +109,11 @@ mod tests {
 
 
 CRATE_STATUS = {
+    "curbcut-vision": (
+        "The vision pipeline is implemented: Detector, Ocr, and IconCaptioner\n"
+        "traits, a deterministic motion-aware scheduler, and VisionPipeline.\n"
+        "See [`../../docs/VISION.md`](../../docs/VISION.md)."
+    ),
     "curbcut-understand": (
         "The deterministic rule layer is implemented: versioned rules, role\n"
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"

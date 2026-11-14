@@ -4,9 +4,9 @@ ONNX inference, detection, OCR, layout, and motion scheduling.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The vision pipeline is implemented: Detector, Ocr, and IconCaptioner
+traits, a deterministic motion-aware scheduler, and VisionPipeline.
+See [`../../docs/VISION.md`](../../docs/VISION.md).
 
 ## Build and test
 
