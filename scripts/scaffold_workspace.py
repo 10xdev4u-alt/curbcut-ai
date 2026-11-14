@@ -29,7 +29,6 @@ rust-version = "1.85"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-missing_docs = "warn"
 
 [profile.release]
 lto = "thin"
