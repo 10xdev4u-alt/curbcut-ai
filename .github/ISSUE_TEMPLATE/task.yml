@@ -1,0 +1,56 @@
+name: Engineering task
+description: Internal task that is not a bug or a feature request.
+labels: ["triage"]
+body:
+  - type: input
+    id: epic
+    attributes:
+      label: Epic
+      description: E01..E15. See backlog/EPICS.md.
+      placeholder: E05
+    validations:
+      required: true
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: Imperative, specific, under 70 characters.
+    validations:
+      required: true
+  - type: textarea
+    id: body
+    attributes:
+      label: Context
+      description: Why now? What happens if we do nothing?
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: One per line, each verifiable.
+      placeholder: |
+        p95 < 250 ms at 1080p
+        Test passes on all 5 CI targets
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options: ["P0", "P1", "P2", "P3"]
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      options: ["S", "M", "L", "XL"]
+    validations:
+      required: true
+  - type: input
+    id: labels
+    attributes:
+      label: Labels
+      description: Comma-separated.
+      placeholder: vision, models, perf

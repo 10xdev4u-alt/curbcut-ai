@@ -1,0 +1,35 @@
+# CurbCut AI code owners.
+# Every path has a human owner. Reviews are assigned from this file.
+
+# Default
+*                       @curbcut/maintainers
+
+# Privacy, security, and anything that can move input
+/crates/curbcut-action/  @curbcut/security @curbcut/maintainers
+/crates/curbcut-input/   @curbcut/security @curbcut/maintainers
+/crates/curbcut-core/src/security/ @curbcut/security
+/crates/curbcut-core/src/privacy/  @curbcut/security
+/crates/curbcut-core/src/store/    @curbcut/security @curbcut/data
+/crates/curbcut-memory/  @curbcut/security @curbcut/data
+/docs/THREAT_MODEL.md    @curbcut/security
+/SECURITY.md             @curbcut/security
+
+# Models and capture
+/crates/curbcut-vision/  @curbcut/ml
+/crates/curbcut-capture/ @curbcut/platform
+/crates/curbcut-a11y/    @curbcut/platform @curbcut/a11y
+
+# User-visible surfaces
+/apps/ui/                @curbcut/design @curbcut/a11y
+/docs/A11Y_MAPPING.md    @curbcut/a11y
+/docs/PRODUCT_SPEC.md    @curbcut/design @curbcut/a11y
+
+# Release and packaging
+/packaging/              @curbcut/release
+/.github/workflows/      @curbcut/release @curbcut/security
+
+# Backlog and process
+/backlog/                @curbcut/maintainers
+/scripts/                @curbcut/maintainers
+/CONTRIBUTING.md            @curbcut/maintainers
+/CODE_OF_CONDUCT.md      @curbcut/maintainers

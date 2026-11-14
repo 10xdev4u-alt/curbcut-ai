@@ -1,0 +1,70 @@
+name: Bug report
+description: Something is broken, crashing, or behaving dangerously.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Do **not** include screenshots of sensitive screen content — describe it or use a synthetic repro instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: App version or commit SHA.
+      placeholder: v0.4.0-beta or a1b2c3d
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Platform
+      options:
+        - macOS arm64
+        - macOS x64
+        - Windows x64
+        - Linux x64 (Wayland)
+        - Linux x64 (X11)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - "P0 — crash, data loss, or an action happened without consent"
+        - "P1 — core feature unusable"
+        - "P2 — feature degraded"
+        - "P3 — cosmetic or docs"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, what actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open app X
+        2. Press F9
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy check
+      description: Did you notice any screen content, text, or personal data in a log, crash report, or screenshot? If yes, tell us immediately.
+      placeholder: No / Yes — describe
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety
+      options:
+        - label: No action was performed in another app without my explicit request.
+        - label: I have read SECURITY.md and this is not a security vulnerability.

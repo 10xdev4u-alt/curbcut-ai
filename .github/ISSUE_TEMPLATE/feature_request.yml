@@ -1,0 +1,47 @@
+name: Feature request
+description: Suggest an intervention, profile, or platform capability.
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: persona
+    attributes:
+      label: Who is this for?
+      description: Name a persona (Yuki/ADHD, Tal/dyslexia, George/Down syndrome, Maria/memory, Kwame/TBI, Amy/autistic, Alison/aging) or describe the user.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What barrier does it remove?
+      description: Describe the moment of failure, not the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What do you imagine instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: intervention
+    attributes:
+      label: Closest existing intervention
+      options:
+        - Focus Flow / dimming
+        - Reading Lens / ruler
+        - Simplifier / plain language
+        - Read Aloud / TTS
+        - Step-by-step / one-step
+        - Screen reader / navigation map
+        - None — new
+    validations:
+      required: false
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Guardrails
+      options:
+        - label: This works offline.
+        - label: This does not require sending screen content to a server.
+        - label: This does not perform actions in other apps without explicit consent.
+        - label: I have read docs/ETHICS.md and the "never" list.

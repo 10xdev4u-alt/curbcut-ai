@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/curbcut/curbcut-ai/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue.
+  - name: Accessibility feedback
+    url: mailto:panel@curbcut.ai
+    about: Feedback from users with cognitive and learning disabilities.
+  - name: Usage question
+    url: https://github.com/curbcut/curbcut-ai/discussions
+    about: How do I...? Ask in Discussions, not Issues.

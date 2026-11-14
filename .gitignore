@@ -1,0 +1,51 @@
+# Rust
+/target
+**/target
+Cargo.lock.bak
+*.rs.bk
+
+# Node / frontend
+node_modules
+apps/ui/node_modules
+apps/ui/dist
+apps/ui/.svelte-kit
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Models and fixtures (large binaries are never committed)
+models/**/*.onnx
+models/**/*.gguf
+models/**/*.bin
+fixtures/**/*.png
+fixtures/**/*.mp4
+!fixtures/**/README.md
+
+# Local state
+*.db
+*.db-shm
+*.db-wal
+*.key
+*.pem
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Build artifacts
+dist/
+build/
+*.app
+*.msi
+*.dmg
+*.AppImage

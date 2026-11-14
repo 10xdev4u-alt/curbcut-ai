@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      weekly: true
+    open-pull-requests-limit: 10
+    labels: ["chore", "dependencies", "security"]
+    groups:
+      rust-minor:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Models and runtime deps with behavior sensitivity are bumped manually.
+      - dependency-name: "ort"
+      - dependency-name: "tauri"
+      - dependency-name: "sqlcipher"
+
+  - package-ecosystem: npm
+    directory: "/apps/ui"
+    schedule:
+      weekly: true
+    open-pull-requests-limit: 10
+    labels: ["chore", "dependencies"]
+    groups:
+      ui-minor:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      weekly: true
+    labels: ["chore", "ci"]
