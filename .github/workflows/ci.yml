@@ -98,3 +98,18 @@ jobs:
           git diff --exit-code
       - name: Check the role mapping doc
         run: python3 scripts/render_role_mapping.py --check
+
+  privacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test the leak detector
+        run: python3 scripts/check_no_content_logging.py --self-test
+      - name: Scan the repository for content canaries
+        run: python3 scripts/check_no_content_logging.py
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Redaction tests
+        run: cargo test -p curbcut-core --test no_content_logging
