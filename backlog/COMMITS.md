@@ -335,7 +335,15 @@ The commit sequence in merge order. Root commits are pre-PR bootstrap work; the 
 | `371fc2b` | test(right-to-explanation-plain-language-action): regression coverage for CC-122 | PR-122 | Priya Nair | 2025-10-13 |
 | `43e1b88` | chore: Longitudinal outcome study instrument | PR-123 | Diego Fuentes | 2025-10-14 |
 | `ccbba45` | docs: Research publication: cognitive overlay evaluation | PR-124 | Noor Haddad | 2025-10-15 |
+| `dc762eb` | feat: Core types, errors, and capability tokens | PR-125 | Diego Fuentes | 2025-10-16 |
+| `b3f1251` | test(core-types-errors-and-capability-tokens): regression coverage for CC-125 | PR-125 | Priya Nair | 2025-10-17 |
+| `269460e` | feat: Vision detector and OCR traits with motion-aware scheduler | PR-126 | Sam Whitfield | 2025-10-18 |
+| `bb426d0` | test(vision-detector-and-ocr-traits-with-motion): regression coverage for CC-126 | PR-126 | Tomas Berg | 2025-10-19 |
+| `578820c` | feat: Headless CLI: status, redacted dump, bench, panic | PR-127 | Noor Haddad | 2025-10-20 |
+| `8b34738` | test(headless-cli-status-redacted-dump-bench-panic): regression coverage for CC-127 | PR-127 | Sam Whitfield | 2025-10-21 |
+| `5255ad3` | feat: Telemetry schema and opt-in export | PR-128 | Ari Reyes | 2025-10-22 |
+| `6002196` | test(telemetry-schema-and-opt-in-export): regression coverage for CC-128 | PR-128 | Tomas Berg | 2025-10-23 |
 
 Root commits: 111
 
-PR commits: 218
+PR commits: 226

@@ -51,7 +51,7 @@ def main() -> int:
         print("error: unknown epic %s (have %s)" % (args.epic, ", ".join(epics)), file=sys.stderr)
         return 2
 
-    ids = [int(n) for n in re.findall(r'I\("CC-(\d+)"', text)]
+    ids = [int(n) for n in re.findall(r'I\([\'"]CC-(\d+)[\'"]', text)]
     if not ids:
         print("error: no issues found in data file", file=sys.stderr)
         return 2

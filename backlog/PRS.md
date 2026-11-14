@@ -130,6 +130,10 @@ One PR per issue, in merge order. Each PR lists its branch, the issues it closes
 | PR-122 | feat: Right to explanation: plain-language action report | `feat/right-to-explanation-plain-language-action` | CC-122 | `f40192d`, `371fc2b` | pass | 3 | merged |
 | PR-123 | chore: Longitudinal outcome study instrument | `chore/longitudinal-outcome-study-instrument` | CC-123 | `43e1b88` | pass | 1 | merged |
 | PR-124 | docs: Research publication: cognitive overlay evaluation | `docs/research-publication-cognitive-overlay` | CC-124 | `ccbba45` | pass | 1 | merged |
+| PR-125 | feat: Core types, errors, and capability tokens | `feat/core-types-errors-and-capability-tokens` | CC-125 | `dc762eb`, `b3f1251` | pass | 2 | merged |
+| PR-126 | feat: Vision detector and OCR traits with motion-aware scheduler | `feat/vision-detector-and-ocr-traits-with-motion` | CC-126 | `269460e`, `bb426d0` | pass | 3 | merged |
+| PR-127 | feat: Headless CLI: status, redacted dump, bench, panic | `feat/headless-cli-status-redacted-dump-bench-panic` | CC-127 | `578820c`, `8b34738` | pass | 1 | merged |
+| PR-128 | feat: Telemetry schema and opt-in export | `feat/telemetry-schema-and-opt-in-export` | CC-128 | `5255ad3`, `6002196` | pass | 3 | merged |
 
 ## PR-001 — feat: Rust workspace and Tauri 2 app stub
 
@@ -2676,4 +2680,88 @@ One PR per issue, in merge order. Each PR lists its branch, the issues it closes
 | Reviewer | Verdict / comment |
 | --- | --- |
 | code-reviewer | APPROVE |
+
+## PR-125 — feat: Core types, errors, and capability tokens
+
+- **Branch:** `feat/core-types-errors-and-capability-tokens`
+- **Closes:** CC-125
+- **Commits:** `dc762eb`, `b3f1251`
+- **CI:** pass
+- **State:** merged
+
+**Files changed**
+
+- `crates/curbcut-core/src/security/guard.rs`
+- `crates/curbcut-core/src/bus.rs`
+- `crates/curbcut-core/tests/core-types-errors-and-capability-tokens.rs`
+
+**Review thread**
+
+| Reviewer | Verdict / comment |
+| --- | --- |
+| security-reviewer | COMMENT: add a regression test for the failure mode |
+| code-reviewer | APPROVE |
+
+## PR-126 — feat: Vision detector and OCR traits with motion-aware scheduler
+
+- **Branch:** `feat/vision-detector-and-ocr-traits-with-motion`
+- **Closes:** CC-126
+- **Commits:** `269460e`, `bb426d0`
+- **CI:** pass
+- **State:** merged
+
+**Files changed**
+
+- `crates/curbcut-vision/src/model.rs`
+- `crates/curbcut-models/src/manifest.rs`
+- `crates/curbcut-perf/src/budget.rs`
+- `crates/curbcut-core/tests/vision-detector-and-ocr-traits-with-motion.rs`
+
+**Review thread**
+
+| Reviewer | Verdict / comment |
+| --- | --- |
+| ml-reviewer | COMMENT: attach the benchmark delta |
+| code-reviewer | APPROVE |
+| test-reviewer | APPROVE |
+
+## PR-127 — feat: Headless CLI: status, redacted dump, bench, panic
+
+- **Branch:** `feat/headless-cli-status-redacted-dump-bench-panic`
+- **Closes:** CC-127
+- **Commits:** `578820c`, `8b34738`
+- **CI:** pass
+- **State:** merged
+
+**Files changed**
+
+- `crates/curbcut-core/src/bus.rs`
+- `crates/curbcut-core/tests/headless-cli-status-redacted-dump-bench-panic.rs`
+
+**Review thread**
+
+| Reviewer | Verdict / comment |
+| --- | --- |
+| code-reviewer | APPROVE |
+
+## PR-128 — feat: Telemetry schema and opt-in export
+
+- **Branch:** `feat/telemetry-schema-and-opt-in-export`
+- **Closes:** CC-128
+- **Commits:** `5255ad3`, `6002196`
+- **CI:** pass
+- **State:** merged
+
+**Files changed**
+
+- `crates/curbcut-core/src/privacy/guard.rs`
+- `crates/curbcut-core/tests/telemetry-schema-and-opt-in-export.rs`
+
+**Review thread**
+
+| Reviewer | Verdict / comment |
+| --- | --- |
+| database-reviewer | COMMENT: confirm the no-content-logging assertion |
+| code-reviewer | APPROVE |
+| security-reviewer | APPROVE |
 

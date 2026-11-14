@@ -9,31 +9,31 @@ Counts below are computed from the source data, not hand-written.
 | Metric | Count |
 | --- | --- |
 | Epics | 15 |
-| Issues | 124 |
-| Pull requests | 124 |
-| Commits | 329 |
+| Issues | 128 |
+| Pull requests | 128 |
+| Commits | 337 |
 | Root commits | 111 |
-| PR commits | 218 |
-| Review threads | 246 |
-| Approvals | 153 |
-| Reviewer comments | 93 |
-| Files touched (with duplicates) | 316 |
+| PR commits | 226 |
+| Review threads | 255 |
+| Approvals | 159 |
+| Reviewer comments | 96 |
+| Files touched (with duplicates) | 327 |
 
 ## Issues by epic
 
 | Epic | Title | Issues | PRs | P0 | P1 | P2 | P3 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | E01 | Foundations & Governance | 8 | 8 | 5 | 3 | 0 | 0 |
-| E02 | Platform Core & App Shell | 9 | 9 | 7 | 2 | 0 | 0 |
+| E02 | Platform Core & App Shell | 11 | 11 | 8 | 3 | 0 | 0 |
 | E03 | Screen Capture | 8 | 8 | 6 | 1 | 1 | 0 |
 | E04 | Accessibility Tree & Merge | 7 | 7 | 6 | 1 | 0 | 0 |
-| E05 | Vision Perception | 9 | 9 | 3 | 6 | 0 | 0 |
+| E05 | Vision Perception | 10 | 10 | 3 | 7 | 0 | 0 |
 | E06 | Understanding & Language | 11 | 11 | 4 | 7 | 0 | 0 |
 | E07 | Adaptation Engine | 13 | 13 | 7 | 6 | 0 | 0 |
 | E08 | Overlay Rendering & Interaction | 10 | 10 | 6 | 3 | 1 | 0 |
 | E09 | Speech & Voice | 5 | 5 | 3 | 1 | 1 | 0 |
 | E10 | Input & Navigation | 4 | 4 | 3 | 0 | 1 | 0 |
-| E11 | Data & Personalization | 5 | 5 | 0 | 3 | 2 | 0 |
+| E11 | Data & Personalization | 6 | 6 | 0 | 4 | 2 | 0 |
 | E12 | Privacy & Security | 11 | 11 | 5 | 6 | 0 | 0 |
 | E13 | Testing & Quality | 9 | 9 | 3 | 4 | 2 | 0 |
 | E14 | Release & Packaging | 8 | 8 | 4 | 3 | 1 | 0 |
@@ -45,15 +45,15 @@ Counts below are computed from the source data, not hand-written.
 | --- | --- |
 | chore | 11 |
 | docs | 6 |
-| feat | 100 |
+| feat | 104 |
 | test | 7 |
 
 ## Issues by priority
 
 | Priority | Count |
 | --- | --- |
-| P0 | 62 |
-| P1 | 46 |
+| P0 | 63 |
+| P1 | 49 |
 | P2 | 14 |
 | P3 | 2 |
 
@@ -61,8 +61,8 @@ Counts below are computed from the source data, not hand-written.
 
 | Size | Count |
 | --- | --- |
-| L | 47 |
-| M | 69 |
+| L | 49 |
+| M | 71 |
 | S | 8 |
 
 ## Top labels
@@ -72,14 +72,14 @@ Counts below are computed from the source data, not hand-written.
 | a11y | 17 |
 | render | 16 |
 | adapt | 16 |
+| security | 15 |
 | testing | 14 |
-| security | 14 |
+| core | 14 |
+| vision | 13 |
 | understand | 13 |
-| vision | 12 |
-| core | 12 |
+| privacy | 12 |
 | input | 12 |
-| privacy | 11 |
-| models | 9 |
+| models | 10 |
 | release | 9 |
 | store | 8 |
 | capture | 8 |
@@ -94,6 +94,6 @@ Counts below are computed from the source data, not hand-written.
 
 | Verdict | Count |
 | --- | --- |
-| APPROVE | 153 |
-| COMMENT | 93 |
+| APPROVE | 159 |
+| COMMENT | 96 |
 | REQUEST_CHANGES | 0 |

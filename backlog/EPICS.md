@@ -7,16 +7,16 @@ Fifteen epics carry the program from an empty repository to a shipped, audited 1
 | Key | Epic | Issues | PRs | Summary |
 | --- | --- | --- | --- | --- |
 | E01 | Foundations & Governance | 8 | 8 | Repo, CI, licensing, advisory panel, ethics, fixture dataset, benchmark harness, threat model. |
-| E02 | Platform Core & App Shell | 9 | 9 | Tauri shell, event bus, config, local store, overlay window, shortcuts, panic key, settings UI, CLI. |
+| E02 | Platform Core & App Shell | 11 | 11 | Tauri shell, event bus, config, local store, overlay window, shortcuts, panic key, settings UI, CLI. |
 | E03 | Screen Capture | 8 | 8 | Per-OS capture adapters, frame ring buffer, dirty-rect re-analysis, protected content, DPI, permissions. |
 | E04 | Accessibility Tree & Merge | 7 | 7 | macOS AX, Windows UIA, Linux AT-SPI, element model, provenance-aware merge, stability tracking. |
-| E05 | Vision Perception | 9 | 9 | Detector, OCR, layout, icon captioning, motion/media, reading level, interruptions, ROI recapture, benchmarks. |
+| E05 | Vision Perception | 10 | 10 | Detector, OCR, layout, icon captioning, motion/media, reading level, interruptions, ROI recapture, benchmarks. |
 | E06 | Understanding & Language | 11 | 11 | Rules engine, jargon, numbers, simplification, meaning preservation, summarization, chunking, icon semantics, sensitive-content guard, cache. |
 | E07 | Adaptation Engine | 13 | 13 | Profiles, rules engine, dimming, icon grid, reflow, ruler, stop-motion, inbox, one-step mode, confirm/undo, layout solver, plan cache, per-app memory, provenance. |
 | E08 | Overlay Rendering & Interaction | 10 | 10 | Design system, in-place renderer, simplified view, hit-testing, click-through, keyboard, switch access, large targets, animation policy, action consent, a11y audit. |
 | E09 | Speech & Voice | 5 | 5 | TTS abstraction, hover-to-read, read selection, read-from-here, voice control, audio focus, settings, overlay TTS, offline fallback. |
 | E10 | Input & Navigation | 4 | 4 | Global shortcuts, hover tracking, click routing, keyboard model, switch access, voice grammar, large targets, focus handoff. |
-| E11 | Data & Personalization | 5 | 5 | Profile editor, learned simplifications, app layout memory, memory aids, backup/restore, optional sync, multi-user, import/export, local stats, telemetry schema. |
+| E11 | Data & Personalization | 6 | 6 | Profile editor, learned simplifications, app layout memory, memory aids, backup/restore, optional sync, multi-user, import/export, local stats, telemetry schema. |
 | E12 | Privacy & Security | 11 | 11 | Kill-switch, zeroization, no-content logging, encryption at rest, keychain, model pinning, penetration test, privacy audit, WCAG/COGA mapping, incident response, SBOM, license compliance. |
 | E13 | Testing & Quality | 9 | 9 | Unit blitz, property tests, golden tests, differential tests, integration, E2E, perf, a11y audit, chaos, dogfood. |
 | E14 | Release & Packaging | 8 | 8 | Installers, signing/notarization, updater with rollback, beta program, VPAT, pricing, support, 1.0. |

@@ -163,7 +163,7 @@ Write the threat model and a complete data inventory: what we store, where, for 
 - No screen content or raw text appears in logs, dumps, or crash reports.
 
 
-## E02 — Platform Core & App Shell (9 issues)
+## E02 — Platform Core & App Shell (11 issues)
 
 | ID | Title | Type | Priority | Size | Labels | Depends on |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -176,6 +176,8 @@ Write the threat model and a complete data inventory: what we store, where, for 
 | CC-015 | Panic key: hide, stop capture, mute, restore | feat | P0 | S | input, safety | - |
 | CC-016 | Settings UI shell and profile picker | feat | P1 | M | frontend, design | - |
 | CC-017 | Onboarding: guided permissions and tutorial | feat | P1 | M | frontend, ux | - |
+| CC-125 | Core types, errors, and capability tokens | feat | P0 | L | core, rust, security | - |
+| CC-127 | Headless CLI: status, redacted dump, bench, panic | feat | P1 | M | cli, core | - |
 
 ### CC-009 — Typed event bus with backpressure and TraceId
 
@@ -334,6 +336,43 @@ Build the first-run flow: explain each permission at the moment of need, offer a
 - Onboarding drop-off is measured.
 - Permissions can be skipped and granted later.
 - The tutorial works without any real app open.
+- Unit tests cover the new logic and edge cases.
+- Docs updated (user, admin, or developer as appropriate).
+- CI green on macOS arm64/x64, Windows x64, and Linux x64.
+- No screen content or raw text appears in logs, dumps, or crash reports.
+
+### CC-125 — Core types, errors, and capability tokens
+
+**Type:** `feat`  |  **Priority:** P0  |  **Size:** L
+
+**Labels:** `core`, `rust`, `security`
+
+Define the shared type system: ids, geometry, element graph, error enum, non-forgeable capability tokens, and the typed command registry. Redact content in Debug and Display impls.
+
+**Acceptance criteria**
+
+- Rect IoU and intersection math is unit-tested.
+- Capability tokens are not Clone and cannot be forged.
+- Element Debug redacts label and text.
+- Command dispatch requires the declared capability.
+- Unit tests cover the new logic and edge cases.
+- Docs updated (user, admin, or developer as appropriate).
+- CI green on macOS arm64/x64, Windows x64, and Linux x64.
+- No screen content or raw text appears in logs, dumps, or crash reports.
+
+### CC-127 — Headless CLI: status, redacted dump, bench, panic
+
+**Type:** `feat`  |  **Priority:** P1  |  **Size:** M
+
+**Labels:** `cli`, `core`
+
+Add a headless CLI with status, redacted debug dump, benchmark, and panic commands. Dumps contain lengths and hashes only.
+
+**Acceptance criteria**
+
+- Dump of a graph with known secrets contains neither secret.
+- Exit codes are stable.
+- Bad arguments do not panic.
 - Unit tests cover the new logic and edge cases.
 - Docs updated (user, admin, or developer as appropriate).
 - CI green on macOS arm64/x64, Windows x64, and Linux x64.
@@ -637,7 +676,7 @@ Enforce that the a11y adapter cannot write values or invoke actions unless the s
 - No screen content or raw text appears in logs, dumps, or crash reports.
 
 
-## E05 — Vision Perception (9 issues)
+## E05 — Vision Perception (10 issues)
 
 | ID | Title | Type | Priority | Size | Labels | Depends on |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -650,6 +689,7 @@ Enforce that the a11y adapter cannot write values or invoke actions unless the s
 | CC-039 | Reading level scoring (FK, SMOG, ARI) | feat | P1 | M | understand, i18n | - |
 | CC-040 | Interruption detection (toasts, banners, popups) | feat | P1 | M | vision, adapt | - |
 | CC-041 | Perception benchmark suite | feat | P1 | M | testing, vision | - |
+| CC-126 | Vision detector and OCR traits with motion-aware scheduler | feat | P1 | L | vision, models, perf | - |
 
 ### CC-033 — Model manifest, downloader, hash pinning
 
@@ -808,6 +848,25 @@ Extend curbcut-bench to report mAP, CER, reading-order accuracy, layout F1, and 
 - The report is machine-readable and published.
 - Thresholds can fail a build.
 - Baselines are committed for each reference machine.
+- Unit tests cover the new logic and edge cases.
+- Docs updated (user, admin, or developer as appropriate).
+- CI green on macOS arm64/x64, Windows x64, and Linux x64.
+- No screen content or raw text appears in logs, dumps, or crash reports.
+
+### CC-126 — Vision detector and OCR traits with motion-aware scheduler
+
+**Type:** `feat`  |  **Priority:** P1  |  **Size:** L
+
+**Labels:** `vision`, `models`, `perf`
+
+Define Detector, Ocr, and IconCaptioner traits plus the VisionPipeline and a deterministic motion-aware scheduler that skips static frames and coalesces bursts.
+
+**Acceptance criteria**
+
+- Static frames are skipped.
+- Motion above threshold triggers analysis.
+- Protected frames are never enqueued.
+- Scheduler is deterministic and unit-tested.
 - Unit tests cover the new logic and edge cases.
 - Docs updated (user, admin, or developer as appropriate).
 - CI green on macOS arm64/x64, Windows x64, and Linux x64.
@@ -1661,7 +1720,7 @@ Document the voice grammar, provide a 'what can I say?' panel, and support a pus
 - No screen content or raw text appears in logs, dumps, or crash reports.
 
 
-## E11 — Data & Personalization (5 issues)
+## E11 — Data & Personalization (6 issues)
 
 | ID | Title | Type | Priority | Size | Labels | Depends on |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1670,6 +1729,7 @@ Document the voice grammar, provide a 'what can I say?' panel, and support a pus
 | CC-087 | Per-app layout memory | feat | P1 | L | adapt, store | - |
 | CC-088 | Backup, restore, and encrypted export | feat | P1 | M | store, privacy | - |
 | CC-089 | Optional end-to-end encrypted sync | feat | P2 | L | store, privacy | - |
+| CC-128 | Telemetry schema and opt-in export | feat | P1 | M | telemetry, privacy | - |
 
 ### CC-085 — Profile editor with live preview
 
@@ -1756,6 +1816,24 @@ Sync profiles and settings across devices with E2E encryption, off by default, u
 - Sync is off by default.
 - A network capture shows no plaintext.
 - Key compromise recovery is documented.
+- Unit tests cover the new logic and edge cases.
+- Docs updated (user, admin, or developer as appropriate).
+- CI green on macOS arm64/x64, Windows x64, and Linux x64.
+- No screen content or raw text appears in logs, dumps, or crash reports.
+
+### CC-128 — Telemetry schema and opt-in export
+
+**Type:** `feat`  |  **Priority:** P1  |  **Size:** M
+
+**Labels:** `telemetry`, `privacy`
+
+Define the counts-only telemetry schema, the allowlisted metric keys, and the opt-in exporter. Disabled by default; no content, no labels, no session identifiers.
+
+**Acceptance criteria**
+
+- Metric keys outside the allowlist are rejected.
+- Export is None while disabled.
+- Snapshot serializes keys and numbers only.
 - Unit tests cover the new logic and edge cases.
 - Docs updated (user, admin, or developer as appropriate).
 - CI green on macOS arm64/x64, Windows x64, and Linux x64.
