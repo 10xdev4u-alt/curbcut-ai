@@ -1,7 +1,13 @@
 # Headless CLI
 
-The `curbcut` binary is a thin wrapper over `curbcut_cli::run`. It exists so the
-privacy and benchmark paths can be exercised without the desktop app.
+The `curbcut-cli` binary is a thin wrapper over `curbcut_cli::run`. It exists so
+the privacy and benchmark paths can be exercised without the desktop app.
+
+## Arguments
+
+Arguments are collected with `args_os` and converted lossily. A non-UTF-8
+argument therefore reaches the parser and exits 2 as an unknown command, rather
+than panicking in the argument iterator.
 
 ## Commands
 

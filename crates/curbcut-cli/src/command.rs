@@ -1,9 +1,12 @@
 //! Command parsing and dispatch.
 //!
-//! [`parse`] turns arguments into a [`Command`], [`execute`] runs it, and
-//! [`run`] is the process entry point. [`run_to`] is the same thing with
+//! [`Command::parse`] turns arguments into a [`Command`], [`execute`] runs it,
+//! and [`run`] is the process entry point. [`run_to`] is the same thing with
 //! caller-supplied sinks, so the exit codes and output are testable without
 //! spawning a process.
+//!
+//! No argument path panics. Arguments are collected lossily by `main`, so even
+//! non-UTF-8 input reaches the parser and becomes a usage error.
 
 use std::fmt;
 
@@ -15,6 +18,12 @@ pub const EXIT_OK: i32 = 0;
 
 /// Exit code for bad arguments.
 pub const EXIT_USAGE: i32 = 2;
+
+/// Exit code the Rust runtime uses for a panic.
+pub const EXIT_PANIC: i32 = 101;
+
+/// The longest argument echoed back in an error message.
+const MAX_ECHO: usize = 32;
 
 /// A parsed CLI command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,13 +46,14 @@ impl Command {
     /// # Errors
     ///
     /// Returns a content-free message when no command was given, the command
-    /// is unknown, or it was given extra arguments.
+    /// is unknown, or it was given extra arguments. A returned message echoes
+    /// at most [`MAX_ECHO`] characters of the argument, so a huge input cannot
+    /// flood a terminal.
     pub fn parse(args: &[String]) -> Result<Self, String> {
         let mut iter = args.iter().map(String::as_str);
         let command = iter.next().ok_or_else(|| "no command given".to_string())?;
-        let extra = iter.next();
-        if extra.is_some() {
-            return Err(format!("{command} takes no arguments"));
+        if iter.next().is_some() {
+            return Err(format!("{} takes no arguments", truncate(command)));
         }
         match command {
             "status" => Ok(Self::Status),
@@ -51,17 +61,17 @@ impl Command {
             "bench" => Ok(Self::Bench),
             "panic" => Ok(Self::Panic),
             "help" | "--help" | "-h" => Ok(Self::Help),
-            other => Err(format!("unknown command: {other}")),
+            other => Err(format!("unknown command: {}", truncate(other))),
         }
     }
 
-    /// Runs the command, writing output to `out` and errors to `err`.
+    /// Runs the command, writing output to `out`.
     ///
     /// # Panics
     ///
-    /// [`Command::Panic`] panics with a fixed, content-free message.
-    pub fn execute(&self, out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
-        let _ = err;
+    /// [`Command::Panic`] panics with a fixed, content-free message. Every
+    /// other command returns normally.
+    pub fn execute(&self, out: &mut dyn fmt::Write) -> i32 {
         match self {
             Self::Status => {
                 let _ = writeln!(out, "status ok");
@@ -87,9 +97,19 @@ impl Command {
     }
 }
 
+/// Truncates `text` to [`MAX_ECHO`] characters, marking a cut with `…`.
+fn truncate(text: &str) -> String {
+    if text.chars().count() <= MAX_ECHO {
+        return text.to_string();
+    }
+    let mut out: String = text.chars().take(MAX_ECHO).collect();
+    out.push('…');
+    out
+}
+
 /// The usage text.
 pub fn usage() -> &'static str {
-    "usage: curbcut <command>
+    "usage: curbcut-cli <command>
 
 commands:
   status    content-free status line
@@ -107,12 +127,14 @@ exit codes:
 
 /// Runs the CLI with caller-supplied sinks and returns the exit code.
 ///
+/// Parse errors go to `err`; command output goes to `out`.
+///
 /// # Panics
 ///
 /// Panics for [`Command::Panic`], like [`run`] does.
 pub fn run_to(args: &[String], out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
     match Command::parse(args) {
-        Ok(command) => command.execute(out, err),
+        Ok(command) => command.execute(out),
         Err(message) => {
             let _ = writeln!(err, "error: {message}");
             let _ = write!(err, "{}", usage());
@@ -126,7 +148,7 @@ pub fn run_to(args: &[String], out: &mut dyn fmt::Write, err: &mut dyn fmt::Writ
 /// # Panics
 ///
 /// Panics for [`Command::Panic`]. The Rust runtime turns that into exit code
-/// 101.
+/// [`EXIT_PANIC`].
 pub fn run(args: &[String]) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
@@ -159,10 +181,31 @@ mod tests {
     }
 
     #[test]
+    fn dump_exits_zero_and_prints_only_lengths_and_hashes() {
+        let (code, out, err) = outputs(&["dump"]);
+        assert_eq!(code, EXIT_OK);
+        assert!(err.is_empty(), "{err}");
+        assert!(out.contains("name_len="), "{out}");
+        assert!(out.contains("nodes=3"), "{out}");
+        for content in ["header", "welcome back", "article", "quick brown fox"] {
+            assert!(!out.contains(content), "{out}");
+        }
+    }
+
+    #[test]
+    fn bench_exits_zero_and_prints_a_checksum() {
+        let (code, out, err) = outputs(&["bench"]);
+        assert_eq!(code, EXIT_OK);
+        assert!(err.is_empty(), "{err}");
+        assert!(out.contains("iterations=100000"), "{out}");
+        assert!(out.contains("bytes=4100000"), "{out}");
+    }
+
+    #[test]
     fn help_exits_zero() {
         let (code, out, _) = outputs(&["help"]);
         assert_eq!(code, EXIT_OK);
-        assert!(out.contains("usage: curbcut"), "{out}");
+        assert!(out.contains("usage: curbcut-cli"), "{out}");
     }
 
     #[test]
@@ -184,7 +227,7 @@ mod tests {
             let (code, _out, err) = outputs(&case);
             assert_eq!(code, EXIT_USAGE, "case {case:?}");
             assert!(!err.is_empty(), "case {case:?} must explain itself");
-            assert!(err.contains("usage: curbcut"), "case {case:?}: {err}");
+            assert!(err.contains("usage: curbcut-cli"), "case {case:?}: {err}");
         }
     }
 
@@ -193,6 +236,29 @@ mod tests {
         let (code, _out, err) = outputs(&["frobnicate"]);
         assert_eq!(code, EXIT_USAGE);
         assert!(err.contains("unknown command: frobnicate"), "{err}");
+    }
+
+    #[test]
+    fn a_huge_argument_is_truncated_in_the_error() {
+        let huge = "x".repeat(100_000);
+        let (code, _out, err) = outputs(&[&huge]);
+        assert_eq!(code, EXIT_USAGE);
+        assert!(err.contains("unknown command: "), "{err}");
+        assert!(
+            err.len() < 512,
+            "the error echoed the whole argument: {} bytes",
+            err.len()
+        );
+        assert!(err.contains('…'), "{err}");
+    }
+
+    #[test]
+    fn a_huge_command_with_extra_arguments_is_truncated() {
+        let huge = "y".repeat(100_000);
+        let (code, _out, err) = outputs(&[&huge, "extra"]);
+        assert_eq!(code, EXIT_USAGE);
+        assert!(err.contains("takes no arguments"), "{err}");
+        assert!(err.len() < 512, "error was {} bytes", err.len());
     }
 
     #[test]
@@ -213,8 +279,11 @@ mod tests {
     }
 
     #[test]
-    fn exit_codes_are_distinct() {
+    fn exit_codes_have_their_documented_values() {
+        assert_eq!(EXIT_OK, 0);
+        assert_eq!(EXIT_USAGE, 2);
+        assert_eq!(EXIT_PANIC, 101);
         assert_ne!(EXIT_OK, EXIT_USAGE);
-        assert_ne!(EXIT_USAGE, 101);
+        assert_ne!(EXIT_USAGE, EXIT_PANIC);
     }
 }
