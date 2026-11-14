@@ -1,0 +1,11 @@
+[package]
+name = "curbcut-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Headless control, benchmark, and redacted debug dump."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }

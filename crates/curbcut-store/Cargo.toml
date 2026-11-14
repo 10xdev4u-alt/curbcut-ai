@@ -1,0 +1,11 @@
+[package]
+name = "curbcut-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Storage schema, migrations, repositories, and key handling."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }

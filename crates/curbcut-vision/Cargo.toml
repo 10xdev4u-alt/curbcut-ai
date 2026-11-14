@@ -1,0 +1,12 @@
+[package]
+name = "curbcut-vision"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ONNX inference, detection, OCR, layout, and motion scheduling."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }
+curbcut-capture = { path = "../curbcut-capture" }

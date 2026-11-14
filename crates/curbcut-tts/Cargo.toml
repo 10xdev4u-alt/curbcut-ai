@@ -1,0 +1,11 @@
+[package]
+name = "curbcut-tts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "TTS abstraction, audio focus, and voice command grammar."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }

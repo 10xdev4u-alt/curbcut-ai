@@ -1,0 +1,11 @@
+[package]
+name = "curbcut-capture"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Screen capture adapters and the zeroizing frame ring buffer."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }

@@ -1,0 +1,11 @@
+[package]
+name = "curbcut-telemetry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Opt-in, counts-only telemetry and redaction."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }

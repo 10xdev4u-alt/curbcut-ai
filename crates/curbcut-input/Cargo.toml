@@ -1,0 +1,11 @@
+[package]
+name = "curbcut-input"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Global shortcuts, hover/click routing, and switch access."
+publish = false
+
+[dependencies]
+curbcut-core = { path = "../curbcut-core" }
