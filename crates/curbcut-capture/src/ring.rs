@@ -23,13 +23,19 @@ pub const DEFAULT_FPS: u32 = 30;
 pub const MAX_FRAME_BYTES: usize = 64 * 1024 * 1024;
 /// Byte written over a released frame.
 pub const GUARD_BYTE: u8 = 0;
-/// Pattern used by the guard-byte test.
-pub const TEST_PATTERN: u8 = 0xA5;
 
-/// Counts buffers whose `Drop` ran, for the zeroization guard test.
+/// Pattern used by the guard-byte test.
 #[cfg(test)]
-pub(crate) static ZEROIZED_ON_DROP: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(0);
+pub(crate) const TEST_PATTERN: u8 = 0xA5;
+
+// Counts buffers dropped on the current thread, for the zeroization guard
+// test. Thread-local so parallel tests cannot race on a process-global
+// counter.
+#[cfg(test)]
+thread_local! {
+    pub(crate) static ZEROIZED_ON_DROP: std::cell::Cell<usize> =
+        const { std::cell::Cell::new(0) };
+}
 
 /// An owned frame buffer that zeroes itself on release.
 pub struct FrameBuffer {
@@ -54,8 +60,9 @@ impl FrameBuffer {
         })
     }
 
-    /// Allocates a buffer prefilled with `fill`. Used by tests and by callers
-    /// that need a deterministic pattern.
+    /// Allocates a buffer prefilled with `fill`. Test helper; production code
+    /// uses [`FrameBuffer::new`], which starts from [`GUARD_BYTE`].
+    #[cfg(test)]
     pub fn with_fill(len: usize, fill: u8) -> Self {
         Self {
             data: vec![fill; len],
@@ -97,10 +104,7 @@ impl Drop for FrameBuffer {
     fn drop(&mut self) {
         self.zeroize();
         #[cfg(test)]
-        {
-            use std::sync::atomic::Ordering;
-            ZEROIZED_ON_DROP.fetch_add(1, Ordering::Relaxed);
-        }
+        ZEROIZED_ON_DROP.with(|counter| counter.set(counter.get() + 1));
     }
 }
 
@@ -141,11 +145,15 @@ pub enum MlockStatus {
 
 /// A best-effort page-locking backend.
 pub trait MlockBackend: fmt::Debug + Send + Sync {
-    /// Attempts to lock `len` bytes. Never fails the caller.
-    fn lock(&self, len: usize) -> MlockStatus;
+    /// Attempts to lock the pages holding `data`. Never fails the caller.
+    ///
+    /// The slice is the frame's own storage, so a real backend can pass
+    /// `data.as_ptr()` and `data.len()` to `mlock(2)`.
+    fn lock(&self, data: &[u8]) -> MlockStatus;
 
-    /// Releases a previously locked range.
-    fn unlock(&self, len: usize);
+    /// Releases a previously locked range. `data` is the same storage the
+    /// matching [`MlockBackend::lock`] call received.
+    fn unlock(&self, data: &[u8]);
 }
 
 /// The default backend. Safe std-only Rust cannot call `mlock(2)`, so it always
@@ -154,17 +162,20 @@ pub trait MlockBackend: fmt::Debug + Send + Sync {
 pub struct NoMlock;
 
 impl MlockBackend for NoMlock {
-    fn lock(&self, _len: usize) -> MlockStatus {
+    fn lock(&self, _data: &[u8]) -> MlockStatus {
         MlockStatus::Unsupported
     }
 
-    fn unlock(&self, _len: usize) {}
+    fn unlock(&self, _data: &[u8]) {}
 }
 
 #[derive(Debug)]
 struct Slot {
     frame: Option<FrameBuffer>,
     meta: Option<FrameMeta>,
+    /// Bytes the backend actually locked for this frame. Zero when the lock
+    /// was unsupported or failed, so eviction only unlocks what was locked.
+    locked_bytes: usize,
 }
 
 /// Aggregate ring counters.
@@ -230,6 +241,7 @@ impl RingBuffer {
                 .map(|_| Slot {
                     frame: None,
                     meta: None,
+                    locked_bytes: 0,
                 })
                 .collect(),
             capacity,
@@ -249,14 +261,25 @@ impl RingBuffer {
     ///
     /// # Errors
     ///
-    /// Returns [`CurbCutError::InvalidInput`] on a zero rate or budget.
+    /// Returns [`CurbCutError::InvalidInput`] when `fps` is zero, when
+    /// `fps * seconds` is zero or overflows, or when `budget_bytes` is zero.
     pub fn with_fps(
         fps: u32,
         seconds: u32,
         budget_bytes: usize,
         mlock: Box<dyn MlockBackend>,
     ) -> Result<Self> {
-        let capacity = (fps as u64 * seconds as u64).max(1) as usize;
+        if fps == 0 {
+            return Err(CurbCutError::InvalidInput {
+                field: "fps".to_string(),
+            });
+        }
+        let capacity = (fps as u64)
+            .checked_mul(u64::from(seconds))
+            .and_then(|slots| usize::try_from(slots).ok())
+            .ok_or_else(|| CurbCutError::InvalidInput {
+                field: "fps * seconds".to_string(),
+            })?;
         Self::new(capacity, budget_bytes, mlock)
     }
 
@@ -267,10 +290,15 @@ impl RingBuffer {
     ///
     /// # Errors
     ///
-    /// Returns [`CurbCutError::InvalidInput`] when the frame is larger than
-    /// [`MAX_FRAME_BYTES`] or larger than the whole budget.
+    /// Returns [`CurbCutError::InvalidInput`] when the frame is empty, larger
+    /// than [`MAX_FRAME_BYTES`], or larger than the whole budget.
     pub fn push(&mut self, data: &[u8], meta: FrameMeta) -> Result<FrameId> {
         let len = data.len();
+        if len == 0 {
+            return Err(CurbCutError::InvalidInput {
+                field: "frame is empty".to_string(),
+            });
+        }
         if len > MAX_FRAME_BYTES {
             return Err(CurbCutError::InvalidInput {
                 field: format!("frame length exceeds {}", MAX_FRAME_BYTES),
@@ -293,17 +321,19 @@ impl RingBuffer {
 
         let mut frame = FrameBuffer::new(len)?;
         frame.as_mut_slice().copy_from_slice(data);
-        self.resident_bytes += len;
-        self.mlock_locked_bytes += match self.mlock.lock(len) {
+        let locked_bytes = match self.mlock.lock(frame.as_slice()) {
             MlockStatus::Locked => len,
             MlockStatus::Unsupported | MlockStatus::Failed => 0,
         };
+        self.resident_bytes += len;
+        self.mlock_locked_bytes += locked_bytes;
 
         let id = FrameId(self.next_id);
         self.next_id = self.next_id.wrapping_add(1);
         self.slots[index] = Slot {
             frame: Some(frame),
             meta: Some(FrameMeta { id, ..meta }),
+            locked_bytes,
         };
         self.occupied += 1;
         self.pushed += 1;
@@ -407,13 +437,22 @@ impl RingBuffer {
     }
 
     fn clear_slot(&mut self, index: usize) {
-        let taken = self.slots.get_mut(index).and_then(|slot| slot.frame.take());
-        if let Some(frame) = taken {
+        let taken = self.slots.get_mut(index).map(|slot| {
+            let frame = slot.frame.take();
+            let locked_bytes = std::mem::take(&mut slot.locked_bytes);
+            (frame, locked_bytes)
+        });
+        if let Some((Some(mut frame), locked_bytes)) = taken {
             let len = frame.len();
+            // Zeroize before unlock so the backend observes a scrubbed range,
+            // and so the guard byte is in place even if unlock panics.
+            frame.zeroize();
+            if locked_bytes > 0 {
+                self.mlock.unlock(frame.as_slice());
+                self.mlock_locked_bytes = self.mlock_locked_bytes.saturating_sub(locked_bytes);
+            }
             self.resident_bytes = self.resident_bytes.saturating_sub(len);
-            self.mlock_locked_bytes = self.mlock_locked_bytes.saturating_sub(len);
             self.occupied = self.occupied.saturating_sub(1);
-            self.mlock.unlock(len);
         }
         if let Some(slot) = self.slots.get_mut(index) {
             slot.meta = None;
@@ -454,16 +493,16 @@ mod tests {
     }
 
     impl MlockBackend for CountingMlock {
-        fn lock(&self, len: usize) -> MlockStatus {
+        fn lock(&self, data: &[u8]) -> MlockStatus {
             if self.failed {
                 return MlockStatus::Failed;
             }
-            self.locked.fetch_add(len, Ordering::Relaxed);
+            self.locked.fetch_add(data.len(), Ordering::Relaxed);
             MlockStatus::Locked
         }
 
-        fn unlock(&self, len: usize) {
-            self.locked.fetch_sub(len, Ordering::Relaxed);
+        fn unlock(&self, data: &[u8]) {
+            self.locked.fetch_sub(data.len(), Ordering::Relaxed);
         }
     }
 
@@ -492,12 +531,32 @@ mod tests {
 
     #[test]
     fn drop_zeroizes_the_buffer() {
-        ZEROIZED_ON_DROP.store(0, Ordering::Relaxed);
+        ZEROIZED_ON_DROP.with(|counter| counter.set(0));
         {
             let _buffer = FrameBuffer::with_fill(64, TEST_PATTERN);
-            assert_eq!(ZEROIZED_ON_DROP.load(Ordering::Relaxed), 0);
+            assert_eq!(ZEROIZED_ON_DROP.with(|counter| counter.get()), 0);
         }
-        assert_eq!(ZEROIZED_ON_DROP.load(Ordering::Relaxed), 1);
+        assert_eq!(ZEROIZED_ON_DROP.with(|counter| counter.get()), 1);
+    }
+
+    #[test]
+    fn an_empty_frame_is_rejected() {
+        let mut ring = ring(4, 1024);
+        let err = ring.push(&[], meta(1)).expect_err("empty frame");
+        assert!(err.to_string().contains("empty"), "{err}");
+        assert!(ring.is_empty());
+    }
+
+    #[test]
+    fn a_zero_frame_rate_is_rejected() {
+        let err = RingBuffer::with_fps(0, 10, 1024, Box::new(NoMlock)).expect_err("zero fps");
+        assert!(err.to_string().contains("fps"), "{err}");
+    }
+
+    #[test]
+    fn a_zero_duration_is_rejected() {
+        let err = RingBuffer::with_fps(30, 0, 1024, Box::new(NoMlock)).expect_err("zero seconds");
+        assert!(err.to_string().contains("capacity"), "{err}");
     }
 
     #[test]
@@ -615,15 +674,65 @@ mod tests {
     fn debug_impls_print_no_pixels() {
         let mut ring = ring(2, 1024);
         ring.push(&[7u8; 16], meta(1)).expect("push");
-        let ring_dbg = format!("{ring:?}");
-        assert!(ring_dbg.contains("resident_bytes"), "{ring_dbg}");
-        assert!(!ring_dbg.contains("pushed: 0"), "{ring_dbg}");
+        assert_eq!(
+            format!("{ring:?}"),
+            "RingBuffer { capacity: 2, occupied: 1, resident_bytes: 16, \
+             budget_bytes: 1024, pushed: 1, overwritten: 0 }"
+        );
 
         let mut buffer = FrameBuffer::with_fill(16, 7);
-        let buffer_dbg = format!("{buffer:?}");
-        assert!(buffer_dbg.contains("len: 16"), "{buffer_dbg}");
-        assert!(!buffer_dbg.contains("7, 7"), "{buffer_dbg}");
+        assert_eq!(
+            format!("{buffer:?}"),
+            "FrameBuffer { len: 16, zeroized: false }"
+        );
         buffer.zeroize();
-        assert!(format!("{buffer:?}").contains("zeroized: true"));
+        assert_eq!(
+            format!("{buffer:?}"),
+            "FrameBuffer { len: 16, zeroized: true }"
+        );
+    }
+
+    #[derive(Debug, Default)]
+    struct ProbeState {
+        unlocks: AtomicUsize,
+        dirty: AtomicUsize,
+    }
+
+    #[derive(Debug, Default, Clone)]
+    struct ZeroizeProbe {
+        state: std::sync::Arc<ProbeState>,
+    }
+
+    impl MlockBackend for ZeroizeProbe {
+        fn lock(&self, _data: &[u8]) -> MlockStatus {
+            MlockStatus::Locked
+        }
+
+        fn unlock(&self, data: &[u8]) {
+            self.state.unlocks.fetch_add(1, Ordering::Relaxed);
+            if !data.iter().all(|byte| *byte == GUARD_BYTE) {
+                self.state.dirty.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+    }
+
+    #[test]
+    fn eviction_unlocks_a_zeroized_range() {
+        let probe = ZeroizeProbe::default();
+        let state = probe.state.clone();
+        let mut ring = RingBuffer::new(2, 1024, Box::new(probe)).expect("ring");
+        for id in 0..4u64 {
+            ring.push(&[id as u8; 8], meta(id)).expect("push");
+        }
+        assert_eq!(
+            state.unlocks.load(Ordering::Relaxed),
+            2,
+            "two frames were evicted"
+        );
+        assert_eq!(
+            state.dirty.load(Ordering::Relaxed),
+            0,
+            "every evicted range was scrubbed before unlock"
+        );
     }
 }
