@@ -15,7 +15,8 @@
 //!
 //! The compatibility tables are `ROLE_COMPAT` and `STATE_COMPAT`. They are
 //! data, not code, so a new platform role is a table row and a test, not a new
-//! branch. `docs/ROLE_MAPPING.md` is generated from the same rows.
+//! branch. `docs/ROLE_MAPPING.md` is rendered from the same rows by
+//! `scripts/render_role_mapping.py`.
 
 use std::fmt;
 
@@ -39,6 +40,20 @@ impl Platform {
             Self::MacOs => "macos",
             Self::Windows => "windows",
             Self::Linux => "linux",
+        }
+    }
+
+    /// Whether an element is enabled when the platform reports no enabled state.
+    ///
+    /// macOS and Windows expose enabled as a positive attribute that is absent
+    /// when the element is disabled, so an element is enabled unless it says
+    /// otherwise. AT-SPI exposes `enabled` as a member of the state set and
+    /// omits it when the element is disabled, so a Linux element with no
+    /// enabled state is disabled.
+    pub fn default_enabled(self) -> bool {
+        match self {
+            Self::MacOs | Self::Windows => true,
+            Self::Linux => false,
         }
     }
 }
@@ -601,14 +616,18 @@ pub static STATE_COMPAT: &[StateMapping] = &[
 ///
 /// `states` holds the state names the platform reports as present. An
 /// unrecognized name is ignored, so a new platform state cannot corrupt the
-/// element. The adapter normalizes negative facts into the table's negative
-/// rows: for example, AT-SPI reports an absent `enabled` state as `disabled`.
+/// element.
 ///
-/// The default is enabled and unfocused, matching the platform convention that
-/// an element is enabled unless it says otherwise.
+/// The starting value is [`Platform::default_enabled`]: macOS and Windows are
+/// enabled unless they say otherwise, while AT-SPI omits `enabled` for a
+/// disabled element, so Linux starts disabled. The adapter reports negative
+/// facts through the table's negative rows; for example, an AT-SPI element
+/// with no `enabled` state stays disabled without the adapter injecting
+/// `disabled`. When a platform reports contradictory names, the last name in
+/// `states` wins.
 pub fn map_state(platform: Platform, states: &[&str]) -> ElementState {
     let mut state = ElementState {
-        enabled: true,
+        enabled: platform.default_enabled(),
         ..ElementState::default()
     };
     for raw in states {
@@ -641,9 +660,8 @@ mod tests {
     #[test]
     fn every_table_row_maps_to_a_concrete_role() {
         for row in ROLE_COMPAT {
-            assert_ne!(
-                row.core,
-                Role::Unknown(row.raw.to_string()),
+            assert!(
+                !matches!(row.core, Role::Unknown(_)),
                 "{} role `{}` must map to a concrete core role",
                 row.platform,
                 row.raw
@@ -787,14 +805,30 @@ mod tests {
     }
 
     #[test]
-    fn an_empty_state_set_is_enabled_by_default() {
+    fn an_empty_state_set_follows_the_platform_default() {
+        assert!(Platform::MacOs.default_enabled());
+        assert!(Platform::Windows.default_enabled());
+        assert!(!Platform::Linux.default_enabled());
+
         for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
             let state = map_state(platform, &[]);
-            assert!(state.enabled, "{platform} defaults to enabled");
+            assert_eq!(
+                state.enabled,
+                platform.default_enabled(),
+                "{platform} must start from its own default"
+            );
             assert!(!state.focused);
             assert!(!state.selected);
             assert!(!state.expanded);
         }
+    }
+
+    #[test]
+    fn a_linux_element_with_no_enabled_state_is_disabled() {
+        // AT-SPI omits `enabled` for a disabled element, so the adapter does
+        // not need to inject `disabled`.
+        assert!(!map_state(Platform::Linux, &[]).enabled);
+        assert!(map_state(Platform::Linux, &["enabled"]).enabled);
     }
 
     #[test]

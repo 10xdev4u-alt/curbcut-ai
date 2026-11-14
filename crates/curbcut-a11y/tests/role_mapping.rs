@@ -9,10 +9,9 @@ use curbcut_core::types::{ElementState, Role};
 fn every_role_row_targets_a_concrete_role() {
     assert!(!ROLE_COMPAT.is_empty());
     for row in ROLE_COMPAT {
-        assert_ne!(
-            row.core,
-            Role::Unknown(row.raw.to_string()),
-            "{} `{}` must not map to Unknown",
+        assert!(
+            !matches!(row.core, Role::Unknown(_)),
+            "{} `{}` must map to a concrete core role",
             row.platform,
             row.raw
         );
@@ -52,13 +51,19 @@ fn an_unknown_role_keeps_its_raw_string() {
 }
 
 #[test]
-fn state_defaults_are_enabled_and_unfocused() {
+fn state_defaults_follow_the_platform() {
+    // macOS and Windows are enabled unless they say otherwise; AT-SPI omits
+    // `enabled` for a disabled element, so Linux starts disabled.
+    assert!(Platform::MacOs.default_enabled());
+    assert!(Platform::Windows.default_enabled());
+    assert!(!Platform::Linux.default_enabled());
+
     for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
         let state = map_state(platform, &[]);
         assert_eq!(
             state,
             ElementState {
-                enabled: true,
+                enabled: platform.default_enabled(),
                 focused: false,
                 selected: false,
                 expanded: false,

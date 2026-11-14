@@ -96,3 +96,5 @@ jobs:
         run: |
           python3 scripts/scaffold_workspace.py
           git diff --exit-code
+      - name: Check the role mapping doc
+        run: python3 scripts/render_role_mapping.py --check

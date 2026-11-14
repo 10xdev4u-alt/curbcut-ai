@@ -1,9 +1,10 @@
 # Role and state mapping
 
 > How the three platform accessibility APIs map onto the core `Role` and
-> `ElementState`. The tables below mirror `ROLE_COMPAT` and `STATE_COMPAT`
-> in `crates/curbcut-a11y/src/mapping.rs`; the tests fail if a row stops
-> mapping to a concrete role.
+> `ElementState`. The tables below are rendered from `ROLE_COMPAT` and
+> `STATE_COMPAT` in `crates/curbcut-a11y/src/mapping.rs` by
+> `scripts/render_role_mapping.py`; the tests fail if a row stops mapping
+> to a concrete role.
 
 ## Raw role vocabularies
 
@@ -112,11 +113,11 @@ left unmapped.
 
 ## State mapping
 
-`map_state` starts from `enabled: true` and applies the platform's state
-names. A name the table does not know is ignored, so a new platform state
-cannot corrupt an element. The adapter normalizes negative facts into the
-table's negative rows: AT-SPI reports an absent `enabled` state as
-`disabled`.
+`map_state` starts from `Platform::default_enabled`: macOS and Windows are
+enabled unless they say otherwise, while AT-SPI omits `enabled` for a
+disabled element, so Linux starts disabled. A name the table does not know
+is ignored, so a new platform state cannot corrupt an element. When a
+platform reports contradictory names, the last name in `states` wins.
 
 ### macOS
 
@@ -155,4 +156,4 @@ table's negative rows: AT-SPI reports an absent `enabled` state as
 
 1. Add a `RoleMapping` row to `ROLE_COMPAT`.
 2. Add the raw string to the platform adapter's test fixture.
-3. Regenerate this table.
+3. Run `python3 scripts/render_role_mapping.py`.
