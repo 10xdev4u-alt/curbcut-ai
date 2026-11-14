@@ -109,17 +109,22 @@ impl Redactor {
 
     /// A redactor loaded from the repository canary fixture.
     ///
+    /// The fixture is embedded with `include_str!`, so a deployed binary does
+    /// not need the source tree.
+    ///
     /// # Panics
     ///
-    /// Panics when the fixture is missing or unreadable. A redactor that
-    /// silently loaded nothing would redact nothing, so a broken install fails
-    /// loud instead of logging raw content.
+    /// Panics when the embedded fixture is missing, unreadable, or empty. A
+    /// redactor that silently loaded nothing would redact nothing, so a broken
+    /// install fails loud instead of logging raw content.
     pub fn canaries() -> Self {
-        let path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/tests/fixtures/content_canaries.txt"
+        let redactor =
+            Self::from_canary_list(include_str!("../tests/fixtures/content_canaries.txt"));
+        assert!(
+            !redactor.secrets().is_empty(),
+            "the canary fixture must contain at least one canary"
         );
-        Self::from_canary_file(path).expect("canary fixture must be present and readable")
+        redactor
     }
 
     /// Loads canaries from a file, one per line, `#` for comments.
