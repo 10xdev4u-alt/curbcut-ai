@@ -18,6 +18,7 @@ pub mod config;
 pub mod error;
 pub mod event;
 pub mod id;
+pub mod redact;
 pub(crate) mod toml;
 pub mod types;
 
