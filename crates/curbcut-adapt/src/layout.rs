@@ -134,10 +134,12 @@ impl LayoutSolution {
     }
 
     /// No two placed boxes overlap.
+    ///
+    /// The edges are computed in `i64` so an extreme origin cannot overflow.
     pub fn has_no_overlap(&self) -> bool {
         for (index, left) in self.placed.iter().enumerate() {
             for right in &self.placed[index + 1..] {
-                if left.rect.intersects(right.rect) {
+                if edges_intersect(left.rect, right.rect) {
                     return false;
                 }
             }
@@ -146,14 +148,39 @@ impl LayoutSolution {
     }
 
     /// Every placed box lies inside `viewport`.
+    ///
+    /// The edges are computed in `i64` so an extreme origin cannot overflow.
     pub fn has_no_clipping(&self, viewport: Rect) -> bool {
+        let (left, top, right, bottom) = edges(viewport);
         self.placed.iter().all(|placed| {
-            placed.rect.x >= viewport.x
-                && placed.rect.y >= viewport.y
-                && placed.rect.right() <= viewport.right()
-                && placed.rect.bottom() <= viewport.bottom()
+            let (p_left, p_top, p_right, p_bottom) = edges(placed.rect);
+            p_left >= left && p_top >= top && p_right <= right && p_bottom <= bottom
         })
     }
+}
+
+/// The four edges of a rectangle in `i64`.
+///
+/// `Rect::right` and `Rect::bottom` add in `i32` and would overflow on a
+/// rectangle whose far edge leaves the `i32` range; the solver never emits one,
+/// and computing the edges here keeps the checkers total.
+fn edges(rect: Rect) -> (i64, i64, i64, i64) {
+    let left = i64::from(rect.x);
+    let top = i64::from(rect.y);
+    let right = left + i64::from(rect.width);
+    let bottom = top + i64::from(rect.height);
+    (left, top, right, bottom)
+}
+
+/// Whether two rectangles share any area, in `i64` edges.
+fn edges_intersect(left: Rect, right: Rect) -> bool {
+    let (a_left, a_top, a_right, a_bottom) = edges(left);
+    let (b_left, b_top, b_right, b_bottom) = edges(right);
+    let x = a_left.max(b_left);
+    let y = a_top.max(b_top);
+    let far_x = a_right.min(b_right);
+    let far_y = a_bottom.min(b_bottom);
+    far_x > x && far_y > y
 }
 
 /// Tuning for [`place_tiles`].
@@ -191,16 +218,15 @@ pub fn place_tiles(
     options: SolveOptions,
 ) -> LayoutSolution {
     let mut solution = LayoutSolution::default();
-    if viewport.is_empty() {
+    let gap = i64::from(options.gap);
+    let (left, top, right, bottom) = edges(viewport);
+    // A viewport whose far edge leaves the `i32` range cannot hold a rect that
+    // `Rect::right` and `Rect::bottom` can describe, so nothing is placed.
+    if viewport.is_empty() || right > i64::from(i32::MAX) || bottom > i64::from(i32::MAX) {
         solution.dropped = elements.iter().map(|element| element.id).collect();
+        solution.dropped.sort_by_key(|id| id.get());
         return solution;
     }
-
-    let gap = i64::from(options.gap);
-    let left = i64::from(viewport.x);
-    let top = i64::from(viewport.y);
-    let right = i64::from(viewport.right());
-    let bottom = i64::from(viewport.bottom());
 
     let mut order: Vec<&LayoutElement> = elements.iter().collect();
     order.sort_by_key(|element| {
@@ -276,7 +302,15 @@ pub fn place_tiles(
         row_has_item = true;
     }
 
-    solution.dropped.sort_by_key(|id| id.get());
+    // The contract is reading order, not id order, so a consumer can walk the
+    // dropped list in the same sequence it walked the input.
+    solution.dropped.sort_by_key(|id| {
+        let reading_order = elements
+            .iter()
+            .find(|element| element.id == *id)
+            .map_or(u32::MAX, |element| element.reading_order);
+        (reading_order, id.get())
+    });
     solution
 }
 
@@ -300,7 +334,10 @@ pub struct Line {
     /// Indices into the input word slice, in order.
     pub words: Vec<usize>,
     /// Advance width including the spaces between words.
-    pub width: u32,
+    ///
+    /// `u64` so a line of very wide words cannot saturate and hide an
+    /// overflow.
+    pub width: u64,
 }
 
 /// The outcome of a reflow.
@@ -325,12 +362,11 @@ impl ReflowResult {
 
     /// Every input word appears exactly once, in order.
     pub fn preserves_words(&self, word_count: usize) -> bool {
-        let mut seen: Vec<usize> = self
+        let seen: Vec<usize> = self
             .lines
             .iter()
-            .flat_map(|line| line.words.clone())
+            .flat_map(|line| line.words.iter().copied())
             .collect();
-        seen.sort_unstable();
         seen == (0..word_count).collect::<Vec<usize>>()
     }
 }
@@ -341,29 +377,30 @@ impl ReflowResult {
 /// own and that line is reported in `overflowing_lines`; the word is still
 /// emitted whole. A `measure` of zero puts every word on its own overflowing
 /// line rather than panicking.
+///
+/// Widths accumulate in `u64`, so a line of very wide words cannot saturate
+/// and hide an overflow.
 pub fn reflow(words: &[Word], measure: u32, space: u32) -> ReflowResult {
     let mut result = ReflowResult::default();
     let mut current: Vec<usize> = Vec::new();
-    let mut current_width: u32 = 0;
+    let mut current_width: u64 = 0;
+    let measure = u64::from(measure);
+    let space = u64::from(space);
 
     for (index, word) in words.iter().enumerate() {
+        let word_width = u64::from(word.width);
         if current.is_empty() {
             current.push(index);
-            current_width = word.width;
+            current_width = word_width;
             continue;
         }
-        let fits = current_width
-            .saturating_add(space)
-            .saturating_add(word.width)
-            <= measure;
+        let fits = current_width + space + word_width <= measure;
         if fits {
             current.push(index);
-            current_width = current_width
-                .saturating_add(space)
-                .saturating_add(word.width);
+            current_width += space + word_width;
         } else {
             push_line(&mut result, &mut current, current_width, measure);
-            current_width = word.width;
+            current_width = word_width;
             current.push(index);
         }
     }
@@ -373,7 +410,9 @@ pub fn reflow(words: &[Word], measure: u32, space: u32) -> ReflowResult {
 }
 
 /// Closes the current line, recording it and whether it overflows.
-fn push_line(result: &mut ReflowResult, words: &mut Vec<usize>, width: u32, measure: u32) {
+///
+/// Widths are `u64`, so the comparison cannot be fooled by saturation.
+fn push_line(result: &mut ReflowResult, words: &mut Vec<usize>, width: u64, measure: u64) {
     if words.is_empty() {
         return;
     }

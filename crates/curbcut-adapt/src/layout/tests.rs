@@ -178,9 +178,133 @@ fn a_huge_gap_does_not_break_the_invariants() {
 
     let solution = place_tiles(viewport, &elements, SolveOptions { gap: 1_000 });
 
+    // A gap larger than the viewport wraps the second box out of the viewport,
+    // so the first must be placed and the second dropped. Asserting the counts
+    // keeps the invariant checks above from passing on an empty solution.
+    assert_eq!(solution.len(), 1);
+    assert!(solution.contains(ElementId(1)));
+    assert_eq!(solution.dropped, vec![ElementId(2)]);
     assert!(solution.has_no_overlap());
     assert!(solution.has_no_clipping(viewport));
     assert!(solution.accounts_for(&elements));
+}
+
+#[test]
+fn dropped_is_reported_in_reading_order() {
+    // Ids and reading orders disagree, so an id sort would be visible.
+    let viewport = Rect::new(0, 0, 10, 10);
+    let elements = [
+        element(100, 0, 5, Size::new(20, 20), Size::new(20, 20)),
+        element(2, 0, 1, Size::new(20, 20), Size::new(20, 20)),
+        element(50, 0, 9, Size::new(20, 20), Size::new(20, 20)),
+    ];
+
+    let solution = place_tiles(viewport, &elements, SolveOptions::default());
+
+    assert!(solution.placed.is_empty());
+    assert_eq!(
+        solution.dropped,
+        vec![ElementId(2), ElementId(100), ElementId(50)]
+    );
+}
+
+#[test]
+fn extreme_viewport_edges_are_total() {
+    let elements = [element(1, 0, 0, Size::new(10, 10), Size::new(10, 10))];
+    for viewport in [
+        Rect::new(i32::MAX, 0, 10, 10),
+        Rect::new(i32::MIN, 0, 10, 10),
+        Rect::new(0, i32::MAX, 10, 10),
+        Rect::new(0, 0, u32::MAX, 10),
+        Rect::new(0, 0, 10, u32::MAX),
+    ] {
+        let solution = place_tiles(viewport, &elements, SolveOptions::default());
+        for placed in &solution.placed {
+            // No emitted rect may have a far edge outside the `i32` range, or a
+            // consumer calling `Rect::right` would overflow.
+            assert!(i64::from(placed.rect.x) + i64::from(placed.rect.width) <= i64::from(i32::MAX));
+            assert!(
+                i64::from(placed.rect.y) + i64::from(placed.rect.height) <= i64::from(i32::MAX)
+            );
+        }
+        assert!(solution.has_no_overlap());
+        assert!(solution.has_no_clipping(viewport));
+        assert!(solution.accounts_for(&elements));
+    }
+}
+
+#[test]
+fn the_solution_checkers_reject_broken_solutions() {
+    let elements = [
+        element(1, 0, 0, Size::new(10, 10), Size::new(10, 10)),
+        element(2, 0, 1, Size::new(10, 10), Size::new(10, 10)),
+    ];
+    let viewport = Rect::new(0, 0, 100, 100);
+
+    let overlapping = LayoutSolution {
+        placed: vec![
+            PlacedElement {
+                id: ElementId(1),
+                rect: Rect::new(0, 0, 20, 20),
+            },
+            PlacedElement {
+                id: ElementId(2),
+                rect: Rect::new(10, 10, 20, 20),
+            },
+        ],
+        dropped: Vec::new(),
+    };
+    assert!(!overlapping.has_no_overlap());
+
+    let clipped = LayoutSolution {
+        placed: vec![PlacedElement {
+            id: ElementId(1),
+            rect: Rect::new(50, 50, 60, 60),
+        }],
+        dropped: vec![ElementId(2)],
+    };
+    assert!(!clipped.has_no_clipping(viewport));
+
+    let incomplete = LayoutSolution {
+        placed: vec![PlacedElement {
+            id: ElementId(1),
+            rect: Rect::new(0, 0, 10, 10),
+        }],
+        dropped: Vec::new(),
+    };
+    assert!(!incomplete.accounts_for(&elements));
+
+    let duplicated = LayoutSolution {
+        placed: vec![
+            PlacedElement {
+                id: ElementId(1),
+                rect: Rect::new(0, 0, 10, 10),
+            },
+            PlacedElement {
+                id: ElementId(1),
+                rect: Rect::new(20, 0, 10, 10),
+            },
+        ],
+        dropped: vec![ElementId(2)],
+    };
+    assert!(!duplicated.accounts_for(&elements));
+
+    let valid = LayoutSolution {
+        placed: vec![
+            PlacedElement {
+                id: ElementId(1),
+                rect: Rect::new(0, 0, 10, 10),
+            },
+            PlacedElement {
+                id: ElementId(2),
+                rect: Rect::new(20, 0, 10, 10),
+            },
+        ],
+        dropped: Vec::new(),
+    };
+    assert!(valid.has_no_overlap());
+    assert!(valid.has_no_clipping(viewport));
+    assert!(valid.accounts_for(&elements));
 }
 
 #[test]
@@ -335,6 +459,60 @@ fn reflow_handles_a_zero_measure_without_panicking() {
 fn reflow_of_no_words_is_empty() {
     let result = reflow(&[], 100, 8);
     assert!(result.is_empty());
+}
+
+#[test]
+fn reflow_does_not_saturate_on_extreme_widths() {
+    // The true width of one line holding both words is `2*u32::MAX + 100`,
+    // which exceeds the measure. A saturating accumulator would have recorded
+    // `u32::MAX` and reported no overflow.
+    let words = [Word::new(100), Word::new(u32::MAX)];
+
+    let result = reflow(&words, u32::MAX, u32::MAX);
+
+    assert!(result.preserves_words(words.len()));
+    assert_eq!(result.lines.len(), 2, "{:?}", result.lines);
+    assert_eq!(result.lines[0].width, 100);
+    assert_eq!(result.lines[1].width, u64::from(u32::MAX));
+    assert!(result.overflowing_lines.is_empty());
+}
+
+#[test]
+fn preserves_words_rejects_a_reordered_result() {
+    // The contract is "exactly once, in order"; a multiset comparison would
+    // accept a scrambled line.
+    let scrambled = ReflowResult {
+        lines: vec![Line {
+            words: vec![1, 0],
+            width: 10,
+        }],
+        overflowing_lines: Vec::new(),
+    };
+    assert!(!scrambled.preserves_words(2));
+
+    let split = ReflowResult {
+        lines: vec![
+            Line {
+                words: vec![0],
+                width: 5,
+            },
+            Line {
+                words: vec![2, 1],
+                width: 10,
+            },
+        ],
+        overflowing_lines: Vec::new(),
+    };
+    assert!(!split.preserves_words(3));
+
+    let ordered = ReflowResult {
+        lines: vec![Line {
+            words: vec![0, 1],
+            width: 10,
+        }],
+        overflowing_lines: Vec::new(),
+    };
+    assert!(ordered.preserves_words(2));
 }
 
 #[test]

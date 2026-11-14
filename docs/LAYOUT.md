@@ -28,6 +28,12 @@ exactly once.
 
 A box is never resized below its `min` and never clipped.
 
+Both checkers compute rectangle edges in `i64`. A viewport whose far edge
+leaves the `i32` range cannot hold a rect that `Rect::right` and `Rect::bottom`
+can describe, so `place_tiles` drops everything rather than emit one. The
+solver is total: no input, including `i32::MAX` origins and `u32::MAX` sizes,
+makes it panic.
+
 ## Sizes
 
 `LayoutElement` carries a `min` and a `preferred` size. The solver clamps
@@ -51,6 +57,10 @@ larger than the viewport, is dropped rather than placed as a degenerate box.
 `ReflowResult::preserves_words(count)` confirms every input word appears
 exactly once and in order.
 
+Line widths are `u64`. A line of very wide words cannot saturate and hide an
+overflow, and a measure of zero puts every word on its own overflowing line
+rather than panicking.
+
 ## Performance
 
 `ten_thousand_random_layouts_do_not_overlap_or_clip` runs 10,000 deterministic
@@ -59,7 +69,8 @@ reading-order rule on each, and checks that the 95th-percentile solve time is
 under 50 ms. The test prints the measured placement counts and p95.
 
 Measured on the development machine: 88,105 boxes placed and 81,337 dropped
-across the 10,000 cases, p95 solve time 26 µs.
+across the 10,000 cases, with p95 solve time between 28 µs and 90 µs depending
+on machine load — three orders of magnitude inside the gate.
 
 ## Privacy
 
