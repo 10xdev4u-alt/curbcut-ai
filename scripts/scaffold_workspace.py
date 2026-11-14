@@ -132,6 +132,12 @@ CRATE_STATUS = {
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"
         "See [`../../docs/RULES.md`](../../docs/RULES.md)."
     ),
+    "curbcut-input": (
+        "The global shortcut catalog is implemented: `ShortcutAction` lists\n"
+        "twelve actions, `ShortcutCatalog` holds the bindings, detects conflicts,\n"
+        "and rebinds with a taken-chord check. See\n"
+        "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md)."
+    ),
 }
 
 
