@@ -18,21 +18,25 @@
 //!   leave the viewport.
 //!
 //! Labels are content. This module never logs a label; it only counts words
-//! and compares them.
+//! and compares them. The `Debug` impl on [`GridTile`] redacts the label to a
+//! length, so a caller that traces a tile cannot leak it.
 
+use std::collections::BTreeSet;
 use std::fmt;
 
 use curbcut_core::config::IconGrid;
 use curbcut_core::id::ElementId;
 use curbcut_core::types::Rect;
 
+pub use curbcut_core::types::MAX_LABEL_WORDS;
+
 use crate::layout::{edges, edges_intersect, Size};
 
-/// The most words a tile label may contain.
-pub const MAX_LABEL_WORDS: usize = 8;
-
 /// A tile the grid can place.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// The label is content, so the `Debug` impl redacts it to a length. A caller
+/// that `dbg!`s or traces a tile cannot leak the label.
+#[derive(Clone, PartialEq, Eq)]
 pub struct GridTile {
     /// Stable element id.
     pub id: ElementId,
@@ -40,6 +44,16 @@ pub struct GridTile {
     pub label: String,
     /// Reading order; lower comes first.
     pub reading_order: u32,
+}
+
+impl fmt::Debug for GridTile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GridTile")
+            .field("id", &self.id)
+            .field("label_len", &self.label.len())
+            .field("reading_order", &self.reading_order)
+            .finish()
+    }
 }
 
 impl GridTile {
@@ -114,7 +128,11 @@ impl GridLayout {
             }
             seen.push(*dropped);
         }
-        seen.len() == tiles.len() && tiles.iter().all(|tile| seen.contains(&tile.id))
+        seen.len() == tiles.len()
+            && tiles.iter().all(|tile| seen.contains(&tile.id))
+            && seen
+                .iter()
+                .all(|id| tiles.iter().any(|tile| tile.id == *id))
     }
 
     /// No two placed tiles overlap.
@@ -169,7 +187,7 @@ pub fn label_word_count(label: &str) -> usize {
 
 /// Validates a label against the tile-label policy.
 ///
-/// A usable label is non-empty, contains no control character, and is at most
+/// A usable label is non-empty, is plain text on one line, and is at most
 /// [`MAX_LABEL_WORDS`] words.
 ///
 /// # Errors
@@ -180,13 +198,37 @@ pub fn validate_label(label: &str) -> Result<(), LabelError> {
     if label.trim().is_empty() {
         return Err(LabelError::Empty);
     }
-    if label.chars().any(char::is_control) {
+    if !label.chars().all(is_plain_char) {
         return Err(LabelError::NotPlain);
     }
     if label_word_count(label) > MAX_LABEL_WORDS {
         return Err(LabelError::TooManyWords);
     }
     Ok(())
+}
+
+/// Whether a character can appear in a plain one-line label.
+///
+/// Control characters are rejected, and so are the line and paragraph
+/// separators and the format characters that can hide, join, or reorder text:
+/// the soft hyphen, the zero-width spaces and joiners, the bidi overrides and
+/// isolates, and the byte-order mark. None of them are visible, so a label
+/// containing one is not plain text on one line.
+fn is_plain_char(c: char) -> bool {
+    if c.is_control() {
+        return false;
+    }
+    !matches!(
+        c,
+        '\u{00AD}'
+            | '\u{200B}'..='\u{200D}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202A}'..='\u{202E}'
+            | '\u{2060}'..='\u{2064}'
+            | '\u{2066}'..='\u{2069}'
+            | '\u{FEFF}'
+    )
 }
 
 /// Whether a label satisfies [`validate_label`].
@@ -208,6 +250,7 @@ pub fn search_tiles(tiles: &[GridTile], query: &str) -> Vec<ElementId> {
         .collect();
     let mut ordered: Vec<&GridTile> = tiles.iter().collect();
     ordered.sort_by_key(|tile| (tile.reading_order, tile.id.get()));
+    let mut seen: BTreeSet<ElementId> = BTreeSet::new();
     ordered
         .into_iter()
         .filter(|tile| {
@@ -217,6 +260,7 @@ pub fn search_tiles(tiles: &[GridTile], query: &str) -> Vec<ElementId> {
             let label = tile.label.to_lowercase();
             tokens.iter().all(|token| label.contains(token.as_str()))
         })
+        .filter(|tile| seen.insert(tile.id))
         .map(|tile| tile.id)
         .collect()
 }
@@ -247,18 +291,24 @@ pub fn icon_grid_layout(viewport: Rect, tiles: &[GridTile], settings: &IconGrid)
     }
 
     let count = ordered.len() as u32;
+    // `IconGrid::validate` requires `min_tile >= 16`, but the solver takes any
+    // `IconGrid`. A zero minimum would place zero-area tiles and break the
+    // reading-order prefix, so the floor is enforced here.
+    let min_tile = settings.min_tile.max(1);
     let mut columns = settings.columns.min(count).max(1);
     let mut tile_width = tile_width_for(viewport.width, columns, settings.gap);
-    while columns > 1 && tile_width < settings.min_tile {
+    while columns > 1 && tile_width < min_tile {
         columns -= 1;
         tile_width = tile_width_for(viewport.width, columns, settings.gap);
     }
     // Tiles are square, so the side cannot exceed the viewport height either.
-    tile_width = tile_width.min(viewport.height);
+    // The side also has to fit in the positive `i32` range: `Rect::right` and
+    // `Rect::bottom` add `width as i32`, so a side above `i32::MAX` would wrap.
+    tile_width = tile_width.min(viewport.height).min(i32::MAX as u32);
     layout.columns = columns;
     layout.tile = Size::new(tile_width, tile_width);
 
-    if tile_width < settings.min_tile {
+    if tile_width < min_tile {
         // Even one column cannot honour the minimum; placing would clip.
         layout.dropped = ordered.iter().map(|tile| tile.id).collect();
         return layout;

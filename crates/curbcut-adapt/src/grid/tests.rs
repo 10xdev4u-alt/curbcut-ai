@@ -359,9 +359,127 @@ fn search_never_reorders_or_duplicates() {
 }
 
 #[test]
+fn search_deduplicates_repeated_ids() {
+    let tiles = [
+        GridTile::new(ElementId(1), "Alpha", 0),
+        GridTile::new(ElementId(1), "Alpha", 1),
+        GridTile::new(ElementId(2), "Alpha", 2),
+    ];
+
+    assert_eq!(
+        search_tiles(&tiles, "alpha"),
+        vec![ElementId(1), ElementId(2)]
+    );
+    assert_eq!(search_tiles(&tiles, ""), vec![ElementId(1), ElementId(2)]);
+}
+
+#[test]
+fn grid_tile_debug_redacts_the_label() {
+    let tile = GridTile::new(ElementId(7), "SECRET_LABEL", 3);
+    let debug = format!("{tile:?}");
+
+    assert!(!debug.contains("SECRET_LABEL"), "{debug}");
+    assert!(debug.contains("label_len"), "{debug}");
+    assert!(debug.contains("reading_order"), "{debug}");
+    assert!(debug.contains("ElementId(7)"), "{debug}");
+}
+
+#[test]
+fn accounts_for_rejects_an_unknown_id() {
+    let tiles = [tile(1, 0), tile(1, 1)];
+    let layout = GridLayout {
+        columns: 2,
+        tile: Size::new(100, 100),
+        placed: vec![
+            GridPlacement {
+                id: ElementId(1),
+                rect: Rect::new(0, 0, 100, 100),
+            },
+            GridPlacement {
+                id: ElementId(999),
+                rect: Rect::new(100, 0, 100, 100),
+            },
+        ],
+        dropped: Vec::new(),
+    };
+
+    assert!(!layout.accounts_for(&tiles));
+}
+
+#[test]
+fn a_zero_minimum_still_places_a_reading_order_prefix() {
+    let viewport = Rect::new(0, 0, 1, 1);
+    let tiles = [tile(1, 0), tile(2, 1), tile(3, 2), tile(4, 3)];
+
+    let layout = icon_grid_layout(viewport, &tiles, &settings(3, 0, 1));
+
+    assert_eq!(layout.columns, 1);
+    assert_eq!(layout.tile, Size::new(1, 1));
+    assert_eq!(layout.len(), 1);
+    assert_eq!(
+        layout.dropped,
+        vec![ElementId(2), ElementId(3), ElementId(4)]
+    );
+    assert!(layout.accounts_for(&tiles));
+}
+
+#[test]
+fn extreme_negative_origin_with_a_huge_viewport_does_not_overflow() {
+    let viewport = Rect::new(i32::MIN, i32::MIN, u32::MAX, u32::MAX);
+    let tiles = [tile(1, 0)];
+
+    let layout = icon_grid_layout(viewport, &tiles, &settings(1, 72, 0));
+
+    for placed in &layout.placed {
+        // `Rect::right`/`bottom` add in `i32`; a wrap would fail this equality.
+        assert_eq!(
+            i64::from(placed.rect.right()),
+            i64::from(placed.rect.x) + i64::from(placed.rect.width)
+        );
+        assert_eq!(
+            i64::from(placed.rect.bottom()),
+            i64::from(placed.rect.y) + i64::from(placed.rect.height)
+        );
+    }
+    assert!(layout.has_no_clipping(viewport));
+    assert!(layout.accounts_for(&tiles));
+}
+
+#[test]
+fn label_validation_rejects_invisible_format_characters() {
+    assert_eq!(validate_label("Save"), Ok(()));
+    for hidden in [
+        '\u{00AD}', '\u{200B}', '\u{200C}', '\u{200D}', '\u{2028}', '\u{2029}', '\u{202A}',
+        '\u{202E}', '\u{2060}', '\u{2066}', '\u{2069}', '\u{FEFF}',
+    ] {
+        let label = format!("a{hidden}b");
+        assert_eq!(
+            validate_label(&label),
+            Err(LabelError::NotPlain),
+            "{hidden:?} is not plain"
+        );
+        assert!(!is_plain_label(&label));
+    }
+}
+
+#[test]
+fn the_word_limit_is_shared_with_core() {
+    assert_eq!(MAX_LABEL_WORDS, curbcut_core::types::MAX_LABEL_WORDS);
+    assert_eq!(MAX_LABEL_WORDS, 8);
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/GRID.md");
-    for rule in ["min_tile", "row-major", "dropped", "eight"] {
+    for rule in [
+        "min_tile",
+        "row-major",
+        "dropped",
+        "eight",
+        "redact",
+        "format character",
+        "i32",
+    ] {
         assert!(doc.contains(rule), "docs/GRID.md does not state `{rule}`");
     }
 }

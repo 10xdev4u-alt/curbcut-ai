@@ -581,12 +581,17 @@ pub enum ActionKind {
     Invoke,
 }
 
+/// The most words a tile label may contain.
+///
+/// Shared by [`Tile`] and the icon-grid label policy so the two cannot drift.
+pub const MAX_LABEL_WORDS: usize = 8;
+
 /// A tile in a simplified layout.
 #[derive(Clone, PartialEq)]
 pub struct Tile {
     /// Tile id.
     pub id: ElementId,
-    /// Plain label, at most eight words.
+    /// Plain label, at most [`MAX_LABEL_WORDS`] words.
     pub label: String,
     /// Screen rectangle.
     pub rect: Rect,
