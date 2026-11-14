@@ -4,10 +4,12 @@ Profiles, rules engine, layout solver, and plan cache.
 
 ## Status
 
-The profile graph is implemented: a versioned settings graph with a
-baseline, atomic multi-setting changes, live-preview sinks, and a
-40-key setting registry. See
-[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md).
+The profile graph and layout solver are implemented: a versioned
+settings graph with a baseline, atomic multi-setting changes,
+live-preview sinks, and a 40-key setting registry; and a priority-based
+tile packer plus a no-clip reflow. See
+[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md) and
+[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md).
 
 ## Build and test
 

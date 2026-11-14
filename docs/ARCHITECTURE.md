@@ -295,9 +295,20 @@ Rules are data, versioned, and testable. Users can disable individual rules.
 
 ### 8.3 Layout solver
 
-- Input: `ScreenGraph`, profile, available space.
-- Output: `Layout` with tile positions, reflowed text blocks, and z-order.
-- Constraint solver: simple priority-based (not a general CSP) for determinism and speed. Big targets first, reading order second, minimal overlap third.
+Implemented in `crates/curbcut-adapt/src/layout.rs`. See
+[`docs/LAYOUT.md`](LAYOUT.md).
+
+- Input: a viewport `Rect`, a list of `LayoutElement` (id, priority, reading
+  order, minimum size, preferred size), and a gap.
+- Output: `LayoutSolution` with `placed` boxes and `dropped` element ids.
+- `place_tiles` is a priority-based shelf packer, not a general CSP: big
+  targets first, reading order second, no overlap and no clipping third. A box
+  that does not fit the remaining row wraps; a box that does not fit the
+  viewport height shrinks toward its minimum, then is dropped.
+- `reflow` breaks measured words into lines. A word is never split, so a word
+  wider than the measure is reported as an overflowing line rather than clipped.
+- Pure and deterministic: no I/O, no clock, no panics. 10,000 fuzz cases assert
+  the invariants; p95 solve time is printed by the test.
 - Animate only when `prefers-reduced-motion` is false.
 
 ---
