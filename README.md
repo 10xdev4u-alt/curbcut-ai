@@ -85,6 +85,7 @@ docs/
   INNOVATIONS.md           Creative extensions and differentiators
   THREAT_MODEL.md          Security and privacy threat model
   A11Y_MAPPING.md          WCAG 2.2 + COGA mapping and honest limits
+  ROLE_MAPPING.md          Platform role/state compatibility tables (generated)
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/
