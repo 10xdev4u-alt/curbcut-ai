@@ -142,7 +142,8 @@ impl fmt::Display for EventKind {
 
 /// A content-free summary of an event's payload.
 ///
-/// Counts and hashes only: never text, labels, or pixels.
+/// Counts and hashes only: never text, labels, or pixels. `profile` is the one
+/// string-backed field; it is a user-chosen profile id, not screen content.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EventSummary {
     /// How many elements, words, or regions are involved.
@@ -298,35 +299,39 @@ impl EventReceiver {
 
     /// Enqueues an event, applying the overflow policy.
     ///
-    /// Returns `true` when the event was queued.
-    fn push(&self, event: Event) -> bool {
+    /// Returns `(queued, dropped)`: whether the event was enqueued, and how many
+    /// events were evicted or rejected to make room.
+    fn push(&self, event: Event) -> (bool, u64) {
         let mut state = self.lock();
+        let mut dropped = 0;
         if state.queue.len() >= self.capacity {
             match self.policy {
                 OverflowPolicy::DropNewest => {
                     state.dropped += 1;
-                    return false;
+                    return (false, 1);
                 }
                 OverflowPolicy::DropOldest => {
                     state.queue.pop_front();
                     state.dropped += 1;
+                    dropped = 1;
                 }
                 OverflowPolicy::DropNonCritical => {
                     match state.queue.iter().position(|queued| !queued.is_critical()) {
                         Some(index) => {
                             state.queue.remove(index);
                             state.dropped += 1;
+                            dropped = 1;
                         }
                         None => {
                             state.dropped += 1;
-                            return false;
+                            return (false, 1);
                         }
                     }
                 }
             }
         }
         state.queue.push_back(event);
-        true
+        (true, dropped)
     }
 }
 
@@ -357,6 +362,7 @@ pub struct EventBus {
     seq: AtomicU64,
     published: AtomicU64,
     delivered: AtomicU64,
+    dropped: AtomicU64,
 }
 
 impl EventBus {
@@ -430,9 +436,11 @@ impl EventBus {
         self.published.fetch_add(1, Ordering::Relaxed);
         let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         for subscriber in &inner.subscribers {
-            if subscriber.push(event.clone()) {
+            let (queued, dropped) = subscriber.push(event.clone());
+            if queued {
                 self.delivered.fetch_add(1, Ordering::Relaxed);
             }
+            self.dropped.fetch_add(dropped, Ordering::Relaxed);
         }
         trace_id
     }
@@ -443,7 +451,7 @@ impl EventBus {
         BusStats {
             published: self.published.load(Ordering::Relaxed),
             delivered: self.delivered.load(Ordering::Relaxed),
-            dropped: inner.subscribers.iter().map(|sub| sub.dropped()).sum(),
+            dropped: self.dropped.load(Ordering::Relaxed),
             subscribers: inner.subscribers.len(),
         }
     }
@@ -518,7 +526,8 @@ mod tests {
         bus.publish(EventKind::FrameCaptured, Producer::Capture, summary());
         let events = rx.drain();
         assert_eq!(events.len(), 2);
-        assert!(events[0].seq > 0);
+        assert_eq!(events[0].seq, 1);
+        assert_eq!(events[1].seq, 2);
         assert_eq!(rx.dropped(), 1);
     }
 
@@ -581,14 +590,45 @@ mod tests {
     }
 
     #[test]
-    fn summary_carries_counts_and_hashes_only() {
+    fn summary_debug_shape_is_exact_and_content_free() {
         let summary = EventSummary::new()
             .with_count(5)
             .with_hash([7; 32])
             .with_frame(FrameId(2))
             .with_profile(ProfileId::read());
-        let dbg = format!("{summary:?}");
-        assert!(dbg.contains("count: 5"));
-        assert!(!dbg.contains("SECRET"));
+        let expected = format!(
+            "EventSummary {{ count: 5, hash: {:?}, frame: {:?}, profile: {:?} }}",
+            Some([7u8; 32]),
+            Some(FrameId(2)),
+            Some(ProfileId::read())
+        );
+        assert_eq!(format!("{summary:?}"), expected);
+    }
+
+    #[test]
+    fn drop_non_critical_rejects_incoming_when_queue_is_all_critical() {
+        let bus = EventBus::new();
+        let rx = bus
+            .subscribe("guard", 1, OverflowPolicy::DropNonCritical)
+            .unwrap();
+        bus.publish(EventKind::PanicRequested, Producer::Input, summary());
+        bus.publish(EventKind::PermissionChanged, Producer::Core, summary());
+        let events = rx.drain();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].kind, EventKind::PanicRequested);
+        assert_eq!(rx.dropped(), 1);
+    }
+
+    #[test]
+    fn drops_survive_unsubscribe_in_bus_stats() {
+        let bus = EventBus::new();
+        let rx = bus
+            .subscribe("temp", 1, OverflowPolicy::DropNewest)
+            .unwrap();
+        bus.publish(EventKind::FrameCaptured, Producer::Capture, summary());
+        bus.publish(EventKind::FrameCaptured, Producer::Capture, summary());
+        assert_eq!(bus.stats().dropped, 1);
+        bus.unsubscribe(rx.id());
+        assert_eq!(bus.stats().dropped, 1);
     }
 }
