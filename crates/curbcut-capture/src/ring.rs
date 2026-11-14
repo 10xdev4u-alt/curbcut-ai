@@ -21,6 +21,12 @@ pub const RING_SECONDS: u32 = 2;
 pub const DEFAULT_FPS: u32 = 30;
 /// Largest accepted frame: 64 MiB, enough for a 4K RGBA frame.
 pub const MAX_FRAME_BYTES: usize = 64 * 1024 * 1024;
+/// Largest accepted slot count.
+///
+/// A 30-minute ring at 60 fps needs 108,000 slots; 500,000 covers 120 fps for
+/// 30 minutes. The bound exists so a bad rate cannot request an unbounded
+/// allocation, which aborts rather than returning an error.
+pub const MAX_RING_CAPACITY: usize = 500_000;
 /// Byte written over a released frame.
 pub const GUARD_BYTE: u8 = 0;
 
@@ -193,7 +199,8 @@ pub struct RingStats {
     pub pushed: u64,
     /// Frames overwritten or evicted.
     pub overwritten: u64,
-    /// Bytes the backend reports as locked.
+    /// Bytes counted as locked. A `Locked` result is counted as the frame
+    /// length; a page-rounding backend may lock slightly more.
     pub mlock_locked_bytes: usize,
 }
 
@@ -223,10 +230,15 @@ impl RingBuffer {
     ///
     /// # Errors
     ///
-    /// Returns [`CurbCutError::InvalidInput`] when `capacity` or
-    /// `budget_bytes` is zero.
+    /// Returns [`CurbCutError::InvalidInput`] when `capacity` is zero or
+    /// exceeds [`MAX_RING_CAPACITY`], or when `budget_bytes` is zero.
     pub fn new(capacity: usize, budget_bytes: usize, mlock: Box<dyn MlockBackend>) -> Result<Self> {
         if capacity == 0 {
+            return Err(CurbCutError::InvalidInput {
+                field: "capacity".to_string(),
+            });
+        }
+        if capacity > MAX_RING_CAPACITY {
             return Err(CurbCutError::InvalidInput {
                 field: "capacity".to_string(),
             });
@@ -262,7 +274,8 @@ impl RingBuffer {
     /// # Errors
     ///
     /// Returns [`CurbCutError::InvalidInput`] when `fps` is zero, when
-    /// `fps * seconds` is zero or overflows, or when `budget_bytes` is zero.
+    /// `fps * seconds` is zero, overflows, or exceeds [`MAX_RING_CAPACITY`],
+    /// or when `budget_bytes` is zero.
     pub fn with_fps(
         fps: u32,
         seconds: u32,
@@ -408,7 +421,7 @@ impl RingBuffer {
         self.overwritten
     }
 
-    /// Bytes the backend reports as locked.
+    /// Bytes counted as locked.
     pub fn mlock_locked_bytes(&self) -> usize {
         self.mlock_locked_bytes
     }
@@ -442,17 +455,25 @@ impl RingBuffer {
             let locked_bytes = std::mem::take(&mut slot.locked_bytes);
             (frame, locked_bytes)
         });
-        if let Some((Some(mut frame), locked_bytes)) = taken {
-            let len = frame.len();
-            // Zeroize before unlock so the backend observes a scrubbed range,
-            // and so the guard byte is in place even if unlock panics.
-            frame.zeroize();
-            if locked_bytes > 0 {
-                self.mlock.unlock(frame.as_slice());
+        match taken {
+            Some((Some(mut frame), locked_bytes)) => {
+                let len = frame.len();
+                // Zeroize before unlock so the backend observes a scrubbed range,
+                // and so the guard byte is in place even if unlock panics.
+                frame.zeroize();
+                if locked_bytes > 0 {
+                    self.mlock.unlock(frame.as_slice());
+                }
+                self.mlock_locked_bytes = self.mlock_locked_bytes.saturating_sub(locked_bytes);
+                self.resident_bytes = self.resident_bytes.saturating_sub(len);
+                self.occupied = self.occupied.saturating_sub(1);
+            }
+            // Unreachable through `push`, which sets the frame and the lock
+            // count together, but the count is still reconciled.
+            Some((None, locked_bytes)) => {
                 self.mlock_locked_bytes = self.mlock_locked_bytes.saturating_sub(locked_bytes);
             }
-            self.resident_bytes = self.resident_bytes.saturating_sub(len);
-            self.occupied = self.occupied.saturating_sub(1);
+            None => {}
         }
         if let Some(slot) = self.slots.get_mut(index) {
             slot.meta = None;
@@ -557,6 +578,18 @@ mod tests {
     fn a_zero_duration_is_rejected() {
         let err = RingBuffer::with_fps(30, 0, 1024, Box::new(NoMlock)).expect_err("zero seconds");
         assert!(err.to_string().contains("capacity"), "{err}");
+    }
+
+    #[test]
+    fn a_huge_ring_is_rejected_without_allocating() {
+        let err = RingBuffer::new(MAX_RING_CAPACITY + 1, 1024, Box::new(NoMlock))
+            .expect_err("over the slot bound");
+        assert!(err.to_string().contains("capacity"), "{err}");
+
+        assert!(
+            RingBuffer::with_fps(u32::MAX, u32::MAX, 1024, Box::new(NoMlock)).is_err(),
+            "a bad rate must not request an unbounded table"
+        );
     }
 
     #[test]
