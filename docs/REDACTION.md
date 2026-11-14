@@ -36,14 +36,21 @@ Never allowed:
 
 ```rust
 let mut redactor = Redactor::new();
-redactor.add_secret("alice@example.com");
-let clean = redactor.redact("label=alice@example.com count=1");
+redactor.add_secret("user@example.invalid");
+let clean = redactor.redact("label=user@example.invalid count=1");
 assert_eq!(clean, "label=[redacted] count=1");
 ```
 
-`Redactor::canaries()` loads the fixture described below. `RedactMode::Hash`
-replaces a secret with a stable 16-character hash for values that are safe to
-correlate; the default is the `[redacted]` placeholder.
+`Redactor::canaries()` loads the fixture described below and panics if it is
+missing or unreadable: a redactor that silently loaded nothing would redact
+nothing. `RedactMode::Hash` replaces a secret with a stable keyless hash for
+values that are safe to correlate. The hash is not a secret — a low-entropy
+value can be recovered offline — so it is for correlation, not protection. The
+default is the `[redacted]` placeholder.
+
+Matching in `Redactor` is exact and case-sensitive. The CI scanner is
+deliberately broader (case-insensitive), because a log that lowercases a canary
+still leaked it.
 
 Every diagnostic must go through `Logger` or `Redactor`. A bare `println!` or
 `eprintln!` in a diagnostic path bypasses the layer and is a review blocker.
@@ -67,8 +74,15 @@ python3 scripts/check_no_content_logging.py PATH ...   # scan dumps or logs
 python3 scripts/check_no_content_logging.py --self-test
 ```
 
-`--self-test` writes a canary into a temporary file and requires the scanner to
-find it, so a broken scanner cannot pass by silently matching nothing.
+`--self-test` seeds a leak in a nested directory, a lowercased variant, and a
+hard link to the fixture, then requires the scanner to find the leaks and skip
+the fixture link. A broken scanner cannot pass by silently matching nothing.
+
+The scanner reads files in chunks, so an oversized log is scanned rather than
+skipped. A file that cannot be read is reported and fails the run unless
+`--allow-skip` is given. The fixture is excluded by device and inode, so a hard
+link to it is not reported as six leaks. Symlinked directories are followed
+once, with a cycle guard.
 
 The `privacy` CI job runs the self-test, scans the repository, and runs
 `cargo test -p curbcut-core --test no_content_logging`.

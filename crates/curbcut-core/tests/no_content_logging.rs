@@ -20,7 +20,7 @@ fn canary_list() -> String {
 
 #[test]
 fn the_fixture_and_the_loader_agree() {
-    let from_file = Redactor::from_canary_file(&canary_path());
+    let from_file = Redactor::from_canary_file(&canary_path()).expect("fixture is present");
     let from_loader = Redactor::canaries();
     assert!(
         !from_file.secrets().is_empty(),
@@ -34,6 +34,13 @@ fn the_fixture_and_the_loader_agree() {
             .all(|secret| secret.starts_with(CANARY_PREFIX)),
         "every canary must carry the prefix"
     );
+}
+
+#[test]
+fn a_missing_fixture_is_an_error_not_an_empty_list() {
+    let error = Redactor::from_canary_file("/nonexistent/canaries.txt")
+        .expect_err("a missing fixture must not look like an empty list");
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
 }
 
 #[test]
