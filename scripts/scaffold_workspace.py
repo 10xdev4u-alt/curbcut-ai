@@ -109,6 +109,11 @@ mod tests {
 
 
 CRATE_STATUS = {
+    "curbcut-cli": (
+        "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
+        "panic commands, with stable exit codes. See\n"
+        "[`../../docs/CLI.md`](../../docs/CLI.md)."
+    ),
     "curbcut-understand": (
         "The deterministic rule layer is implemented: versioned rules, role\n"
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"
