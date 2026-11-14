@@ -14,9 +14,11 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod capability;
 pub mod command;
+pub mod config;
 pub mod error;
 pub mod event;
 pub mod id;
+pub(crate) mod toml;
 pub mod types;
 
 #[cfg(test)]
