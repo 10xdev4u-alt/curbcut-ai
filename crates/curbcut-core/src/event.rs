@@ -142,8 +142,9 @@ impl fmt::Display for EventKind {
 
 /// A content-free summary of an event's payload.
 ///
-/// Counts and hashes only: never text, labels, or pixels. `profile` is the one
-/// string-backed field; it is a user-chosen profile id, not screen content.
+/// Counts, hashes, and trusted ids only: never text, labels, or pixels.
+/// `profile` is the one string-backed field; it is a user-chosen profile id,
+/// not screen content.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EventSummary {
     /// How many elements, words, or regions are involved.
