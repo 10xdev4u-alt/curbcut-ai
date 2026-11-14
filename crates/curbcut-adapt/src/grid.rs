@@ -164,7 +164,8 @@ pub enum LabelError {
     Empty,
     /// The label has more than [`MAX_LABEL_WORDS`] words.
     TooManyWords,
-    /// The label contains a control character.
+    /// The label is not plain text on one line, because it contains a control
+    /// or invisible format character.
     NotPlain,
 }
 

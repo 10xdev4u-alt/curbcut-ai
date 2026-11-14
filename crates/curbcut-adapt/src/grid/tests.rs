@@ -441,6 +441,8 @@ fn extreme_negative_origin_with_a_huge_viewport_does_not_overflow() {
             i64::from(placed.rect.y) + i64::from(placed.rect.height)
         );
     }
+    assert!(layout.tile.width <= i32::MAX as u32);
+    assert!(layout.tile.height <= i32::MAX as u32);
     assert!(layout.has_no_clipping(viewport));
     assert!(layout.accounts_for(&tiles));
 }
