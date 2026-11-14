@@ -57,12 +57,29 @@ pub struct CommandRequest {
 }
 
 /// Context passed to a handler.
+///
+/// The session id is derived from the token, so a caller cannot claim a
+/// session it does not own.
 #[derive(Debug)]
 pub struct CommandContext {
-    /// Caller's session id.
-    pub session: crate::id::SessionId,
-    /// Caller's capability token.
-    pub token: CapabilityToken,
+    token: CapabilityToken,
+}
+
+impl CommandContext {
+    /// Creates a context from a capability token.
+    pub fn new(token: CapabilityToken) -> Self {
+        Self { token }
+    }
+
+    /// The caller's session id, taken from the token.
+    pub fn session(&self) -> crate::id::SessionId {
+        self.token.session()
+    }
+
+    /// The caller's capability token.
+    pub fn token(&self) -> &CapabilityToken {
+        &self.token
+    }
 }
 
 /// A handler for one command.
@@ -120,7 +137,7 @@ impl CommandRegistry {
                 field: format!("unknown command {}", request.id),
             }
         })?;
-        require(&ctx.token, handler.capability())?;
+        require(ctx.token(), handler.capability())?;
         handler.handle(ctx, &request.command)
     }
 
@@ -163,10 +180,8 @@ mod tests {
 
         let mut session = crate::capability::Session::new(SessionId(1));
         let token = session.grant(Capability::Observe);
-        let ctx = CommandContext {
-            session: SessionId(1),
-            token,
-        };
+        let ctx = CommandContext::new(token);
+        assert_eq!(ctx.session(), SessionId(1));
         let request = CommandRequest {
             id: CommandId::new("status"),
             command: Command::GetStatus,
@@ -184,12 +199,39 @@ mod tests {
         registry.register(CommandId::new("status"), StatusHandler);
         let mut session = crate::capability::Session::new(SessionId(1));
         let token = session.grant(Capability::Act);
-        let ctx = CommandContext {
-            session: SessionId(1),
-            token,
-        };
+        let ctx = CommandContext::new(token);
         let request = CommandRequest {
             id: CommandId::new("status"),
+            command: Command::GetStatus,
+            trace_id: crate::id::TraceId(1),
+        };
+        assert!(registry.dispatch(&ctx, &request).is_err());
+    }
+
+    #[test]
+    fn revoked_token_is_denied_even_with_the_right_capability() {
+        let mut registry = CommandRegistry::new();
+        registry.register(CommandId::new("status"), StatusHandler);
+        let mut session = crate::capability::Session::new(SessionId(1));
+        let token = session.grant(Capability::Observe);
+        session.revoke(Capability::Observe);
+        let ctx = CommandContext::new(token);
+        let request = CommandRequest {
+            id: CommandId::new("status"),
+            command: Command::GetStatus,
+            trace_id: crate::id::TraceId(1),
+        };
+        assert!(registry.dispatch(&ctx, &request).is_err());
+    }
+
+    #[test]
+    fn unknown_command_is_rejected_before_dispatch() {
+        let registry = CommandRegistry::new();
+        let mut session = crate::capability::Session::new(SessionId(1));
+        let token = session.grant(Capability::Act);
+        let ctx = CommandContext::new(token);
+        let request = CommandRequest {
+            id: CommandId::new("nope"),
             command: Command::GetStatus,
             trace_id: crate::id::TraceId(1),
         };

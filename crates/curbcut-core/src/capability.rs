@@ -102,7 +102,10 @@ impl fmt::Debug for CapabilityToken {
 }
 
 /// A user session and the capabilities granted to it.
-#[derive(Debug, Clone)]
+///
+/// Not `Clone`: the session is the minting authority. Cloning it would let a
+/// clone keep a revoked capability and mint fresh tokens for it.
+#[derive(Debug)]
 pub struct Session {
     id: SessionId,
     granted: BTreeSet<Capability>,
@@ -180,17 +183,18 @@ pub fn require(token: &CapabilityToken, expected: Capability) -> Result<()> {
 
 /// Requires a valid token for any of the capabilities.
 pub fn require_any(token: &CapabilityToken, expected: &[Capability]) -> Result<()> {
-    if !token.is_valid() {
-        return Err(CurbCutError::PermissionDenied {
-            capability: expected[0],
+    let Some(&first) = expected.first() else {
+        return Err(CurbCutError::InvalidInput {
+            field: "capabilities".to_string(),
         });
+    };
+    if !token.is_valid() {
+        return Err(CurbCutError::PermissionDenied { capability: first });
     }
     if expected.contains(&token.capability) {
         Ok(())
     } else {
-        Err(CurbCutError::PermissionDenied {
-            capability: expected[0],
-        })
+        Err(CurbCutError::PermissionDenied { capability: first })
     }
 }
 

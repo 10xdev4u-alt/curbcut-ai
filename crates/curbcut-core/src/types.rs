@@ -582,7 +582,7 @@ pub enum ActionKind {
 }
 
 /// A tile in a simplified layout.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Tile {
     /// Tile id.
     pub id: ElementId,
@@ -592,6 +592,17 @@ pub struct Tile {
     pub rect: Rect,
     /// Action to perform on activation.
     pub action: Action,
+}
+
+impl fmt::Debug for Tile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Tile")
+            .field("id", &self.id)
+            .field("label_len", &self.label.len())
+            .field("rect", &self.rect)
+            .field("action", &self.action)
+            .finish()
+    }
 }
 
 /// A layout made of tiles.
@@ -604,7 +615,7 @@ pub struct Layout {
 }
 
 /// A step in a decomposed task.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Step {
     /// Step id.
     pub id: crate::id::ChunkId,
@@ -614,6 +625,17 @@ pub struct Step {
     pub detail: Option<String>,
     /// Whether the step is complete.
     pub done: bool,
+}
+
+impl fmt::Debug for Step {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Step")
+            .field("id", &self.id)
+            .field("title_len", &self.title.len())
+            .field("detail_len", &self.detail.as_ref().map_or(0, String::len))
+            .field("done", &self.done)
+            .finish()
+    }
 }
 
 /// Text styling for a reflowed view.
@@ -789,6 +811,73 @@ mod tests {
         assert!(!dbg.contains("SECRET_TEXT"));
         assert!(dbg.contains("label_len"));
         assert!(dbg.contains("text_len"));
+    }
+
+    #[test]
+    fn tile_debug_redacts_label() {
+        let tile = Tile {
+            id: ElementId(3),
+            label: "SECRET_TILE_LABEL".to_string(),
+            rect: Rect::new(0, 0, 20, 20),
+            action: Action {
+                kind: ActionKind::Click,
+                target: ElementId(3),
+            },
+        };
+        let dbg = format!("{tile:?}");
+        assert!(!dbg.contains("SECRET_TILE_LABEL"));
+        assert!(dbg.contains("label_len"));
+        assert!(dbg.contains("rect"));
+    }
+
+    #[test]
+    fn step_debug_redacts_title_and_detail() {
+        let step = Step {
+            id: crate::id::ChunkId(4),
+            title: "SECRET_STEP_TITLE".to_string(),
+            detail: Some("SECRET_STEP_DETAIL".to_string()),
+            done: false,
+        };
+        let dbg = format!("{step:?}");
+        assert!(!dbg.contains("SECRET_STEP_TITLE"));
+        assert!(!dbg.contains("SECRET_STEP_DETAIL"));
+        assert!(dbg.contains("title_len"));
+        assert!(dbg.contains("detail_len"));
+    }
+
+    #[test]
+    fn overlay_plan_debug_redacts_nested_content() {
+        let plan = OverlayPlan {
+            profile: Some(ProfileId::focus()),
+            layout: Layout {
+                tiles: vec![Tile {
+                    id: ElementId(3),
+                    label: "SECRET_TILE_LABEL".to_string(),
+                    rect: Rect::new(0, 0, 20, 20),
+                    action: Action {
+                        kind: ActionKind::Click,
+                        target: ElementId(3),
+                    },
+                }],
+                reading_order: vec![ElementId(3)],
+            },
+            steps: vec![Step {
+                id: crate::id::ChunkId(4),
+                title: "SECRET_STEP_TITLE".to_string(),
+                detail: Some("SECRET_STEP_DETAIL".to_string()),
+                done: false,
+            }],
+            highlight: HighlightMode::None,
+            rationale: vec![Rationale::new(
+                RuleId::new("simplify"),
+                "Rule prose is safe.",
+            )],
+        };
+        let dbg = format!("{plan:?}");
+        assert!(!dbg.contains("SECRET_TILE_LABEL"));
+        assert!(!dbg.contains("SECRET_STEP_TITLE"));
+        assert!(!dbg.contains("SECRET_STEP_DETAIL"));
+        assert!(dbg.contains("Rule prose is safe."));
     }
 
     #[test]
