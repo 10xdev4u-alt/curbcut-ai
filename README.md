@@ -88,6 +88,7 @@ docs/
   ROLE_MAPPING.md          Platform role/state compatibility tables (generated)
   REDACTION.md             Redaction layer, canary fixture, no-content CI test
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
+  CLI.md                   Headless CLI: commands, exit codes, redacted dump
   VISION.md                Vision pipeline: scheduler, stages, privacy
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones

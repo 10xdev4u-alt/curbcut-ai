@@ -109,6 +109,11 @@ mod tests {
 
 
 CRATE_STATUS = {
+    "curbcut-cli": (
+        "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
+        "panic commands, with stable exit codes. See\n"
+        "[`../../docs/CLI.md`](../../docs/CLI.md)."
+    ),
     "curbcut-vision": (
         "The vision pipeline is implemented: Detector, Ocr, and IconCaptioner\n"
         "traits, a deterministic motion-aware scheduler, and VisionPipeline.\n"

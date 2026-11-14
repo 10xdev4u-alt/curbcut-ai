@@ -4,9 +4,9 @@ Headless control, benchmark, and redacted debug dump.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The headless CLI is implemented: status, redacted dump, benchmark, and
+panic commands, with stable exit codes. See
+[`../../docs/CLI.md`](../../docs/CLI.md).
 
 ## Build and test
 
