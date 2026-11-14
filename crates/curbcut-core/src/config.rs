@@ -542,7 +542,7 @@ impl Config {
     }
 
     /// Builds a config from a parsed root table.
-    pub fn from_table(root: &BTreeMap<String, TomlValue>) -> Result<Self> {
+    pub(crate) fn from_table(root: &BTreeMap<String, TomlValue>) -> Result<Self> {
         let mut config = Config::default();
         for (key, value) in root {
             match key.as_str() {
@@ -630,24 +630,31 @@ fn profile_settings_from_toml(
     let mut settings = ProfileSettings::baseline(id);
     for (key, value) in table {
         match key.as_str() {
-            "dim" => settings.dim = dim_from_toml(value)?,
+            "dim" => settings.dim = dim_from_toml(value, &settings.dim)?,
             "stop_motion" => settings.stop_motion = value.as_bool(&format!("{path}.{key}"))?,
             "interruptions" => {
                 settings.interruptions =
                     InterruptionMode::parse(value.as_str(&format!("{path}.{key}"))?)?
             }
             "icon_grid" => {
-                settings.icon_grid = Some(icon_grid_from_toml(value)?);
+                let base = settings.icon_grid.clone().unwrap_or_default();
+                settings.icon_grid = Some(icon_grid_from_toml(value, &base)?);
             }
             "short_paths" => settings.short_paths = value.as_bool(&format!("{path}.{key}"))?,
             "reading_level" => {
                 settings.reading_level =
                     ReadingLevel::parse(value.as_str(&format!("{path}.{key}"))?)?
             }
-            "tts" => settings.tts = tts_from_toml(value)?,
-            "reflow" => settings.reflow = Some(reflow_from_toml(value)?),
+            "tts" => settings.tts = tts_from_toml(value, &settings.tts)?,
+            "reflow" => {
+                let base = settings.reflow.clone().unwrap_or_default();
+                settings.reflow = Some(reflow_from_toml(value, &base)?);
+            }
             "ruler" => settings.ruler = value.as_bool(&format!("{path}.{key}"))?,
-            "read_aloud" => settings.read_aloud = Some(read_aloud_from_toml(value)?),
+            "read_aloud" => {
+                let base = settings.read_aloud.clone().unwrap_or_default();
+                settings.read_aloud = Some(read_aloud_from_toml(value, &base)?);
+            }
             "one_step" => settings.one_step = value.as_bool(&format!("{path}.{key}"))?,
             "memory_aids" => settings.memory_aids = value.as_bool(&format!("{path}.{key}"))?,
             "confirm_actions" => {
@@ -660,10 +667,10 @@ fn profile_settings_from_toml(
     Ok(settings)
 }
 
-fn dim_from_toml(value: &TomlValue) -> Result<DimSettings> {
+fn dim_from_toml(value: &TomlValue, base: &DimSettings) -> Result<DimSettings> {
     let path = "dim";
     let table = value.as_table(path)?;
-    let mut settings = DimSettings::default();
+    let mut settings = base.clone();
     for (key, item) in table {
         let field = format!("{path}.{key}");
         match key.as_str() {
@@ -682,10 +689,10 @@ fn dim_from_toml(value: &TomlValue) -> Result<DimSettings> {
     Ok(settings)
 }
 
-fn icon_grid_from_toml(value: &TomlValue) -> Result<IconGrid> {
+fn icon_grid_from_toml(value: &TomlValue, base: &IconGrid) -> Result<IconGrid> {
     let path = "icon_grid";
     let table = value.as_table(path)?;
-    let mut settings = IconGrid::default();
+    let mut settings = base.clone();
     for (key, item) in table {
         let field = format!("{path}.{key}");
         match key.as_str() {
@@ -698,10 +705,10 @@ fn icon_grid_from_toml(value: &TomlValue) -> Result<IconGrid> {
     Ok(settings)
 }
 
-fn tts_from_toml(value: &TomlValue) -> Result<TtsSettings> {
+fn tts_from_toml(value: &TomlValue, base: &TtsSettings) -> Result<TtsSettings> {
     let path = "tts";
     let table = value.as_table(path)?;
-    let mut settings = TtsSettings::default();
+    let mut settings = base.clone();
     for (key, item) in table {
         let field = format!("{path}.{key}");
         match key.as_str() {
@@ -712,10 +719,10 @@ fn tts_from_toml(value: &TomlValue) -> Result<TtsSettings> {
     Ok(settings)
 }
 
-fn reflow_from_toml(value: &TomlValue) -> Result<ReflowSettings> {
+fn reflow_from_toml(value: &TomlValue, base: &ReflowSettings) -> Result<ReflowSettings> {
     let path = "reflow";
     let table = value.as_table(path)?;
-    let mut settings = ReflowSettings::default();
+    let mut settings = base.clone();
     for (key, item) in table {
         let field = format!("{path}.{key}");
         match key.as_str() {
@@ -730,10 +737,10 @@ fn reflow_from_toml(value: &TomlValue) -> Result<ReflowSettings> {
     Ok(settings)
 }
 
-fn read_aloud_from_toml(value: &TomlValue) -> Result<ReadAloud> {
+fn read_aloud_from_toml(value: &TomlValue, base: &ReadAloud) -> Result<ReadAloud> {
     let path = "read_aloud";
     let table = value.as_table(path)?;
-    let mut settings = ReadAloud::default();
+    let mut settings = base.clone();
     for (key, item) in table {
         let field = format!("{path}.{key}");
         match key.as_str() {
@@ -840,12 +847,13 @@ impl ConfigSlot {
     /// Returns a config error and leaves the current config untouched.
     pub fn replace(&self, next: Config) -> Result<Arc<Config>> {
         next.validate()?;
+        let applied = Arc::new(next);
         {
             let mut guard = self.current.write().unwrap_or_else(|e| e.into_inner());
-            *guard = Arc::new(next);
+            *guard = applied.clone();
         }
         self.revision.fetch_add(1, Ordering::Release);
-        Ok(self.get())
+        Ok(applied)
     }
 }
 
@@ -890,6 +898,58 @@ confirm_actions = true
         assert_eq!(config.profiles.len(), 4);
         assert!(config.hot_reload);
         assert_eq!(config.panic_key.keys, vec!["ctrl", "shift", "esc"]);
+        config.validate().expect("the default config must validate");
+    }
+
+    #[test]
+    fn a_nested_override_merges_onto_the_baseline() {
+        let config =
+            Config::from_toml("[profile.focus]\ndim = { opacity = 0.9 }\n").expect("valid");
+        let focus = config.profiles.get(&ProfileId::focus()).expect("focus");
+        assert!(
+            focus.dim.enabled,
+            "an override must not reset the baseline's enabled flag"
+        );
+        assert_eq!(focus.dim.except, vec!["active_region".to_string()]);
+        assert!((focus.dim.opacity - 0.9).abs() < 1e-6);
+    }
+
+    #[test]
+    fn an_icon_grid_override_merges_onto_the_baseline() {
+        let config =
+            Config::from_toml("[profile.simple]\nicon_grid = { columns = 4 }\n").expect("valid");
+        let simple = config.profiles.get(&ProfileId::simple()).expect("simple");
+        let grid = simple.icon_grid.as_ref().expect("grid");
+        assert_eq!(grid.columns, 4, "the override applies");
+        assert_eq!(grid.min_tile, 88, "the baseline minimum survives");
+        assert!(grid.symbols, "the baseline symbols flag survives");
+    }
+
+    #[test]
+    fn a_reflow_override_merges_onto_the_baseline() {
+        let config = Config::from_toml("[profile.read]\nreflow = { size = 24 }\n").expect("valid");
+        let read = config.profiles.get(&ProfileId::read()).expect("read");
+        let reflow = read.reflow.as_ref().expect("reflow");
+        assert!((reflow.size_pt - 24.0).abs() < 1e-6);
+        assert_eq!(reflow.font, "Atkinson Hyperlegible");
+        assert_eq!(reflow.line_length, 38);
+    }
+
+    #[test]
+    fn a_custom_profile_starts_from_neutral_defaults() {
+        let config =
+            Config::from_toml("[profile.night]\nicon_grid = { columns = 4 }\n").expect("valid");
+        let night = config
+            .profiles
+            .get(&ProfileId::custom("night"))
+            .expect("night");
+        let grid = night.icon_grid.as_ref().expect("grid");
+        assert_eq!(grid.columns, 4);
+        assert_eq!(
+            grid.min_tile, 72,
+            "neutral default, not a built-in baseline"
+        );
+        assert!(!grid.symbols);
     }
 
     #[test]

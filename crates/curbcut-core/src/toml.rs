@@ -118,7 +118,11 @@ struct Parser<'a> {
     src: &'a str,
     pos: usize,
     line: u32,
+    depth: usize,
 }
+
+/// Maximum array/inline-table nesting the parser accepts.
+pub const MAX_NESTING: usize = 32;
 
 impl<'a> Parser<'a> {
     fn new(src: &'a str) -> Self {
@@ -126,6 +130,7 @@ impl<'a> Parser<'a> {
             src,
             pos: 0,
             line: 1,
+            depth: 0,
         }
     }
 
@@ -258,8 +263,8 @@ impl<'a> Parser<'a> {
     fn parse_value(&mut self) -> Result<TomlValue> {
         match self.peek() {
             Some('"') => Ok(TomlValue::String(self.parse_string()?)),
-            Some('[') => self.parse_array(),
-            Some('{') => self.parse_inline_table(),
+            Some('[') => self.nested(|parser| parser.parse_array()),
+            Some('{') => self.nested(|parser| parser.parse_inline_table()),
             Some(c) if c.is_ascii_digit() || c == '-' || c == '+' => self.parse_number(),
             Some(_) => {
                 let ident = self.parse_ident()?;
@@ -271,6 +276,19 @@ impl<'a> Parser<'a> {
             }
             None => self.err("expected a value"),
         }
+    }
+
+    /// Runs a nested parse, bounding recursion so a deeply nested document
+    /// cannot overflow the stack.
+    fn nested<T>(&mut self, parse: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        self.depth += 1;
+        if self.depth > MAX_NESTING {
+            self.depth -= 1;
+            return self.err("nesting too deep");
+        }
+        let result = parse(self);
+        self.depth -= 1;
+        result
     }
 
     fn parse_ident(&mut self) -> Result<String> {
@@ -513,5 +531,25 @@ mod tests {
     fn rejects_a_scalar_where_a_table_is_expected() {
         let err = parse("[a]\nb = 1\n[a.b]\nc = 2\n").expect_err("conflict");
         assert!(err.to_string().contains("already a"), "{err}");
+    }
+
+    #[test]
+    fn deeply_nested_arrays_are_rejected_without_overflowing() {
+        let mut src = String::from("a = ");
+        src.push_str(&"[".repeat(200));
+        src.push('1');
+        src.push_str(&"]".repeat(200));
+        let err = parse(&src).expect_err("nesting too deep");
+        assert!(err.to_string().contains("nesting too deep"), "{err}");
+    }
+
+    #[test]
+    fn a_shallow_nesting_limit_still_parses() {
+        let mut src = String::from("a = ");
+        src.push_str(&"[".repeat(MAX_NESTING - 1));
+        src.push('1');
+        src.push_str(&"]".repeat(MAX_NESTING - 1));
+        let value = parse(&src).expect("within the limit");
+        assert!(matches!(value.get("a"), Some(TomlValue::Array(_))));
     }
 }

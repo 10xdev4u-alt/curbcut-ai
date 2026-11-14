@@ -51,15 +51,17 @@ confirm_actions = true
 | --- | --- | --- | --- |
 | `version` | integer | `1` | Must equal `1`. Other values are rejected. |
 | `active_profile` | string | `"focus"` | Must name a configured profile. |
-| `hot_reload` | boolean | `true` | Whether a changed file is applied without a restart. |
-| `panic_key` | array of strings, or a `+`-separated string | `["ctrl","shift","esc"]` | At least one recognized key. |
+| `hot_reload` | boolean | `true` | Reserved for the file watcher. `ConfigSlot::apply_toml` is the explicit reload path and does not consult it. |
+| `panic_key` | array of strings, or a `+`- or `-`-separated string | `["ctrl","shift","esc"]` | At least one recognized key. |
 | `profile` | table | the four built-ins | One sub-table per profile. |
 
 ## Profile keys
 
 Every key is optional. A profile named `focus`, `read`, `simple`, or `calm`
 starts from that built-in baseline; any other name starts from neutral
-defaults.
+defaults. A nested table merges onto that starting point, so
+`[profile.focus] dim = { opacity = 0.9 }` keeps the baseline's `enabled` and
+`except` and changes only the opacity.
 
 | Key | Type | Default | Validation |
 | --- | --- | --- | --- |
@@ -70,7 +72,7 @@ defaults.
 | `short_paths` | boolean | `false` | |
 | `reading_level` | string | `"keep"` | `keep` or `grade-N` with `N` in `1..=12`. |
 | `tts` | table | rate `1.0` | `rate` `0.25..=4.0`. |
-| `reflow` | table | absent | `font` non-empty, `size` `8.0..=72.0`, `line_height` `1.0..=3.0`, `align` `start`/`center`/`justify`, `line_length` `10..=200`. |
+| `reflow` | table | absent | `font` non-empty, `size` `8.0..=72.0`, `line_height` `1.0..=3.0`, `align` `start` (alias `left`)/`center`/`justify`, `line_length` `10..=200`. |
 | `ruler` | boolean | `false` | |
 | `read_aloud` | table | absent | `highlight` `none`/`word`/`line`, `rate` `0.25..=4.0`. |
 | `one_step` | boolean | `false` | |
@@ -97,14 +99,23 @@ defaults.
 
 ## Errors
 
-Errors name the field and the constraint, never the offending value:
+Errors name the field and the constraint. A parse error carries a line number;
+a validation error does not, because the document has already been parsed into
+typed values:
 
 ```text
-line 2: profile.focus.dim.opacity: expected a number between 0.0 and 1.0
+line 2: expected a value
+profile.focus.dim.opacity: expected a number between 0.0 and 1.0
 ```
 
+User-authored tokens (a profile slug, a shortcut key, an `interruptions` value)
+may be named so the user can find the typo. Screen content, OCR text, and
+accessibility strings are never part of a config document and are never echoed.
+
 Unknown root keys and unknown profile settings are errors, so a typo cannot
-silently disable a setting.
+silently disable a setting. Arrays and inline tables may nest at most 32 deep;
+a deeper document is rejected with `nesting too deep` rather than overflowing
+the parser's stack.
 
 ## Hot reload
 

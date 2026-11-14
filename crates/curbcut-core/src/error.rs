@@ -30,7 +30,8 @@ pub enum CurbCutError {
     },
     /// A configuration document is invalid.
     Config {
-        /// What is wrong, without the offending value.
+        /// What is wrong. May name user-authored config tokens, but never
+        /// screen content, OCR text, or accessibility strings.
         message: String,
     },
     /// A platform call failed.
