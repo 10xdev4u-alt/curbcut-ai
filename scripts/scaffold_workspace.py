@@ -108,7 +108,22 @@ mod tests {
 """ % {"name": name, "desc": description, "extra": extra}
 
 
-def readme(name: str, description: str) -> str:
+CRATE_STATUS = {
+    "curbcut-understand": (
+        "The deterministic rule layer is implemented: versioned rules, role\n"
+        "refinement, chunking, reading-level comparison, and distraction scoring.\n"
+        "See [`../../docs/RULES.md`](../../docs/RULES.md)."
+    ),
+}
+
+
+def readme(name: str, description: str, status: str | None = None) -> str:
+    if status is None:
+        status = (
+            "Skeleton. The API is added incrementally; see\n"
+            "[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and\n"
+            "[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md)."
+        )
     return """\
 # %(name)s
 
@@ -116,9 +131,7 @@ def readme(name: str, description: str) -> str:
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+%(status)s
 
 ## Build and test
 
@@ -131,7 +144,7 @@ cargo clippy -p %(name)s --all-targets -- -D warnings
 
 This crate must never log screen content, OCR text, or raw accessibility strings.
 Counts and hashes only.
-""" % {"name": name, "desc": description}
+""" % {"name": name, "desc": description, "status": status}
 
 
 def main() -> int:
@@ -160,7 +173,7 @@ def main() -> int:
             print("kept", lib)
         else:
             lib.write_text(lib_rs(name, desc, extra), encoding="utf-8")
-        (d / "README.md").write_text(readme(name, desc), encoding="utf-8")
+        (d / "README.md").write_text(readme(name, desc, CRATE_STATUS.get(name)), encoding="utf-8")
         print("scaffolded", name)
     return 0
 

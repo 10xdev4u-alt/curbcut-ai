@@ -4,9 +4,9 @@ Classification, chunking, simplification, and reading level.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The deterministic rule layer is implemented: versioned rules, role
+refinement, chunking, reading-level comparison, and distraction scoring.
+See [`../../docs/RULES.md`](../../docs/RULES.md).
 
 ## Build and test
 
