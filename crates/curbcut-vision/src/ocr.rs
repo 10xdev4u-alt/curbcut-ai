@@ -10,7 +10,7 @@ use crate::frame::VisionFrame;
 /// Recognized text.
 ///
 /// `text` is content: it must never be logged, dumped, or formatted by
-/// `Debug`. Use [`OcrText::text`]] to read it and [`OcrText::redacted`] for a
+/// `Debug`. Use [`OcrText::text`] to read it and [`OcrText::redacted`] for a
 /// content-free view.
 #[derive(Clone, PartialEq)]
 pub struct OcrText {

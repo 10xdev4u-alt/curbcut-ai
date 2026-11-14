@@ -62,6 +62,9 @@ impl VisionResult {
 }
 
 /// Runs the three model stages behind a scheduler.
+///
+/// The pipeline is `Send` but not `Sync`, because the backends are trait
+/// objects. Share it behind a `Mutex`; `process` needs `&mut self` anyway.
 pub struct VisionPipeline {
     detector: Box<dyn Detector>,
     ocr: Box<dyn Ocr>,

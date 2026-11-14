@@ -66,7 +66,8 @@ empty result. The pipeline does not panic and does not stop the other stages.
 `OcrText` and `IconCaption` hold content. Their `Debug` impls print lengths, not
 text, and `redacted()` returns a content-free view. Nothing in this crate logs
 pixels, OCR text, or captions. `a_result_carries_no_content_in_its_debug` pins
-it. Frame pixels are borrowed and never retained past `process`.
+it. Full frame pixels are borrowed and never retained; the scheduler keeps only
+a 32-byte `MotionSignature`, which is zeroized on drop.
 
 ## Testing
 

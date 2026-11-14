@@ -256,6 +256,26 @@ mod tests {
     }
 
     #[test]
+    fn a_protected_frame_after_an_analyzed_frame_changes_no_state() {
+        let mut scheduler = Scheduler::default();
+        assert!(scheduler.should_analyze(&frame(1, 0, &solid(1))));
+        let previous = scheduler.previous.clone();
+        let last_analyzed_at = scheduler.last_analyzed_at;
+
+        let pixels = solid(1);
+        let protected = frame(2, 16, &pixels).protected();
+        assert!(!scheduler.should_analyze(&protected));
+
+        assert_eq!(scheduler.previous, previous, "previous must not advance");
+        assert_eq!(
+            scheduler.last_analyzed_at, last_analyzed_at,
+            "the coalescing window must not move"
+        );
+        assert_eq!(scheduler.stats().protected, 1);
+        assert_eq!(scheduler.stats().analyzed, 1);
+    }
+
+    #[test]
     fn motion_below_the_threshold_is_static() {
         let mut scheduler = Scheduler::new(0.9, Duration::from_millis(1));
         assert!(scheduler.should_analyze(&frame(1, 0, &solid(0))));

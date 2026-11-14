@@ -41,6 +41,20 @@ impl MotionSignature {
             .count();
         changed as f32 / MOTION_SAMPLES as f32
     }
+
+    /// Overwrites the samples with zeros.
+    ///
+    /// A signature is a copy of frame bytes, so it is zeroed on drop. Callers
+    /// that hold one across a sensitive boundary can zero it early.
+    pub(crate) fn zeroize(&mut self) {
+        self.samples = [0u8; MOTION_SAMPLES];
+    }
+}
+
+impl Drop for MotionSignature {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
 }
 
 impl fmt::Debug for MotionSignature {
@@ -113,5 +127,13 @@ mod tests {
             MotionSignature::from_pixels(&pixels),
             MotionSignature::from_pixels(&pixels)
         );
+    }
+
+    #[test]
+    fn zeroize_clears_the_samples() {
+        let mut signature = MotionSignature::from_pixels(&[9u8; 64]);
+        assert!(signature.samples.contains(&9));
+        signature.zeroize();
+        assert!(signature.samples.iter().all(|byte| *byte == 0));
     }
 }
