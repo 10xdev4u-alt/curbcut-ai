@@ -209,9 +209,18 @@ For each a11y element:
 
 ### 6.4 Stability tracking
 
-- `StableId` from a Hungarian match on IoU + label similarity across frames.
-- Re-analyze a region only when its content hash changes or motion is detected.
-- Scroll compensation: shift element rects by the detected scroll delta.
+Implemented in `crates/curbcut-a11y/src/stability.rs`. See
+[`docs/STABILITY.md`](STABILITY.md).
+
+- `StableId` comes from a Hungarian assignment on IoU plus label-hash agreement
+  across frames; the cost matrix is padded to a square with a large finite cost
+  so an unmatched observation becomes a new track.
+- Scroll compensation estimates the delta from nearest-centre pairs, takes the
+  component-wise median, clamps it to `max_scroll_jump`, and aligns each
+  observation by it before matching.
+- A track is dropped after `max_gap_frames` (default 30) frames without a match.
+- `should_reanalyze(rect)` skips a region only when a live track covers it and no
+  scroll motion was detected; `content_changed` compares label hashes.
 
 ---
 

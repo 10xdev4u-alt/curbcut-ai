@@ -9,8 +9,11 @@ vision merge: candidates are matched by IoU and role compatibility,
 taken greedily in deterministic order, and each merged property keeps
 its provenance. A disagreement becomes a content-free conflict, an
 unmatched a11y element stays semantic-only, and an unmatched vision
-detection becomes a vision-only node. See
-[`../../docs/MERGE.md`](../../docs/MERGE.md).
+detection becomes a vision-only node, and stability tracking assigns
+StableIds across frames with median scroll compensation and a
+Hungarian assignment. See
+[`../../docs/MERGE.md`](../../docs/MERGE.md) and
+[`../../docs/STABILITY.md`](../../docs/STABILITY.md).
 
 ## Build and test
 

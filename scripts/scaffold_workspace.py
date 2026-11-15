@@ -115,8 +115,11 @@ CRATE_STATUS = {
         "taken greedily in deterministic order, and each merged property keeps\n"
         "its provenance. A disagreement becomes a content-free conflict, an\n"
         "unmatched a11y element stays semantic-only, and an unmatched vision\n"
-        "detection becomes a vision-only node. See\n"
-        "[`../../docs/MERGE.md`](../../docs/MERGE.md)."
+        "detection becomes a vision-only node, and stability tracking assigns\n"
+        "StableIds across frames with median scroll compensation and a\n"
+        "Hungarian assignment. See\n"
+        "[`../../docs/MERGE.md`](../../docs/MERGE.md) and\n"
+        "[`../../docs/STABILITY.md`](../../docs/STABILITY.md)."
     ),
     "curbcut-adapt": (
         "The profile graph and layout solvers are implemented: a versioned\n"
