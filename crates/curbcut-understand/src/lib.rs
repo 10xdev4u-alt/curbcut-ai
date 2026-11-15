@@ -19,6 +19,12 @@
 //! measurements in a locale's unit system. See
 //! [`../../../docs/NORMALIZE.md`](../../../docs/NORMALIZE.md).
 //!
+//! [`sensitive`] refuses to auto-simplify financial, medical, and legal text.
+//! A strong signal triggers alone; two weak signals from the same domain
+//! trigger together. The original text is always returned when the guard
+//! refuses. See
+//! [`../../../docs/SENSITIVE_CONTENT.md`](../../../docs/SENSITIVE_CONTENT.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -39,6 +45,7 @@ pub mod normalize;
 pub mod reading;
 pub mod roles;
 pub mod rule;
+pub mod sensitive;
 
 #[cfg(test)]
 mod tests {

@@ -143,11 +143,14 @@ CRATE_STATUS = {
         "The jargon dictionary carries a source and locale per entry, supports\n"
         "user overrides, and expands acronyms while flagging unknown ones.\n"
         "Numbers, dates, and measurements are spoken: money in hundreds,\n"
-        "ambiguous dates rejected, and a locale's unit system honoured. See\n"
+        "ambiguous dates rejected, and a locale's unit system honoured.\n"
+        "The sensitive-content guard refuses to auto-simplify financial,\n"
+        "medical, and legal text and always returns the original. See\n"
         "[`../../docs/RULES.md`](../../docs/RULES.md),\n"
         "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),\n"
-        "[`../../docs/JARGON.md`](../../docs/JARGON.md), and\n"
-        "[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md)."
+        "[`../../docs/JARGON.md`](../../docs/JARGON.md),\n"
+        "[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md), and\n"
+        "[`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md)."
     ),
     "curbcut-store": (
         "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
