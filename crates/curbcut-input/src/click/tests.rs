@@ -58,6 +58,8 @@ fn a_second_handoff_inside_the_window_is_suppressed() {
     assert_eq!(router.route(ClickTarget::App, 100), ClickDecision::Consume);
     assert_eq!(router.suppressed_count(), 1);
     assert_eq!(router.handoff_count(), 1);
+    // The suppressed click is still a consume decision.
+    assert_eq!(router.consume_count(), 1);
     // The owed focus is unchanged: the suppressed click is not a second handoff.
     assert_eq!(router.focus_due(), Some(&first));
 }
@@ -118,6 +120,25 @@ fn time_going_backwards_is_suppressed() {
     assert_eq!(router.route(ClickTarget::App, 500), ClickDecision::Consume);
     assert_eq!(router.suppressed_count(), 1);
     assert_eq!(router.handoff_count(), 1);
+}
+
+#[test]
+fn consume_and_handoff_counts_partition_the_clicks() {
+    let mut router = ClickRouter::new(500);
+    router.route(ClickTarget::Overlay, 0);
+    router.route(ClickTarget::App, 10);
+    router.route(ClickTarget::App, 20);
+    router.route(ClickTarget::Overlay, 600);
+    router.route(ClickTarget::App, 700);
+
+    assert_eq!(router.consume_count(), 3);
+    assert_eq!(router.handoff_count(), 2);
+    assert_eq!(router.suppressed_count(), 1);
+    assert_eq!(
+        router.consume_count() + router.handoff_count(),
+        5,
+        "every routed click is either consumed or handed off"
+    );
 }
 
 #[test]

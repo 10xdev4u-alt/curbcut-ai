@@ -104,6 +104,7 @@ impl ClickRouter {
                     .is_some_and(|last| at_ms.saturating_sub(last) < self.double_click_ms);
                 if within_window {
                     self.suppressed += 1;
+                    self.consumes += 1;
                     return ClickDecision::Consume;
                 }
                 self.handoffs += 1;
@@ -129,7 +130,8 @@ impl ClickRouter {
         self.focus_owed.take()
     }
 
-    /// How many clicks the overlay consumed.
+    /// How many clicks the router consumed: overlay clicks plus suppressed
+    /// handoffs. `consume_count + handoff_count` is the number of routed clicks.
     pub fn consume_count(&self) -> u64 {
         self.consumes
     }

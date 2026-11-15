@@ -28,6 +28,9 @@ the focus handoff. `CC-083`.
   `return_focus`, `consume_count`, `handoff_count`, `suppressed_count`, and
   `reset`.
 
+`consume_count` counts every `Consume` decision: overlay clicks plus suppressed
+handoffs. `consume_count + handoff_count` is the number of routed clicks.
+
 ## Semantics
 
 `route` consumes a click on the overlay. For a click on the app, it hands off
