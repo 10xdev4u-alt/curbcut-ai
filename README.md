@@ -106,6 +106,7 @@ docs/
   NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
   SPEECH.md                TTS engines, voices, fallback chain, and audio focus
   SENSITIVE_CONTENT.md     Sensitive-content guard: financial, medical, legal
+  DESTRUCTIVE_ACTIONS.md   Destructive-action catalog, preview, and confirmation
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/

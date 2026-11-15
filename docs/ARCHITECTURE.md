@@ -303,6 +303,24 @@ Implemented in `crates/curbcut-understand/src/sensitive.rs`. See
 - `SensitiveReport` counts hits and names domains; it carries no text, and
   `message` is a fixed sentence naming domains.
 
+### 7.8 Destructive-action preview
+
+Implemented in `crates/curbcut-understand/src/actions.rs`. See
+[`docs/DESTRUCTIVE_ACTIONS.md`](DESTRUCTIVE_ACTIONS.md).
+
+- `ActionCatalog` is versioned (`CATALOG_VERSION`) and auditable through
+  `actions()`. The shipped set covers delete, permanent delete, overwrite,
+  send, purchase, cancel subscription, revoke, format, publish, transfer, and
+  end session.
+- `DestructiveAction` carries a `phrase`, a `consequence`, a `reversible` flag,
+  and a `triggers` list; `summary()` builds the plain preview sentence.
+- `detect` is case-insensitive, matches single-word triggers on word boundaries
+  and multi-word triggers as phrases, and resolves overlaps by longest trigger
+  so "permanently delete" beats "delete".
+- `confirm` returns `Confirmation::Required(preview)` for a detected action and
+  `NotRequired` otherwise. `can_proceed` is true only for `NotRequired`; the
+  catalog has no perform method that skips the preview.
+
 ---
 
 ## 8. Adaptation engine

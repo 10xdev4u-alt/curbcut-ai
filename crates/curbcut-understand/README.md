@@ -13,12 +13,15 @@ user overrides, and expands acronyms while flagging unknown ones.
 Numbers, dates, and measurements are spoken: money in hundreds,
 ambiguous dates rejected, and a locale's unit system honoured.
 The sensitive-content guard refuses to auto-simplify financial,
-medical, and legal text and always returns the original. See
+medical, and legal text and always returns the original. A versioned
+destructive-action catalog returns a plain preview and requires
+confirmation before anything is performed. See
 [`../../docs/RULES.md`](../../docs/RULES.md),
 [`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),
 [`../../docs/JARGON.md`](../../docs/JARGON.md),
-[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md), and
-[`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md).
+[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md),
+[`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md), and
+[`../../docs/DESTRUCTIVE_ACTIONS.md`](../../docs/DESTRUCTIVE_ACTIONS.md).
 
 ## Build and test
 

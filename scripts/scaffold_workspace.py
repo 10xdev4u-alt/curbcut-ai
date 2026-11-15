@@ -145,12 +145,15 @@ CRATE_STATUS = {
         "Numbers, dates, and measurements are spoken: money in hundreds,\n"
         "ambiguous dates rejected, and a locale's unit system honoured.\n"
         "The sensitive-content guard refuses to auto-simplify financial,\n"
-        "medical, and legal text and always returns the original. See\n"
+        "medical, and legal text and always returns the original. A versioned\n"
+        "destructive-action catalog returns a plain preview and requires\n"
+        "confirmation before anything is performed. See\n"
         "[`../../docs/RULES.md`](../../docs/RULES.md),\n"
         "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),\n"
         "[`../../docs/JARGON.md`](../../docs/JARGON.md),\n"
-        "[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md), and\n"
-        "[`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md)."
+        "[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md),\n"
+        "[`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md), and\n"
+        "[`../../docs/DESTRUCTIVE_ACTIONS.md`](../../docs/DESTRUCTIVE_ACTIONS.md)."
     ),
     "curbcut-store": (
         "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
