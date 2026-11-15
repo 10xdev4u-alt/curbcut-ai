@@ -19,6 +19,7 @@
 //! [`ShortcutCatalog::action_for`] and never has to know the defaults.
 
 use curbcut_core::config::Shortcut;
+use curbcut_core::error::CurbCutError;
 
 /// A global action that can have a shortcut.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -200,7 +201,9 @@ impl ShortcutCatalog {
     /// The action a pressed chord triggers, if any.
     ///
     /// The chord is compared as a set, so key order and letter case do not
-    /// matter.
+    /// matter. If a catalog has two actions on the same chord, the first in
+    /// catalog order wins; `conflicts` reports the pair, and `rebind` prevents
+    /// it through the public API.
     pub fn action_for(&self, keys: &Shortcut) -> Option<ShortcutAction> {
         let pressed = normalize(keys);
         self.bindings
@@ -219,8 +222,13 @@ impl ShortcutCatalog {
     /// Returns [`ShortcutError::Invalid`] for an empty or unknown key, and
     /// [`ShortcutError::Conflict`] when another action already uses the chord.
     pub fn rebind(&mut self, action: ShortcutAction, keys: Shortcut) -> Result<(), ShortcutError> {
-        keys.validate("shortcut")
-            .map_err(|error| ShortcutError::Invalid(error.to_string()))?;
+        keys.validate("shortcut").map_err(|error| match error {
+            // `Config` already carries the field path; keep the message and
+            // drop the `"invalid configuration: "` prefix so `Display` does
+            // not prepend a second one.
+            CurbCutError::Config { message } => ShortcutError::Invalid(message),
+            other => ShortcutError::Invalid(other.to_string()),
+        })?;
         let requested = normalize(&keys);
         if let Some((other, _)) = self
             .bindings

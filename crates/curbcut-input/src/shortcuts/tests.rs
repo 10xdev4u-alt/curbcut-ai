@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use curbcut_core::config::{is_known_key, Shortcut};
+use curbcut_core::config::{is_known_key, Config, Shortcut};
 
 use super::*;
 
@@ -130,6 +130,68 @@ fn rebinding_to_a_taken_chord_is_rejected() {
 }
 
 #[test]
+fn rebinding_to_a_case_variant_of_a_taken_chord_is_rejected() {
+    let mut catalog = ShortcutCatalog::defaults();
+
+    let error = catalog
+        .rebind(ShortcutAction::ToggleDim, chord(&["CTRL", "Shift", "G"]))
+        .expect_err("the chord is the grid chord, reordered and uppercased");
+    assert_eq!(
+        error,
+        ShortcutError::Conflict {
+            other: ShortcutAction::ToggleGrid,
+            keys: chord(&["CTRL", "Shift", "G"]),
+        }
+    );
+    assert!(catalog.is_default(ShortcutAction::ToggleDim));
+    assert!(catalog.is_default(ShortcutAction::ToggleGrid));
+}
+
+#[test]
+fn duplicate_keys_are_the_same_chord() {
+    let catalog = ShortcutCatalog::defaults();
+
+    let repeated = chord(&["ctrl", "ctrl", "shift", "d"]);
+    assert_eq!(
+        catalog.action_for(&repeated),
+        Some(ShortcutAction::ToggleDim)
+    );
+    assert_eq!(
+        ShortcutCatalog::defaults().action_for(&chord(&["d", "shift", "d", "ctrl"])),
+        Some(ShortcutAction::ToggleDim)
+    );
+}
+
+#[test]
+fn panic_matches_the_core_defaults() {
+    assert_eq!(
+        ShortcutAction::Panic.default_keys(),
+        Shortcut::default(),
+        "the catalog and `Shortcut::default()` disagree"
+    );
+    assert_eq!(
+        ShortcutAction::Panic.default_keys(),
+        Config::default().panic_key,
+        "the catalog and `Config::default().panic_key` disagree"
+    );
+}
+
+#[test]
+fn the_invalid_error_carries_the_field_path_without_a_double_prefix() {
+    let mut catalog = ShortcutCatalog::defaults();
+
+    let error = catalog
+        .rebind(ShortcutAction::ToggleDim, chord(&["ctrl", "banana"]))
+        .expect_err("unknown key");
+    let message = error.to_string();
+    assert!(message.contains("banana"), "{message}");
+    assert!(
+        !message.contains("invalid configuration"),
+        "the config prefix leaked through: {message}"
+    );
+}
+
+#[test]
 fn rebinding_to_an_unknown_key_is_rejected() {
     let mut catalog = ShortcutCatalog::defaults();
 
@@ -209,7 +271,7 @@ fn is_default_tracks_rebinds() {
 }
 
 #[test]
-fn an_unknown_action_has_no_binding() {
+fn the_default_catalog_binds_every_action() {
     let catalog = ShortcutCatalog::defaults();
     assert_eq!(
         catalog.binding(ShortcutAction::Inbox).map(|k| k.keys.len()),
@@ -218,6 +280,9 @@ fn an_unknown_action_has_no_binding() {
     assert_eq!(catalog.len(), 12);
     assert!(!catalog.is_empty());
     assert_eq!(catalog.actions().count(), 12);
+    for action in ShortcutAction::ALL {
+        assert_eq!(catalog.binding(*action), Some(&action.default_keys()));
+    }
 }
 
 #[test]
@@ -253,7 +318,7 @@ fn the_documented_shortcuts_match_the_catalog() {
             format_keys(&action.default_keys()),
             "{name} default chord is wrong"
         );
-        assert!(!purpose.is_empty(), "{name} has no purpose");
+        assert_eq!(purpose, action.doc(), "{name} purpose is wrong");
     }
 
     let registered: BTreeSet<String> = ShortcutAction::ALL

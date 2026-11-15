@@ -14,7 +14,6 @@ pub const CRATE_NAME: &str = "curbcut-input";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-/// The global shortcut catalog.
 pub mod shortcuts;
 
 #[cfg(test)]
