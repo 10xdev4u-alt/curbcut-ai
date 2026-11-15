@@ -311,6 +311,26 @@ Implemented in `crates/curbcut-adapt/src/layout.rs`. See
   the invariants; p95 solve time is printed by the test.
 - Animate only when `prefers-reduced-motion` is false.
 
+### 8.4 Plan cache
+
+Implemented in `crates/curbcut-store/src/plan_cache.rs`. See
+[`docs/PLAN_CACHE.md`](PLAN_CACHE.md).
+
+- `PlanCache<V>` is a bounded LRU cache of overlay plans. The key is a
+  `PlanKey`: an `AppId`, a `WindowId`, and a `ContentHash`. The capacity is the
+  caller's choice; `put` evicts the least recently used entry when full, and
+  `get` marks a hit most-recently-used.
+- A scroll reuses the plan, because the plan describes the window's content and
+  a scroll does not change the `ContentHash`. A content change is a new key and
+  therefore a miss. `invalidate_app`, `invalidate_window`, and
+  `invalidate_content` drop entries when the context itself is gone.
+- `ContentHash` is a `u64` wrapper. The producer hashes normalized content; the
+  cache never sees the bytes.
+- `AppMemory<V>` remembers one user choice per app and is opt-in:
+  `remember` stores nothing for an app that was not enabled with `enable_app`,
+  and `disable_app` forgets the choice as well as the opt-in.
+- Pure data structures: no I/O, no clock, no panics.
+
 ---
 
 ## 9. Rendering

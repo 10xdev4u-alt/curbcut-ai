@@ -132,6 +132,12 @@ CRATE_STATUS = {
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"
         "See [`../../docs/RULES.md`](../../docs/RULES.md)."
     ),
+    "curbcut-store": (
+        "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
+        "keyed by app, window, and content hash, and opt-in per-app memory for\n"
+        "one remembered choice per app. See\n"
+        "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md)."
+    ),
 }
 
 
