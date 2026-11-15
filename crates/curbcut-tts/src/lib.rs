@@ -1,6 +1,15 @@
 //! TTS abstraction, audio focus, and voice command grammar.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! [`engine::TtsEngine`] is the trait a platform adapter implements, and
+//! [`engine::ScriptEngine`] is the deterministic local fallback: always
+//! available, 5 ms to start, no network. [`engine::FallbackChain`] walks the
+//! engines in order, skipping any that are unavailable, over the start budget,
+//! or on the network. See [`../../../docs/SPEECH.md`](../../../docs/SPEECH.md).
+//!
+//! [`voice::VoiceCatalog`] holds the voices and the opt-in download policy, and
+//! [`focus::AudioFocus`] is the single-holder state machine for speaking.
+//!
+//! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -11,6 +20,15 @@ pub const CRATE_NAME: &str = "curbcut-tts";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Speech engines and the fallback chain.
+pub mod engine;
+
+/// Audio focus.
+pub mod focus;
+
+/// Voices and the download policy.
+pub mod voice;
 
 #[cfg(test)]
 mod tests {

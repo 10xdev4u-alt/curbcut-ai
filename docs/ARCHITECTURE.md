@@ -619,3 +619,25 @@ ADRs live in `docs/adr/`. Initial set:
 - `ADR-012` Model cache keyed by content hash + version.
 - `ADR-013` Never auto-simplify financial/medical/legal content.
 - `ADR-014` Sidecar processes allowed only for models with no Rust path, behind a typed protocol.
+
+---
+
+## 16. Speech and voice
+
+Implemented in `crates/curbcut-tts`. See [`docs/SPEECH.md`](SPEECH.md).
+
+- `TtsEngine` is the adapter trait. `ScriptEngine` is the deterministic local
+  fallback: always available, `start_latency_ms` 5, no network, and it returns a
+  `SpeechAudio` handle (sample rate, duration, content hash) rather than
+  samples.
+- `FallbackChain::speak` walks the engines in order and returns the first
+  success. A candidate is skipped when it is unavailable, its start latency
+  exceeds `LatencyBudget` (default 50 ms), or `uses_network` is true.
+- `VoiceCatalog::can_download` is false until the user opts in or the voice is
+  on disk; `DownloadPolicy::Forbidden` is the default.
+- `AudioFocus` is a state machine (`Idle`, `Requested`, `Granted`, `Abandoned`)
+  with one holder at a time; a grant without a request is ignored.
+- `Utterance` implements `Debug` with the text redacted and `describe` reports a
+  length and a hash. No speech text is logged.
+- Platform adapters for Piper, AVSpeechSynthesizer, SAPI, and espeak-ng are not
+  implemented; the abstraction and the local fallback are.
