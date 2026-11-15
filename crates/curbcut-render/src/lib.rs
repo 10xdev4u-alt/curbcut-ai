@@ -1,6 +1,11 @@
 //! Overlay plan types, hit-testing, and rendering contracts.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! The focus surfaces are implemented: [`focus::ReadingRuler`] highlights one to
+//! three text lines and [`focus::FocusLens`] magnifies a region with a slight
+//! pointer lead and a jitter dead zone. Both are disabled under reduced motion.
+//! See [`../../../docs/FOCUS.md`](../../../docs/FOCUS.md).
+//!
+//! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -11,6 +16,9 @@ pub const CRATE_NAME: &str = "curbcut-render";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Reading ruler and focus lens.
+pub mod focus;
 
 #[cfg(test)]
 mod tests {
