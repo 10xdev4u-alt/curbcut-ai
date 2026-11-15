@@ -140,8 +140,11 @@ CRATE_STATUS = {
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"
         "Reading level scores Flesch, Flesch-Kincaid, SMOG, and ARI, flags\n"
         "non-Latin scripts as unsupported, and caches scores by content hash.\n"
-        "See [`../../docs/RULES.md`](../../docs/RULES.md) and\n"
-        "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md)."
+        "The jargon dictionary carries a source and locale per entry, supports\n"
+        "user overrides, and expands acronyms while flagging unknown ones. See\n"
+        "[`../../docs/RULES.md`](../../docs/RULES.md),\n"
+        "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md), and\n"
+        "[`../../docs/JARGON.md`](../../docs/JARGON.md)."
     ),
     "curbcut-store": (
         "The plan cache is implemented: a bounded LRU cache of overlay plans\n"

@@ -10,6 +10,11 @@
 //! content hash. See
 //! [`../../../docs/READING_LEVEL.md`](../../../docs/READING_LEVEL.md).
 //!
+//! [`jargon`] is an open, versioned jargon dictionary with a source and a locale
+//! per entry; [`jargon::expand_acronyms`] expands acronyms in place and flags
+//! unknown ones rather than guessing. See
+//! [`../../../docs/JARGON.md`](../../../docs/JARGON.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -25,6 +30,7 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod chunking;
 pub mod distraction;
 pub mod engine;
+pub mod jargon;
 pub mod reading;
 pub mod roles;
 pub mod rule;

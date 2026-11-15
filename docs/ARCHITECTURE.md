@@ -248,6 +248,23 @@ Implemented in `crates/curbcut-understand/src/reading.rs`. See
 - `ScoreCache` is a bounded FIFO keyed by `content_hash`; the default limit is
   64 and the oldest entry is evicted when full.
 
+### 7.5 Jargon dictionary
+
+Implemented in `crates/curbcut-understand/src/jargon.rs`. See
+[`docs/JARGON.md`](JARGON.md).
+
+- `JargonEntry` carries a `Locale` and an `EntrySource`; neither has a default,
+  so a change without a source or locale is not representable.
+- `JargonDictionary::add` replaces an entry with the same locale and term and
+  returns what it replaced, so a user entry overrides a built-in.
+  `EntrySource::priority` orders user over community over built-in.
+- Lookup is case-insensitive; an unknown term returns `None`.
+- `expand_acronyms` walks a text, splits runs on non-alphanumerics, and reports
+  `AcronymMatch` values with byte offsets. `is_acronym_token` accepts two to
+  eight ASCII alphanumerics with at least one letter and no lowercase.
+- An unknown acronym is flagged: `AcronymMatch::expansion` is `None` and
+  `unknown_acronyms` lists it once. The dictionary never invents an expansion.
+
 ---
 
 ## 8. Adaptation engine

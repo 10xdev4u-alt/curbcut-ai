@@ -8,8 +8,11 @@ The deterministic rule layer is implemented: versioned rules, role
 refinement, chunking, reading-level comparison, and distraction scoring.
 Reading level scores Flesch, Flesch-Kincaid, SMOG, and ARI, flags
 non-Latin scripts as unsupported, and caches scores by content hash.
-See [`../../docs/RULES.md`](../../docs/RULES.md) and
-[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md).
+The jargon dictionary carries a source and locale per entry, supports
+user overrides, and expands acronyms while flagging unknown ones. See
+[`../../docs/RULES.md`](../../docs/RULES.md),
+[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md), and
+[`../../docs/JARGON.md`](../../docs/JARGON.md).
 
 ## Build and test
 
