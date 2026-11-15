@@ -9,6 +9,11 @@ every frame. `CC-082`.
 The tracker is platform-agnostic: it consumes `PointerSample` values and has no
 OS calls. The platform adapter supplies the samples.
 
+Dwell advances only when `update` is called. A producer that stops supplying
+samples leaves the state unchanged, so the adapter must keep feeding samples —
+at least one per `settle_ms` window — for a stationary pointer to be reported as
+`Settled`. The adapter contract in `docs/ADAPTERS.md` states this requirement.
+
 - **macOS** supports global pointer tracking through the accessibility APIs.
 - **Windows** supports global pointer tracking through `GetCursorPos` and a
   low-level mouse hook.
@@ -22,14 +27,17 @@ OS calls. The platform adapter supplies the samples.
 1. **A hover is dwell, not presence.** The pointer must stay within
    `move_threshold` for `settle_ms` before `state` is `Settled`. Presence alone
    is not a hover.
-2. **A move is per-axis.** A sample counts as movement when either axis moves
-   more than `move_threshold`. A diagonal drift whose components are each inside
-   the box is not a move.
+2. **A move is per-axis and measured from the dwell reference.** A sample counts
+   as movement when either axis moves more than `move_threshold` from the
+   reference position, not from the previous sample. A diagonal drift whose
+   components are each inside the box is not a move, but a slow drift that
+   carries the pointer past the threshold is.
 3. **One sample is not a state.** With fewer than two samples the state is
    `Unknown`: the tracker cannot tell a stationary pointer from one that has
    just arrived. `is_over` still works from the position alone.
 4. **Time goes forward.** A sample with an earlier timestamp than the previous
-   one does not panic; the dwell time saturates at zero.
+   one restarts the dwell window at the previous sample, so the tracker reports
+   zero dwell instead of a stale large one.
 
 ## Types
 

@@ -92,6 +92,39 @@ fn a_diagonal_drift_past_the_threshold_is_a_move() {
 }
 
 #[test]
+fn a_slow_drift_past_the_reference_is_a_move() {
+    // Each adjacent step is inside the threshold, but the pointer ends up more
+    // than the threshold from where the dwell window started.
+    let mut tracker = HoverTracker::new(100, 5);
+    tracker.update(sample(0, 0, 0));
+    tracker.update(sample(5, 0, 50));
+    assert_eq!(tracker.move_count(), 0);
+    assert_eq!(tracker.dwell_ms(), 50);
+
+    tracker.update(sample(10, 0, 100));
+
+    assert_eq!(tracker.move_count(), 1);
+    assert_eq!(tracker.dwell_ms(), 0);
+    assert_eq!(tracker.state(), PointerState::Moving);
+    assert!(!tracker.state().is_settled());
+}
+
+#[test]
+fn the_reference_advances_after_a_move() {
+    let mut tracker = HoverTracker::new(1_000, 5);
+    tracker.update(sample(0, 0, 0));
+    tracker.update(sample(10, 0, 10));
+    assert_eq!(tracker.move_count(), 1);
+
+    // Inside the threshold of the new reference, not of the origin.
+    tracker.update(sample(13, 0, 20));
+    assert_eq!(tracker.move_count(), 1);
+
+    tracker.update(sample(16, 0, 30));
+    assert_eq!(tracker.move_count(), 2);
+}
+
+#[test]
 fn a_negative_threshold_is_treated_as_zero() {
     let tracker = HoverTracker::new(100, -5);
     assert_eq!(tracker.move_threshold(), 0);
@@ -165,6 +198,22 @@ fn time_going_backwards_does_not_panic() {
     let mut tracker = HoverTracker::new(100, 5);
     tracker.update(sample(0, 0, 100));
     tracker.update(sample(0, 0, 50));
+
+    assert_eq!(tracker.dwell_ms(), 0);
+    assert_eq!(tracker.state(), PointerState::Moving);
+    assert_eq!(tracker.move_count(), 0);
+}
+
+#[test]
+fn a_reversed_timestamp_restarts_the_dwell() {
+    // Stationary samples at 0, 500, 400 ms: the reversal must not leave a
+    // large dwell that keeps the tracker settled.
+    let mut tracker = HoverTracker::new(100, 5);
+    tracker.update(sample(0, 0, 0));
+    tracker.update(sample(0, 0, 500));
+    assert_eq!(tracker.state(), PointerState::Settled);
+
+    tracker.update(sample(0, 0, 400));
 
     assert_eq!(tracker.dwell_ms(), 0);
     assert_eq!(tracker.state(), PointerState::Moving);

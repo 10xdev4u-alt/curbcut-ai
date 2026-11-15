@@ -8,10 +8,13 @@
 //! Three rules hold:
 //!
 //! - **A hover is dwell, not presence.** The pointer must stay within
-//!   `move_threshold` for `settle_ms` before the state is
+//!   `move_threshold` of the dwell reference for `settle_ms` before the state is
 //!   [`PointerState::Settled`].
-//! - **A move is per-axis.** A sample counts as movement when either axis moves
-//!   more than `move_threshold`; a diagonal drift inside the box is not a move.
+//! - **A move is per-axis and measured from the dwell reference.** A sample
+//!   counts as movement when either axis moves more than `move_threshold` from
+//!   the reference, not from the previous sample. A slow drift that stays inside
+//!   the box on every adjacent pair still counts as a move once it carries the
+//!   pointer past the threshold.
 //! - **Only positions and counts leave the tracker.** The tracker stores the
 //!   last sample and counters. It never stores content, and the logging rule is
 //!   stated in the docs.
@@ -76,6 +79,9 @@ pub struct HoverTracker {
     settle_ms: u64,
     move_threshold: i32,
     last: Option<PointerSample>,
+    /// The position the dwell window is measured from. It advances only on a
+    /// move, so a slow drift is still caught.
+    dwell_reference: Option<Point>,
     last_move_ms: u64,
     dwell_ms: u64,
     samples: u64,
@@ -94,6 +100,7 @@ impl HoverTracker {
             settle_ms,
             move_threshold: move_threshold.max(0),
             last: None,
+            dwell_reference: None,
             last_move_ms: 0,
             dwell_ms: 0,
             samples: 0,
@@ -116,6 +123,11 @@ impl HoverTracker {
     ///
     /// The first sample establishes the position and is always [`PointerState::Unknown`].
     /// Later samples update the dwell time and the movement counters.
+    ///
+    /// Movement is measured from the dwell reference, not from the previous
+    /// sample, so a slow drift cannot accumulate dwell. Path length still uses
+    /// the adjacent-sample delta. A timestamp earlier than the previous sample
+    /// restarts the dwell window instead of reporting a large dwell.
     pub fn update(&mut self, sample: PointerSample) {
         self.samples += 1;
         if let Some(previous) = self.last {
@@ -124,16 +136,27 @@ impl HoverTracker {
             self.path_length = self
                 .path_length
                 .saturating_add((dx.abs() + dy.abs()) as u64);
+
+            let reference = self.dwell_reference.unwrap_or(previous.position);
+            let rx = i64::from(sample.position.x) - i64::from(reference.x);
+            let ry = i64::from(sample.position.y) - i64::from(reference.y);
             let threshold = i64::from(self.move_threshold);
-            let moved = dx.abs() > threshold || dy.abs() > threshold;
+            let moved = rx.abs() > threshold || ry.abs() > threshold;
             if moved {
                 self.moves += 1;
+                self.dwell_reference = Some(sample.position);
                 self.last_move_ms = sample.at_ms;
                 self.dwell_ms = 0;
             } else {
+                if sample.at_ms < previous.at_ms {
+                    // The clock went backwards: restart the dwell window at the
+                    // previous sample rather than reporting a stale large dwell.
+                    self.last_move_ms = previous.at_ms;
+                }
                 self.dwell_ms = sample.at_ms.saturating_sub(self.last_move_ms);
             }
         } else {
+            self.dwell_reference = Some(sample.position);
             self.last_move_ms = sample.at_ms;
             self.dwell_ms = 0;
         }
@@ -189,6 +212,7 @@ impl HoverTracker {
     /// Forgets every sample and counter.
     pub fn reset(&mut self) {
         self.last = None;
+        self.dwell_reference = None;
         self.last_move_ms = 0;
         self.dwell_ms = 0;
         self.samples = 0;
