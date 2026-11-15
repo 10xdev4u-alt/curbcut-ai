@@ -283,6 +283,26 @@ Implemented in `crates/curbcut-understand/src/normalize.rs`. See
   use the affine conversion.
 - Every function is pure and stores nothing.
 
+### 7.7 Sensitive-content guard
+
+Implemented in `crates/curbcut-understand/src/sensitive.rs`. See
+[`docs/SENSITIVE_CONTENT.md`](SENSITIVE_CONTENT.md).
+
+- `SensitiveGuard::scan` classifies a text by `SensitiveDomain::{Financial,
+  Medical, Legal}`. A strong signal triggers alone; two weak signals from the
+  same domain trigger together. A single weak signal never does.
+- `SensitiveSignal` is data: a marker, a domain, and a `SignalStrength`. The
+  table is auditable through `SensitiveGuard::signals` and can be extended or
+  cleared.
+- Matching is case-insensitive. A single-word marker sits on word boundaries, so
+  `bank` matches "river bank" but not "banking"; a multi-word marker is a
+  phrase.
+- `auto_simplify` checks both the original and the candidate and returns
+  `Simplification::Original` whenever either is sensitive or the candidate is
+  empty, so the original is always visible.
+- `SensitiveReport` counts hits and names domains; it carries no text, and
+  `message` is a fixed sentence naming domains.
+
 ---
 
 ## 8. Adaptation engine
