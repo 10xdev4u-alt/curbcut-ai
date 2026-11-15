@@ -8,6 +8,10 @@
 //! The pointer tracker is implemented: [`hover::HoverTracker`] classifies
 //! movement from samples so hover-to-read and the lens can wait for a settled
 //! pointer. See [`../../../docs/HOVER.md`](../../../docs/HOVER.md).
+//!
+//! [`click::ClickRouter`] is the single decision point for a click: a click is
+//! consumed or handed off, never both, and a handoff owes focus until it
+//! returns. See [`../../../docs/CLICKS.md`](../../../docs/CLICKS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -21,6 +25,8 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod shortcuts;
 
 pub mod hover;
+
+pub mod click;
 
 #[cfg(test)]
 mod tests {

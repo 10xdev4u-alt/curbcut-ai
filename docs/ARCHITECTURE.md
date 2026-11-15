@@ -440,6 +440,24 @@ Implemented in `crates/curbcut-input/src/hover.rs`. See
 - macOS and Windows support global tracking; Wayland does not, and the
   limitation is documented rather than hidden.
 
+### 10.4 Click-through routing
+
+Implemented in `crates/curbcut-input/src/click.rs`. See
+[`docs/CLICKS.md`](CLICKS.md).
+
+- `ClickRouter` is the single decision point for a click: `route` returns
+  `Consume` or `Handoff`, never both, so a click is never delivered twice.
+- Handoff is never accidental: only `ClickTarget::App` can hand off, and a click
+  on the overlay is always consumed.
+- A handoff owes focus. `focus_due` reports the outstanding `HandoffToken` and
+  `return_focus` clears it; focus stays in the app until the overlay takes it
+  back.
+- A second handoff inside `double_click_ms` is suppressed and counted, so the
+  app never receives a double-click. A backwards timestamp counts as inside the
+  window.
+- The router stores a timestamp, a token id, and counters. The target is a
+  two-variant enum, not a coordinate, and no click position is stored.
+
 ---
 
 ## 11. Storage and privacy

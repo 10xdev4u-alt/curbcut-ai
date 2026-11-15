@@ -149,9 +149,12 @@ CRATE_STATUS = {
         "twelve actions, `ShortcutCatalog` holds the bindings, detects conflicts,\n"
         "and rebinds with a taken-chord check. The pointer tracker is\n"
         "implemented: `HoverTracker` classifies movement from samples so a hover\n"
-        "is dwell, not presence. See\n"
-        "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md) and\n"
-        "[`../../docs/HOVER.md`](../../docs/HOVER.md)."
+        "is dwell, not presence. Click-through routing is implemented:\n"
+        "`ClickRouter` consumes or hands off each click, never both, and a\n"
+        "handoff owes focus until it returns. See\n"
+        "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md),\n"
+        "[`../../docs/HOVER.md`](../../docs/HOVER.md), and\n"
+        "[`../../docs/CLICKS.md`](../../docs/CLICKS.md)."
     ),
 }
 

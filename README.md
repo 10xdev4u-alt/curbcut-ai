@@ -98,6 +98,7 @@ docs/
   PLAN_CACHE.md            Plan cache: bounded LRU plans and opt-in per-app memory
   CONFIRM.md               Confirmation and undo: consequence, outcome, action log
   HOVER.md                 Pointer tracking: dwell, move threshold, Wayland limit
+  CLICKS.md                Click routing: consume or hand off, focus, no double-click
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/
