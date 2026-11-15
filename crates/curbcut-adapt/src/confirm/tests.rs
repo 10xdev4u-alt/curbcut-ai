@@ -183,6 +183,29 @@ fn records_are_oldest_first() {
         .map(|record| record.action().clone())
         .collect();
     assert_eq!(actions, vec![action("dim"), action("grid")]);
+    assert_eq!(log.last().map(ActionRecord::action), Some(&action("grid")));
+}
+
+#[test]
+fn last_is_the_most_recent_record_even_after_an_undo() {
+    let mut log = ActionLog::new();
+    log.record(
+        &Confirmation::new(action("dim"), "The screen is dimmed.", true),
+        rule("dim.toggle"),
+        Decision::Confirmed,
+    );
+    log.record(
+        &Confirmation::new(action("grid"), "The icon grid is shown.", true),
+        rule("grid.toggle"),
+        Decision::Confirmed,
+    );
+
+    assert_eq!(log.undo_last(), Some(action("grid")));
+    // The record is still the most recent; only its outcome changed.
+    let last = log.last().expect("two records");
+    assert_eq!(last.action(), &action("grid"));
+    assert!(last.is_undone());
+    assert_eq!(log.last().map(ActionRecord::action), Some(&action("grid")));
 }
 
 #[test]
@@ -206,10 +229,16 @@ fn clear_empties_the_log() {
 #[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/CONFIRM.md");
-    for word in ["consequence", "undo", "Outcome", "rule", "opt-in"] {
+    for sentence in [
+        "The consequence is stated.",
+        "Undo is offered only when possible.",
+        "The outcome is recorded.",
+        "per-action opt-in",
+        "never holds screen",
+    ] {
         assert!(
-            doc.contains(word),
-            "docs/CONFIRM.md does not state `{word}`"
+            doc.contains(sentence),
+            "docs/CONFIRM.md does not state `{sentence}`"
         );
     }
 }

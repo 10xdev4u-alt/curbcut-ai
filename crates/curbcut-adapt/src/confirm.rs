@@ -182,7 +182,9 @@ impl ActionLog {
             action: confirmation.action.clone(),
             rule,
             outcome,
-            undoable: confirmation.undoable,
+            // Read the method, not the field, so the log cannot disagree with
+            // what the interface offers.
+            undoable: confirmation.offers_undo(),
         });
     }
 
