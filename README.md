@@ -102,6 +102,7 @@ docs/
   PROVENANCE.md            Provenance panel: rule links, originals, log-safe hashes
   FOCUS.md                 Reading ruler and focus lens: lead, dead zone, reduced motion
   READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
+  JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/
