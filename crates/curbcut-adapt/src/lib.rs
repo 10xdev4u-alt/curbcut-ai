@@ -20,6 +20,11 @@
 //! [`confirm`] states the consequence of a destructive action, offers undo only
 //! when it is possible, and records the outcome. See
 //! [`../../../docs/CONFIRM.md`](../../../docs/CONFIRM.md).
+//!
+//! [`provenance`] is the provenance panel data model: every change links an
+//! action to its rule and to the value it replaced, and content-derived
+//! originals are kept as a hash rather than text. See
+//! [`../../../docs/PROVENANCE.md`](../../../docs/PROVENANCE.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -47,6 +52,9 @@ pub mod dim;
 
 /// Confirmation and undo for destructive actions.
 pub mod confirm;
+
+/// Provenance panel data model.
+pub mod provenance;
 
 #[cfg(test)]
 mod tests {

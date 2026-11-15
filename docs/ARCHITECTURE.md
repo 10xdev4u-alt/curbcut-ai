@@ -458,6 +458,23 @@ Implemented in `crates/curbcut-input/src/click.rs`. See
 - The router stores a timestamp, a token id, and counters. The target is a
   two-variant enum, not a coordinate, and no click position is stored.
 
+### 10.5 Provenance panel
+
+Implemented in `crates/curbcut-adapt/src/provenance.rs`. See
+[`docs/PROVENANCE.md`](PROVENANCE.md).
+
+- `ProvenancePanel` records one entry per change. `record` requires a `RuleId`,
+  so a change without a rule is not representable.
+- `ProvenanceEntry` links the `ActionId`, the `RuleId`, the `SettingKey`, the
+  `OriginalValue`, and the time. `get`/`original` are the one-click lookup.
+- `OriginalValue::Setting` keeps a user-chosen setting value whole.
+  `OriginalValue::Content` keeps only a length and a non-cryptographic identity
+  hash, so content-derived originals are never retained as text.
+- `OriginalValue::describe` is the log-safe summary; it never contains the value
+  or the text it stands for.
+- `for_action` and `for_rule` filter without copying; `entries` is oldest
+  first.
+
 ---
 
 ## 11. Storage and privacy

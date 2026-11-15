@@ -9,13 +9,15 @@ settings graph with a baseline, atomic multi-setting changes,
 live-preview sinks, and a 40-key setting registry; a priority-based
 tile packer plus a no-clip reflow; an icon-grid layout with a
 label policy and search; a dimming planner that covers the screen
-except the focused control and except-regions; and confirmation with
-undo for destructive actions. See
+except the focused control and except-regions; confirmation with
+undo for destructive actions; and a provenance panel whose entries
+link every change to its rule and to a log-safe original. See
 [`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),
 [`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),
 [`../../docs/GRID.md`](../../docs/GRID.md),
-[`../../docs/DIMMING.md`](../../docs/DIMMING.md), and
-[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md).
+[`../../docs/DIMMING.md`](../../docs/DIMMING.md),
+[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md), and
+[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md).
 
 ## Build and test
 

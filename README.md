@@ -99,6 +99,7 @@ docs/
   CONFIRM.md               Confirmation and undo: consequence, outcome, action log
   HOVER.md                 Pointer tracking: dwell, move threshold, Wayland limit
   CLICKS.md                Click routing: consume or hand off, focus, no double-click
+  PROVENANCE.md            Provenance panel: rule links, originals, log-safe hashes
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/
