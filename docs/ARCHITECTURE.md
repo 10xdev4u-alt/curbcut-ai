@@ -234,6 +234,20 @@ For each a11y element:
 
 Keyed by `sha256(normalized_content + model_version + profile)`. LRU with a size cap. Cache hits must be deterministic; a cache miss must not change behavior, only latency.
 
+### 7.4 Reading level scoring
+
+Implemented in `crates/curbcut-understand/src/reading.rs`. See
+[`docs/READING_LEVEL.md`](READING_LEVEL.md).
+
+- `ReadingScore::compute` returns Flesch reading ease, Flesch-Kincaid grade,
+  SMOG, and ARI, plus word, sentence, and syllable counts and `WordBands`.
+- `classify_script` marks a text `Latin`, `NonLatin`, `Mixed`, or `Empty`.
+  Only `Latin` is scored; every score is `None` otherwise.
+- `smog` returns `None` below three sentences rather than reporting a grade it
+  cannot support.
+- `ScoreCache` is a bounded FIFO keyed by `content_hash`; the default limit is
+  64 and the oldest entry is evicted when full.
+
 ---
 
 ## 8. Adaptation engine

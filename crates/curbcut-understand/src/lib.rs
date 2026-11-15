@@ -5,6 +5,11 @@
 //! functions; [`engine`] applies them and attaches a rationale to every result.
 //! No model calls.
 //!
+//! [`reading`] scores a text with Flesch reading ease, Flesch-Kincaid grade,
+//! SMOG, and ARI, flags non-Latin scripts as unsupported, and caches scores by
+//! content hash. See
+//! [`../../../docs/READING_LEVEL.md`](../../../docs/READING_LEVEL.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 

@@ -101,6 +101,7 @@ docs/
   CLICKS.md                Click routing: consume or hand off, focus, no double-click
   PROVENANCE.md            Provenance panel: rule links, originals, log-safe hashes
   FOCUS.md                 Reading ruler and focus lens: lead, dead zone, reduced motion
+  READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/

@@ -4,6 +4,9 @@
 //! The score maps onto [`ReadingLevel`], and a verdict compares the measured
 //! band with the profile target. The functions are pure and never store text.
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+
 use curbcut_core::types::ReadingLevel;
 
 /// A reading-level verdict.
@@ -90,6 +93,285 @@ pub fn compare(text: &str, target: ReadingLevel) -> ReadingVerdict {
     }
 }
 
+/// Whether a text is written in a script the reading scores support.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Script {
+    /// No letters at all.
+    Empty,
+    /// Every letter is Latin.
+    Latin,
+    /// Some letters are Latin and some are not.
+    Mixed,
+    /// No Latin letters.
+    NonLatin,
+}
+
+impl Script {
+    /// Whether the reading scores are meaningful for this script.
+    ///
+    /// Only Latin is supported. A non-Latin or mixed text is flagged rather than
+    /// mis-scored.
+    pub fn is_supported(self) -> bool {
+        matches!(self, Self::Latin)
+    }
+}
+
+/// Classifies the script of a text by its letters.
+pub fn classify_script(text: &str) -> Script {
+    let mut latin = 0_usize;
+    let mut other = 0_usize;
+    for ch in text.chars() {
+        if ch.is_alphabetic() {
+            if is_latin(ch) {
+                latin += 1;
+            } else {
+                other += 1;
+            }
+        }
+    }
+    match (latin, other) {
+        (0, 0) => Script::Empty,
+        (_, 0) => Script::Latin,
+        (0, _) => Script::NonLatin,
+        (_, _) => Script::Mixed,
+    }
+}
+
+/// Whether a character is in a Latin range the scorer handles.
+fn is_latin(ch: char) -> bool {
+    matches!(ch as u32, 0x41..=0x5A | 0x61..=0x7A | 0xC0..=0x24F | 0x1E00..=0x1EFF)
+}
+
+/// Total syllables across words.
+fn total_syllables(words: &[&str]) -> u32 {
+    words.iter().map(|word| count_syllables(word)).sum()
+}
+
+/// Flesch reading ease, or `None` when the script is not supported.
+pub fn flesch_reading_ease_checked(text: &str) -> Option<f32> {
+    if !classify_script(text).is_supported() {
+        return None;
+    }
+    Some(flesch_reading_ease(text))
+}
+
+/// Flesch-Kincaid grade level, or `None` when the script is not supported.
+pub fn flesch_kincaid_grade(text: &str) -> Option<f32> {
+    if !classify_script(text).is_supported() {
+        return None;
+    }
+    let words = words(text);
+    if words.is_empty() {
+        return None;
+    }
+    let word_count = words.len() as f32;
+    let sentence_count = sentences(text).max(1) as f32;
+    let syllables = total_syllables(&words) as f32;
+    Some(0.39 * (word_count / sentence_count) + 11.8 * (syllables / word_count) - 15.59)
+}
+
+/// SMOG grade, or `None` when the script is not supported or the text has fewer
+/// than three sentences.
+pub fn smog(text: &str) -> Option<f32> {
+    if !classify_script(text).is_supported() {
+        return None;
+    }
+    let words = words(text);
+    if words.is_empty() {
+        return None;
+    }
+    let sentence_count = sentences(text);
+    if sentence_count < 3 {
+        return None;
+    }
+    let polysyllables = words
+        .iter()
+        .filter(|word| count_syllables(word) >= 3)
+        .count() as f32;
+    Some(1.043 * (polysyllables * (30.0 / sentence_count as f32)).sqrt() + 3.1291)
+}
+
+/// Automated Reading Index, or `None` when the script is not supported.
+pub fn ari(text: &str) -> Option<f32> {
+    if !classify_script(text).is_supported() {
+        return None;
+    }
+    let words = words(text);
+    if words.is_empty() {
+        return None;
+    }
+    let word_count = words.len() as f32;
+    let sentence_count = sentences(text).max(1) as f32;
+    let characters = words
+        .iter()
+        .map(|word| word.chars().filter(|ch| ch.is_alphanumeric()).count())
+        .sum::<usize>() as f32;
+    Some(4.71 * (characters / word_count) + 0.5 * (word_count / sentence_count) - 21.43)
+}
+
+/// A histogram of word lengths by syllable count.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct WordBands {
+    /// One or two syllables.
+    pub short: u32,
+    /// Three syllables.
+    pub medium: u32,
+    /// Four or more syllables.
+    pub long: u32,
+}
+
+impl WordBands {
+    /// The total number of words banded.
+    pub fn total(&self) -> u32 {
+        self.short + self.medium + self.long
+    }
+}
+
+/// A full reading score for one text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ReadingScore {
+    /// The script classification.
+    pub script: Script,
+    /// Flesch reading ease, or `None` when unsupported.
+    pub flesch_ease: Option<f32>,
+    /// Flesch-Kincaid grade level, or `None` when unsupported.
+    pub flesch_kincaid_grade: Option<f32>,
+    /// SMOG grade, or `None` when unsupported or too short.
+    pub smog: Option<f32>,
+    /// Automated Reading Index, or `None` when unsupported.
+    pub ari: Option<f32>,
+    /// Word count.
+    pub words: u32,
+    /// Sentence count.
+    pub sentences: u32,
+    /// Syllable count.
+    pub syllables: u32,
+    /// Word-length bands.
+    pub word_bands: WordBands,
+}
+
+impl ReadingScore {
+    /// Scores a text.
+    pub fn compute(text: &str) -> Self {
+        let script = classify_script(text);
+        let words = words(text);
+        let syllables = total_syllables(&words);
+        let word_bands = WordBands {
+            short: words
+                .iter()
+                .filter(|word| count_syllables(word) <= 2)
+                .count() as u32,
+            medium: words
+                .iter()
+                .filter(|word| count_syllables(word) == 3)
+                .count() as u32,
+            long: words
+                .iter()
+                .filter(|word| count_syllables(word) >= 4)
+                .count() as u32,
+        };
+        Self {
+            script,
+            flesch_ease: flesch_reading_ease_checked(text),
+            flesch_kincaid_grade: flesch_kincaid_grade(text),
+            smog: smog(text),
+            ari: ari(text),
+            words: words.len() as u32,
+            sentences: sentences(text).max(1) as u32,
+            syllables,
+            word_bands,
+        }
+    }
+
+    /// Whether the scores are meaningful for this text.
+    pub fn is_supported(&self) -> bool {
+        self.script.is_supported()
+    }
+}
+
+/// A non-cryptographic content hash for cache keys.
+///
+/// This is an identity key for the cache, not a security boundary.
+pub fn content_hash(text: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
+}
+
+/// A bounded cache of reading scores keyed by content hash.
+#[derive(Debug, Clone)]
+pub struct ScoreCache {
+    entries: Vec<(u64, ReadingScore)>,
+    limit: usize,
+}
+
+impl Default for ScoreCache {
+    fn default() -> Self {
+        Self::new(64)
+    }
+}
+
+impl ScoreCache {
+    /// Creates a cache holding at most `limit` entries.
+    pub fn new(limit: usize) -> Self {
+        Self {
+            entries: Vec::new(),
+            limit: limit.max(1),
+        }
+    }
+
+    /// The maximum number of entries.
+    pub fn limit(&self) -> usize {
+        self.limit
+    }
+
+    /// How many entries are cached.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    /// Whether the cache is empty.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// Looks a score up by content hash.
+    pub fn get(&self, hash: u64) -> Option<&ReadingScore> {
+        self.entries
+            .iter()
+            .find(|(key, _)| *key == hash)
+            .map(|(_, score)| score)
+    }
+
+    /// Caches a score, evicting the oldest entry when full.
+    pub fn insert(&mut self, hash: u64, score: ReadingScore) {
+        if let Some(entry) = self.entries.iter_mut().find(|(key, _)| *key == hash) {
+            entry.1 = score;
+            return;
+        }
+        if self.entries.len() >= self.limit {
+            self.entries.remove(0);
+        }
+        self.entries.push((hash, score));
+    }
+
+    /// Returns the cached score for `text`, computing and caching it on a miss.
+    pub fn score(&mut self, text: &str) -> ReadingScore {
+        let hash = content_hash(text);
+        if let Some(score) = self.get(hash) {
+            return score.clone();
+        }
+        let score = ReadingScore::compute(text);
+        self.insert(hash, score.clone());
+        score
+    }
+
+    /// Drops every entry.
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,5 +448,134 @@ mod tests {
         // `y` is treated as a vowel, so both words form a single group.
         assert_eq!(count_syllables("hmm"), 1);
         assert_eq!(count_syllables("rhythm"), 1);
+    }
+
+    #[test]
+    fn latin_text_is_supported() {
+        assert_eq!(classify_script("The cat sat on the mat."), Script::Latin);
+        assert_eq!(classify_script("élan vital"), Script::Latin);
+        assert!(classify_script("The cat sat on the mat.").is_supported());
+    }
+
+    #[test]
+    fn non_latin_text_is_flagged() {
+        assert_eq!(classify_script("Кот сидит."), Script::NonLatin);
+        assert_eq!(classify_script("猫"), Script::NonLatin);
+        assert!(!classify_script("Кот сидит.").is_supported());
+    }
+
+    #[test]
+    fn mixed_text_is_flagged() {
+        assert_eq!(classify_script("The cat Кот."), Script::Mixed);
+        assert!(!classify_script("The cat Кот.").is_supported());
+    }
+
+    #[test]
+    fn text_without_letters_is_empty() {
+        assert_eq!(classify_script(""), Script::Empty);
+        assert_eq!(classify_script("12345 !!!"), Script::Empty);
+    }
+
+    #[test]
+    fn unsupported_scripts_are_not_scored() {
+        let score = ReadingScore::compute("Кот сидит на коврике.");
+        assert!(!score.is_supported());
+        assert_eq!(score.script, Script::NonLatin);
+        assert_eq!(score.flesch_ease, None);
+        assert_eq!(score.flesch_kincaid_grade, None);
+        assert_eq!(score.smog, None);
+        assert_eq!(score.ari, None);
+    }
+
+    #[test]
+    fn flesch_kincaid_matches_the_reference_formula() {
+        // Three one-word sentences, three syllables each: 0.39 + 35.4 - 15.59.
+        let grade = flesch_kincaid_grade("Banana. Banana. Banana.").expect("supported");
+        assert!((grade - 20.2).abs() < 0.01, "grade was {grade}");
+    }
+
+    #[test]
+    fn ari_matches_the_reference_formula() {
+        // 18 characters over 3 words in 3 sentences: 28.26 + 0.5 - 21.43.
+        let index = ari("Banana. Banana. Banana.").expect("supported");
+        assert!((index - 7.33).abs() < 0.01, "ari was {index}");
+    }
+
+    #[test]
+    fn smog_matches_the_reference_formula() {
+        // Three polysyllables over three sentences: 1.043 * sqrt(30) + 3.1291.
+        let grade = smog("Banana. Banana. Banana.").expect("three sentences");
+        assert!((grade - 8.8418).abs() < 0.001, "smog was {grade}");
+    }
+
+    #[test]
+    fn smog_is_none_below_three_sentences() {
+        assert_eq!(smog("Banana. Banana."), None);
+        assert_eq!(smog("Banana."), None);
+        assert_eq!(smog(""), None);
+    }
+
+    #[test]
+    fn word_bands_partition_the_words() {
+        let score = ReadingScore::compute("The cat banana disappeared.");
+        assert_eq!(score.words, 4);
+        assert_eq!(score.word_bands.short, 2, "the, cat");
+        assert_eq!(score.word_bands.medium, 1, "banana");
+        assert_eq!(score.word_bands.long, 1, "disappeared");
+        assert_eq!(score.word_bands.total(), 4);
+    }
+
+    #[test]
+    fn a_supported_score_has_all_three_grades() {
+        let score = ReadingScore::compute("Banana. Banana. Banana.");
+        assert!(score.is_supported());
+        assert!(score.flesch_ease.is_some());
+        assert!(score.flesch_kincaid_grade.is_some());
+        assert!(score.smog.is_some());
+        assert!(score.ari.is_some());
+        assert_eq!(score.sentences, 3);
+        assert_eq!(score.syllables, 9);
+    }
+
+    #[test]
+    fn the_score_cache_reuses_a_hash() {
+        let text = "The cat sat on the mat.";
+        let mut cache = ScoreCache::new(4);
+        let first = cache.score(text);
+        assert_eq!(cache.len(), 1);
+        let second = cache.score(text);
+        assert_eq!(first, second);
+        assert_eq!(cache.len(), 1, "a hit does not grow the cache");
+    }
+
+    #[test]
+    fn the_cache_evicts_the_oldest_entry() {
+        let mut cache = ScoreCache::new(2);
+        cache.score("one");
+        cache.score("two");
+        assert_eq!(cache.len(), 2);
+        cache.score("three");
+        assert_eq!(cache.len(), 2);
+        assert!(cache.get(content_hash("one")).is_none(), "oldest evicted");
+        assert!(cache.get(content_hash("three")).is_some());
+    }
+
+    #[test]
+    fn the_cache_clears() {
+        let mut cache = ScoreCache::new(4);
+        cache.score("one");
+        cache.clear();
+        assert!(cache.is_empty());
+    }
+
+    #[test]
+    fn the_documented_rules_match_the_code() {
+        let doc = include_str!("../../../docs/READING_LEVEL.md");
+        for word in ["SMOG", "ARI", "script", "cache"] {
+            assert!(
+                doc.contains(word),
+                "docs/READING_LEVEL.md does not state `{word}`"
+            );
+        }
     }
 }
