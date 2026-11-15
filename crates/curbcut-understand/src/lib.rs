@@ -15,6 +15,10 @@
 //! unknown ones rather than guessing. See
 //! [`../../../docs/JARGON.md`](../../../docs/JARGON.md).
 //!
+//! [`normalize`] spells numbers, parses unambiguous dates, and speaks
+//! measurements in a locale's unit system. See
+//! [`../../../docs/NORMALIZE.md`](../../../docs/NORMALIZE.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -31,6 +35,7 @@ pub mod chunking;
 pub mod distraction;
 pub mod engine;
 pub mod jargon;
+pub mod normalize;
 pub mod reading;
 pub mod roles;
 pub mod rule;

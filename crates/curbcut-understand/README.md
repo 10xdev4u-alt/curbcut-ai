@@ -9,10 +9,13 @@ refinement, chunking, reading-level comparison, and distraction scoring.
 Reading level scores Flesch, Flesch-Kincaid, SMOG, and ARI, flags
 non-Latin scripts as unsupported, and caches scores by content hash.
 The jargon dictionary carries a source and locale per entry, supports
-user overrides, and expands acronyms while flagging unknown ones. See
+user overrides, and expands acronyms while flagging unknown ones.
+Numbers, dates, and measurements are spoken: money in hundreds,
+ambiguous dates rejected, and a locale's unit system honoured. See
 [`../../docs/RULES.md`](../../docs/RULES.md),
-[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md), and
-[`../../docs/JARGON.md`](../../docs/JARGON.md).
+[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),
+[`../../docs/JARGON.md`](../../docs/JARGON.md), and
+[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md).
 
 ## Build and test
 

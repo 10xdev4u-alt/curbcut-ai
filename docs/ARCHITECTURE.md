@@ -265,6 +265,24 @@ Implemented in `crates/curbcut-understand/src/jargon.rs`. See
 - An unknown acronym is flagged: `AcronymMatch::expansion` is `None` and
   `unknown_acronyms` lists it once. The dictionary never invents an expansion.
 
+### 7.6 Number, date, and unit normalization
+
+Implemented in `crates/curbcut-understand/src/normalize.rs`. See
+[`docs/NORMALIZE.md`](NORMALIZE.md).
+
+- `spell_integer` and `spell_number` produce words; `round_for_speech` rounds
+  explicitly, so rounding is a caller decision and never changes meaning.
+- `Money::parse` reads a symbol or an ISO code; whole amounts from one hundred
+  to under one thousand that are exact hundreds speak as "twelve hundred
+  dollars".
+- `Date::parse` accepts `YYYY-MM-DD`, `YYYY/MM/DD`, and numeric forms where one
+  field is greater than 12. `03/04/2026` is rejected as ambiguous.
+  `Date::speak` is `16 November 2026`.
+- `Measurement::speak` converts to the target unit and spells it;
+  `MeasurementSystem::for_locale` is imperial only for `en-US`. Temperatures
+  use the affine conversion.
+- Every function is pure and stores nothing.
+
 ---
 
 ## 8. Adaptation engine

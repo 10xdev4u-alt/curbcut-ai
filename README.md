@@ -103,6 +103,7 @@ docs/
   FOCUS.md                 Reading ruler and focus lens: lead, dead zone, reduced motion
   READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
   JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
+  NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/
