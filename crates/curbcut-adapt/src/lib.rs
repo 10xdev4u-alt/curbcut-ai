@@ -16,6 +16,10 @@
 //! [`dim::dim_plan`] computes the scrim rectangles that cover a screen except
 //! the focused control and the except-regions. See
 //! [`../../../docs/DIMMING.md`](../../../docs/DIMMING.md).
+//!
+//! [`confirm`] states the consequence of a destructive action, offers undo only
+//! when it is possible, and records the outcome. See
+//! [`../../../docs/CONFIRM.md`](../../../docs/CONFIRM.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -40,6 +44,9 @@ pub mod grid;
 
 /// Dimming with except-regions.
 pub mod dim;
+
+/// Confirmation and undo for destructive actions.
+pub mod confirm;
 
 #[cfg(test)]
 mod tests {

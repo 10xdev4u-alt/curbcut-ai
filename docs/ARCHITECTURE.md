@@ -385,6 +385,20 @@ Implemented in `crates/curbcut-input/src/shortcuts.rs`. See
 - The default catalog has no conflicts. `curbcut_core::config::is_known_key`
   is public so the catalog and the configuration validator agree on key names.
 
+### 10.2 Confirmation and undo
+
+Implemented in `crates/curbcut-adapt/src/confirm.rs`. See
+[`docs/CONFIRM.md`](CONFIRM.md).
+
+- `Confirmation` states the plain-language consequence of a destructive action
+  and whether it is undoable; `offers_undo` is the single source of truth.
+- `ActionLog` is append-only. `record` stores the `Outcome` (`Applied`,
+  `Dismissed`, or `Undone`) with the `RuleId` that authorised the action.
+- `undo_last` undoes the most recent applied, undoable, not-yet-undone action
+  and returns its id. A dismissed or permanent action is never undone, and an
+  action is never undone twice.
+- The log holds ids, rule references, and outcomes only — never content.
+
 ---
 
 ## 11. Storage and privacy

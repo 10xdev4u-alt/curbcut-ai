@@ -114,12 +114,14 @@ CRATE_STATUS = {
         "settings graph with a baseline, atomic multi-setting changes,\n"
         "live-preview sinks, and a 40-key setting registry; a priority-based\n"
         "tile packer plus a no-clip reflow; an icon-grid layout with a\n"
-        "label policy and search; and a dimming planner that covers the screen\n"
-        "except the focused control and except-regions. See\n"
+        "label policy and search; a dimming planner that covers the screen\n"
+        "except the focused control and except-regions; and confirmation with\n"
+        "undo for destructive actions. See\n"
         "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),\n"
         "[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),\n"
-        "[`../../docs/GRID.md`](../../docs/GRID.md), and\n"
-        "[`../../docs/DIMMING.md`](../../docs/DIMMING.md)."
+        "[`../../docs/GRID.md`](../../docs/GRID.md),\n"
+        "[`../../docs/DIMMING.md`](../../docs/DIMMING.md), and\n"
+        "[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md)."
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
