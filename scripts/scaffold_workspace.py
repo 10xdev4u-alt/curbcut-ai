@@ -43,11 +43,11 @@ CRATES = [
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
     ("curbcut-understand", "Classification, chunking, simplification, and reading level.", ["curbcut-core"]),
-    ("curbcut-adapt", "Profiles, rules engine, layout solver, and plan cache.", ["curbcut-core"]),
+    ("curbcut-adapt", "Profiles, rules engine, and layout solver.", ["curbcut-core"]),
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, and voice command grammar.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
-    ("curbcut-store", "Storage schema, migrations, repositories, and key handling.", ["curbcut-core"]),
+    ("curbcut-store", "Storage schema, migrations, repositories, key handling, and the plan cache.", ["curbcut-core"]),
     ("curbcut-telemetry", "Opt-in, counts-only telemetry and redaction.", ["curbcut-core"]),
     ("curbcut-cli", "Headless control, benchmark, and redacted debug dump.", ["curbcut-core"]),
     ("curbcut-app", "Tauri app shell and frontend bridge (stub until the toolchain lands).", ["curbcut-core"]),
@@ -137,6 +137,12 @@ CRATE_STATUS = {
         "The deterministic rule layer is implemented: versioned rules, role\n"
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"
         "See [`../../docs/RULES.md`](../../docs/RULES.md)."
+    ),
+    "curbcut-store": (
+        "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
+        "keyed by app, window, and content hash, and opt-in per-app memory for\n"
+        "one remembered choice per app. See\n"
+        "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md)."
     ),
     "curbcut-input": (
         "The global shortcut catalog is implemented: `ShortcutAction` lists\n"

@@ -70,11 +70,11 @@ crates/
   curbcut-a11y/         Accessibility tree adapters + element model
   curbcut-vision/       ONNX sessions, detection, OCR, layout, saliency, motion
   curbcut-understand/   Classification, simplification, reading level, icon labels
-  curbcut-adapt/        Profiles, rules engine, layout solver, plan cache
+  curbcut-adapt/        Profiles, rules engine, layout solver
   curbcut-render/       Overlay renderer (Tauri), interaction, animations
   curbcut-tts/          Piper/espeak, audio focus, voice commands
   curbcut-input/        Global shortcuts, hover/click routing, switch access
-  curbcut-store/        SQLite schema, migrations, repositories, encryption
+  curbcut-store/        SQLite schema, migrations, repositories, encryption, plan cache
   curbcut-telemetry/    Opt-in, anonymized, local-only metrics
   curbcut-cli/          Headless control, benchmark, debug dump
   curbcut-app/          Tauri app shell + Svelte frontend
@@ -343,6 +343,29 @@ Implemented in `crates/curbcut-adapt/src/dim.rs`. See
   sample the plane.
 - `DimMotion::Static` is the reduced-motion path. The screen is clamped to the
   `i32` range, so extreme geometry is total.
+
+### 8.6 Plan cache
+
+Implemented in `crates/curbcut-store/src/plan_cache.rs`. See
+[`docs/PLAN_CACHE.md`](PLAN_CACHE.md).
+
+- `PlanCache<V>` is a bounded LRU cache of overlay plans. The key is a
+  `PlanKey`: an `AppId`, a `WindowId`, and a `ContentHash`. The capacity is the
+  caller's choice; `put` evicts the least recently used entry when full, and
+  `get` marks a hit most-recently-used.
+- A scroll reuses the plan when the cached value is content-relative, because a
+  scroll does not change the `ContentHash`. `OverlayPlan` rects are
+  screen-space, so a consumer caching one must translate the rects by the
+  scroll delta (§6.4) or include the viewport in the key. A content change is a
+  new key and therefore a miss. `invalidate_app`, `invalidate_window`, and
+  `invalidate_content` drop entries when the context itself is gone.
+- `ContentHash` is a `u64` wrapper. The producer hashes normalized content; the
+  cache never sees the bytes.
+- `AppMemory<V>` remembers one user choice per app and is opt-in:
+  `remember` stores nothing for an app that was not enabled with `enable_app`,
+  and `disable_app` forgets the choice as well as the opt-in.
+- Pure data structures: no I/O, no clock, and no reachable panics. The caller
+  owns the privacy boundary for `V`; both containers derive `Debug`.
 
 ---
 

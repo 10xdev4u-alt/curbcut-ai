@@ -1,12 +1,13 @@
 # curbcut-store
 
-Storage schema, migrations, repositories, and key handling.
+Storage schema, migrations, repositories, key handling, and the plan cache.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The plan cache is implemented: a bounded LRU cache of overlay plans
+keyed by app, window, and content hash, and opt-in per-app memory for
+one remembered choice per app. See
+[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md).
 
 ## Build and test
 

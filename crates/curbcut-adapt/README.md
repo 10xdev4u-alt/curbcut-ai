@@ -1,6 +1,6 @@
 # curbcut-adapt
 
-Profiles, rules engine, layout solver, and plan cache.
+Profiles, rules engine, and layout solver.
 
 ## Status
 

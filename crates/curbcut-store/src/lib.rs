@@ -1,6 +1,12 @@
 //! Storage schema, migrations, repositories, and key handling.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! The plan cache is implemented: [`plan_cache::PlanCache`] keeps overlay plans
+//! keyed by app, window, and content hash, with a bounded LRU eviction policy,
+//! and [`plan_cache::AppMemory`] remembers a user choice per app, but only for
+//! apps the user opted into. See
+//! [`../../../docs/PLAN_CACHE.md`](../../../docs/PLAN_CACHE.md).
+//!
+//! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -11,6 +17,9 @@ pub const CRATE_NAME: &str = "curbcut-store";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Bounded plan cache and opt-in per-app memory.
+pub mod plan_cache;
 
 #[cfg(test)]
 mod tests {
