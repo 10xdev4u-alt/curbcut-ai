@@ -1,4 +1,4 @@
-//! Profiles, rules engine, layout solver, icon grid, dimming, and plan cache.
+//! Profiles, rules engine, layout solver, icon grid, and dimming.
 //!
 //! The profile graph is implemented: [`profile::ProfileGraph`] is one
 //! versioned settings graph with a baseline, live-preview sinks, and atomic

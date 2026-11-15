@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Storage schema, migrations, repositories, and key handling."
+description = "Storage schema, migrations, repositories, key handling, and the plan cache."
 publish = false
 
 [lints]
