@@ -108,6 +108,7 @@ docs/
   SENSITIVE_CONTENT.md     Sensitive-content guard: financial, medical, legal
   DESTRUCTIVE_ACTIONS.md   Destructive-action catalog, preview, and confirmation
   MERGE.md                 A11y + vision merge: IoU matching, provenance, conflicts
+  STABILITY.md             StableIds across frames, scroll compensation, re-analysis
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 backlog/

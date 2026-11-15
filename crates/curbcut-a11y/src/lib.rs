@@ -6,6 +6,10 @@
 //! provenance, and a disagreement becomes a content-free conflict. See
 //! [`../../../docs/MERGE.md`](../../../docs/MERGE.md).
 //!
+//! [`stability`] keeps a `StableId` on the elements that persist across frames,
+//! compensates for scroll, and says which regions can skip re-analysis. See
+//! [`../../../docs/STABILITY.md`](../../../docs/STABILITY.md).
+//!
 //! The platform adapters are added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -20,6 +24,7 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod mapping;
 pub mod merge;
+pub mod stability;
 
 #[cfg(test)]
 mod tests {
