@@ -5,6 +5,10 @@
 //! functions; [`engine`] applies them and attaches a rationale to every result.
 //! No model calls.
 //!
+//! [`actions`] keeps a versioned catalog of destructive requests and returns a
+//! plain preview before anything is performed; [`sensitive`] refuses to
+//! auto-simplify financial, medical, and legal text.
+//!
 //! [`reading`] scores a text with Flesch reading ease, Flesch-Kincaid grade,
 //! SMOG, and ARI, flags non-Latin scripts as unsupported, and caches scores by
 //! content hash. See
@@ -37,6 +41,7 @@ pub const CRATE_NAME: &str = "curbcut-understand";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod actions;
 pub mod chunking;
 pub mod distraction;
 pub mod engine;
