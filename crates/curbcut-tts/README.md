@@ -4,9 +4,12 @@ TTS abstraction, audio focus, and voice command grammar.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The speech abstraction is implemented: `TtsEngine` is the adapter
+trait, `ScriptEngine` is the always-available local fallback, and
+`FallbackChain` skips engines that are unavailable, over the start
+budget, or on the network. `VoiceCatalog` gates downloads behind an
+opt-in and `AudioFocus` is a single-holder state machine. See
+[`../../docs/SPEECH.md`](../../docs/SPEECH.md).
 
 ## Build and test
 

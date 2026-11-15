@@ -173,6 +173,14 @@ CRATE_STATUS = {
         "and a jitter dead zone; both are disabled under reduced motion. See\n"
         "[`../../docs/FOCUS.md`](../../docs/FOCUS.md)."
     ),
+    "curbcut-tts": (
+        "The speech abstraction is implemented: `TtsEngine` is the adapter\n"
+        "trait, `ScriptEngine` is the always-available local fallback, and\n"
+        "`FallbackChain` skips engines that are unavailable, over the start\n"
+        "budget, or on the network. `VoiceCatalog` gates downloads behind an\n"
+        "opt-in and `AudioFocus` is a single-holder state machine. See\n"
+        "[`../../docs/SPEECH.md`](../../docs/SPEECH.md)."
+    ),
 }
 
 
