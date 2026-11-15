@@ -145,8 +145,11 @@ CRATE_STATUS = {
     "curbcut-input": (
         "The global shortcut catalog is implemented: `ShortcutAction` lists\n"
         "twelve actions, `ShortcutCatalog` holds the bindings, detects conflicts,\n"
-        "and rebinds with a taken-chord check. See\n"
-        "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md)."
+        "and rebinds with a taken-chord check. The pointer tracker is\n"
+        "implemented: `HoverTracker` classifies movement from samples so a hover\n"
+        "is dwell, not presence. See\n"
+        "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md) and\n"
+        "[`../../docs/HOVER.md`](../../docs/HOVER.md)."
     ),
 }
 

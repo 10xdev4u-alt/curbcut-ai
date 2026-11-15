@@ -6,8 +6,11 @@ Global shortcuts, hover/click routing, and switch access.
 
 The global shortcut catalog is implemented: `ShortcutAction` lists
 twelve actions, `ShortcutCatalog` holds the bindings, detects conflicts,
-and rebinds with a taken-chord check. See
-[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md).
+and rebinds with a taken-chord check. The pointer tracker is
+implemented: `HoverTracker` classifies movement from samples so a hover
+is dwell, not presence. See
+[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md) and
+[`../../docs/HOVER.md`](../../docs/HOVER.md).
 
 ## Build and test
 
