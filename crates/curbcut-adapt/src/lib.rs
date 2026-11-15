@@ -1,4 +1,4 @@
-//! Profiles, rules engine, layout solver, icon grid, and plan cache.
+//! Profiles, rules engine, layout solver, icon grid, dimming, and plan cache.
 //!
 //! The profile graph is implemented: [`profile::ProfileGraph`] is one
 //! versioned settings graph with a baseline, live-preview sinks, and atomic
@@ -12,6 +12,10 @@
 //! [`grid::icon_grid_layout`] lays out large labelled tiles. See
 //! [`../../../docs/LAYOUT.md`](../../../docs/LAYOUT.md) and
 //! [`../../../docs/GRID.md`](../../../docs/GRID.md).
+//!
+//! [`dim::dim_plan`] computes the scrim rectangles that cover a screen except
+//! the focused control and the except-regions. See
+//! [`../../../docs/DIMMING.md`](../../../docs/DIMMING.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -33,6 +37,9 @@ pub mod layout;
 
 /// Icon-grid layout, label policy, and search.
 pub mod grid;
+
+/// Dimming with except-regions.
+pub mod dim;
 
 #[cfg(test)]
 mod tests {

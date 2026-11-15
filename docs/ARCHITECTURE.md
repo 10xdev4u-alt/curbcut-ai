@@ -327,7 +327,24 @@ Implemented in `crates/curbcut-adapt/src/grid.rs`. See
   `search_tiles` filters by an AND of case-insensitive tokens in reading order.
 - Pure and deterministic, and total on extreme viewports.
 
-### 8.5 Plan cache
+### 8.5 Dimming
+
+Implemented in `crates/curbcut-adapt/src/dim.rs`. See
+[`docs/DIMMING.md`](DIMMING.md).
+
+- Input: a screen `Rect`, the focused control, the except-regions, the profile
+  opacity, and a `DimMotion`.
+- Output: `DimPlan` with the scrim `rects`, the validated `opacity`, the
+  `motion`, and the clipped `protected` rectangles.
+- The focused control and every except-region are never dimmed. The scrim
+  covers the screen minus the protected union exactly, with no overlap.
+- The complement is computed by coordinate compression and a 2D difference
+  array; `DimPlan::covers_exactly` checks the area identity and the tests
+  sample the plane.
+- `DimMotion::Static` is the reduced-motion path. The screen is clamped to the
+  `i32` range, so extreme geometry is total.
+
+### 8.6 Plan cache
 
 Implemented in `crates/curbcut-store/src/plan_cache.rs`. See
 [`docs/PLAN_CACHE.md`](PLAN_CACHE.md).
