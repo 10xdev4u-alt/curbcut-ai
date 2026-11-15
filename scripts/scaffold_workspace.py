@@ -109,6 +109,15 @@ mod tests {
 
 
 CRATE_STATUS = {
+    "curbcut-a11y": (
+        "The platform role and state mapping is implemented, and the a11y +\n"
+        "vision merge: candidates are matched by IoU and role compatibility,\n"
+        "taken greedily in deterministic order, and each merged property keeps\n"
+        "its provenance. A disagreement becomes a content-free conflict, an\n"
+        "unmatched a11y element stays semantic-only, and an unmatched vision\n"
+        "detection becomes a vision-only node. See\n"
+        "[`../../docs/MERGE.md`](../../docs/MERGE.md)."
+    ),
     "curbcut-adapt": (
         "The profile graph and layout solvers are implemented: a versioned\n"
         "settings graph with a baseline, atomic multi-setting changes,\n"

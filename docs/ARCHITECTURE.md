@@ -197,6 +197,9 @@ Backpressure policy: slow consumers drop non-critical events (vision frames) and
 
 ### 6.3 A11y merge
 
+Implemented in `crates/curbcut-a11y/src/merge.rs`. See
+[`docs/MERGE.md`](MERGE.md).
+
 For each a11y element:
 - Match to a vision element by IoU + role compatibility.
 - Merge: prefer a11y for name/role/state, vision for rect/text if a11y is silent.
