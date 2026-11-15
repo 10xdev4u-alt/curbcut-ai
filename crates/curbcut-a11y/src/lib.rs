@@ -1,6 +1,12 @@
 //! Accessibility tree adapters and the unified element model.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! [`mapping`] translates platform roles and states onto the core types.
+//! [`merge`] turns an a11y tree and a set of vision detections into one graph:
+//! a pair is matched by IoU and role compatibility, each property keeps its
+//! provenance, and a disagreement becomes a content-free conflict. See
+//! [`../../../docs/MERGE.md`](../../../docs/MERGE.md).
+//!
+//! The platform adapters are added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -13,6 +19,7 @@ pub const CRATE_NAME: &str = "curbcut-a11y";
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod mapping;
+pub mod merge;
 
 #[cfg(test)]
 mod tests {
