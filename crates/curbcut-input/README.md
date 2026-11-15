@@ -4,9 +4,10 @@ Global shortcuts, hover/click routing, and switch access.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The global shortcut catalog is implemented: `ShortcutAction` lists
+twelve actions, `ShortcutCatalog` holds the bindings, detects conflicts,
+and rebinds with a taken-chord check. See
+[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md).
 
 ## Build and test
 

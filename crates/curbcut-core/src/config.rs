@@ -365,7 +365,13 @@ impl Shortcut {
     }
 }
 
-fn is_known_key(key: &str) -> bool {
+/// Whether a key name is recognized by [`Shortcut::validate`].
+///
+/// Recognized keys are the modifiers (`ctrl`, `alt`, `shift`, `meta`), the
+/// named keys (`esc`/`escape`, `space`, `tab`, `enter`/`return`, `backspace`,
+/// `delete`, and the arrow keys), a single ASCII alphanumeric character, and
+/// the function keys `f1`..`f12`. Names are matched case-insensitively.
+pub fn is_known_key(key: &str) -> bool {
     let key = key.to_lowercase();
     if matches!(
         key.as_str(),

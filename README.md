@@ -94,6 +94,7 @@ docs/
   LAYOUT.md                Layout solver: tile packing and reflow, invariants, fuzz
   DIMMING.md               Dimming: except-regions, scrim plan, reduced motion
   GRID.md                  Icon grid: tile layout, label policy, search
+  SHORTCUTS.md             Global shortcut catalog: actions, defaults, rebinding
   PLAN_CACHE.md            Plan cache: bounded LRU plans and opt-in per-app memory
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones

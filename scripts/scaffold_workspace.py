@@ -142,6 +142,12 @@ CRATE_STATUS = {
         "one remembered choice per app. See\n"
         "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md)."
     ),
+    "curbcut-input": (
+        "The global shortcut catalog is implemented: `ShortcutAction` lists\n"
+        "twelve actions, `ShortcutCatalog` holds the bindings, detects conflicts,\n"
+        "and rebinds with a taken-chord check. See\n"
+        "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md)."
+    ),
 }
 
 
