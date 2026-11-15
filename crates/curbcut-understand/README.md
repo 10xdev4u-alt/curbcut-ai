@@ -6,7 +6,10 @@ Classification, chunking, simplification, and reading level.
 
 The deterministic rule layer is implemented: versioned rules, role
 refinement, chunking, reading-level comparison, and distraction scoring.
-See [`../../docs/RULES.md`](../../docs/RULES.md).
+Reading level scores Flesch, Flesch-Kincaid, SMOG, and ARI, flags
+non-Latin scripts as unsupported, and caches scores by content hash.
+See [`../../docs/RULES.md`](../../docs/RULES.md) and
+[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md).
 
 ## Build and test
 

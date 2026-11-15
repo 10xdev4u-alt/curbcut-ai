@@ -138,7 +138,10 @@ CRATE_STATUS = {
     "curbcut-understand": (
         "The deterministic rule layer is implemented: versioned rules, role\n"
         "refinement, chunking, reading-level comparison, and distraction scoring.\n"
-        "See [`../../docs/RULES.md`](../../docs/RULES.md)."
+        "Reading level scores Flesch, Flesch-Kincaid, SMOG, and ARI, flags\n"
+        "non-Latin scripts as unsupported, and caches scores by content hash.\n"
+        "See [`../../docs/RULES.md`](../../docs/RULES.md) and\n"
+        "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md)."
     ),
     "curbcut-store": (
         "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
