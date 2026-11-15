@@ -408,6 +408,38 @@ Implemented in `crates/curbcut-input/src/shortcuts.rs`. See
 - The default catalog has no conflicts. `curbcut_core::config::is_known_key`
   is public so the catalog and the configuration validator agree on key names.
 
+### 10.2 Confirmation and undo
+
+Implemented in `crates/curbcut-adapt/src/confirm.rs`. See
+[`docs/CONFIRM.md`](CONFIRM.md).
+
+- `Confirmation` states the plain-language consequence of a destructive action
+  and whether it is undoable; `offers_undo` is the single source of truth.
+- `ActionLog` is append-only. `record` stores the `Outcome` (`Applied`,
+  `Dismissed`, or `Undone`) with the `RuleId` that authorised the action.
+- `undo_last` undoes the most recent applied, undoable, not-yet-undone action
+  and returns its id. A dismissed or permanent action is never undone, and an
+  action is never undone twice.
+- The log holds ids, rule references, and outcomes only — never content.
+
+### 10.3 Pointer tracking
+
+Implemented in `crates/curbcut-input/src/hover.rs`. See
+[`docs/HOVER.md`](HOVER.md).
+
+- `HoverTracker` consumes `PointerSample` values and classifies movement, so
+  hover-to-read and the lens wait for a settled pointer.
+- A hover is dwell, not presence: the pointer must stay within `move_threshold`
+  for `settle_ms` before the state is `Settled`. A move is per-axis, and fewer
+  than two samples is `Unknown`.
+- `is_over` hit-tests the last position against a `Rect` with the half-open
+  `Rect::contains`.
+- The tracker stores the last sample and counts only. `sample_count`,
+  `move_count`, and `path_length_px` are the telemetry; the position is not
+  logged.
+- macOS and Windows support global tracking; Wayland does not, and the
+  limitation is documented rather than hidden.
+
 ---
 
 ## 11. Storage and privacy
