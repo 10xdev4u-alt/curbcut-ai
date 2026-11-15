@@ -4,6 +4,10 @@
 //! every global action, [`shortcuts::ShortcutCatalog`] holds the bindings,
 //! detects conflicts, and supports rebinding. See
 //! [`../../../docs/SHORTCUTS.md`](../../../docs/SHORTCUTS.md).
+//!
+//! The pointer tracker is implemented: [`hover::HoverTracker`] classifies
+//! movement from samples so hover-to-read and the lens can wait for a settled
+//! pointer. See [`../../../docs/HOVER.md`](../../../docs/HOVER.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -15,6 +19,8 @@ pub const CRATE_NAME: &str = "curbcut-input";
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod shortcuts;
+
+pub mod hover;
 
 #[cfg(test)]
 mod tests {
