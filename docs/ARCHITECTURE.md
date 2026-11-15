@@ -371,6 +371,20 @@ Rendering rules:
 - Every action is logged (action type, target role, timestamp — never content) and undoable where the app allows.
 - Panic key: `Ctrl+Shift+Esc` (configurable) → hide overlay, stop capture, mute audio, restore app.
 
+### 10.1 Global shortcut catalog
+
+Implemented in `crates/curbcut-input/src/shortcuts.rs`. See
+[`docs/SHORTCUTS.md`](SHORTCUTS.md).
+
+- `ShortcutAction` is the closed set of twelve global actions; each has a
+  default chord and a one-line purpose.
+- `ShortcutCatalog` holds the bindings. `action_for` maps a pressed chord to an
+  action, comparing chords as sets (order- and case-insensitive);
+  `rebind` refuses a chord another action already uses; `conflicts` lists any
+  pair that shares one.
+- The default catalog has no conflicts. `curbcut_core::config::is_known_key`
+  is public so the catalog and the configuration validator agree on key names.
+
 ---
 
 ## 11. Storage and privacy

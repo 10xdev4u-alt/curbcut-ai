@@ -1,7 +1,9 @@
 //! Global shortcuts, hover/click routing, and switch access.
 //!
-//! Skeleton crate. The public API is added incrementally; see
-//! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
+//! The shortcut catalog is implemented: [`shortcuts::ShortcutAction`] lists
+//! every global action, [`shortcuts::ShortcutCatalog`] holds the bindings,
+//! detects conflicts, and supports rebinding. See
+//! [`../../../docs/SHORTCUTS.md`](../../../docs/SHORTCUTS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -11,6 +13,8 @@ pub const CRATE_NAME: &str = "curbcut-input";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub mod shortcuts;
 
 #[cfg(test)]
 mod tests {
