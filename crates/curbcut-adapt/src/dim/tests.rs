@@ -307,6 +307,40 @@ fn rects_are_in_reading_order() {
 }
 
 #[test]
+fn vertically_adjacent_runs_are_merged_across_columns() {
+    let screen = Rect::new(0, 0, 100, 100);
+    let except = [Rect::new(10, 10, 40, 10), Rect::new(30, 20, 20, 10)];
+    let plan = dim_plan(request(screen, None, &except, 0.5)).expect("valid");
+
+    // The right-hand column is one 50x20 run. A pre-merge row-major sort
+    // interleaves the other columns between the two runs and misses the merge.
+    assert!(
+        plan.rects.contains(&Rect::new(50, 10, 50, 20)),
+        "{:?}",
+        plan.rects
+    );
+    assert_eq!(plan.len(), 5, "{:?}", plan.rects);
+    assert!(plan.has_no_overlap());
+    assert!(plan.covers_exactly(screen));
+    assert!(plan.does_not_cover_any(&except));
+}
+
+#[test]
+fn a_zero_duration_fade_is_static() {
+    let screen = Rect::new(0, 0, 100, 100);
+    let mut req = request(screen, None, &[], 0.5);
+
+    req.motion = DimMotion::Fade { duration_ms: 0 };
+    let plan = dim_plan(req.clone()).expect("valid");
+    assert_eq!(plan.motion, DimMotion::Fade { duration_ms: 0 });
+    assert!(plan.is_static(), "a zero-duration fade is immediate");
+
+    req.motion = DimMotion::Fade { duration_ms: 1 };
+    let plan = dim_plan(req).expect("valid");
+    assert!(!plan.is_static());
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/DIMMING.md");
     for rule in [

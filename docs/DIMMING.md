@@ -17,7 +17,8 @@ The renderer fills those rectangles with a scrim at the profile opacity.
 3. **Reduced motion is static.** `DimMotion::Static` applies the scrim
    immediately; `DimMotion::Fade { duration_ms }` carries a duration the
    renderer may honour, and a `Fade { duration_ms: 0 }` is treated as
-   immediate. `DimPlan::is_static` reports which one it is.
+   immediate. `DimPlan::is_static` reports whether the scrim is applied
+   immediately, so it is `true` for `Static` and for a zero-duration fade.
 
 ## Inputs
 

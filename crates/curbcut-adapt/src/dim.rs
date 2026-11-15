@@ -30,6 +30,9 @@ use curbcut_core::types::Rect;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DimMotion {
     /// Fade the scrim in over a duration.
+    ///
+    /// A `duration_ms` of zero is treated as immediate, so the renderer applies
+    /// the scrim at once. [`DimPlan::is_static`] reports that case as static.
     Fade {
         /// Duration in milliseconds.
         duration_ms: u32,
@@ -97,8 +100,13 @@ impl DimPlan {
     }
 
     /// Whether the scrim is applied immediately.
+    ///
+    /// `Static` is immediate, and so is a `Fade` with a zero duration.
     pub fn is_static(&self) -> bool {
-        matches!(self.motion, DimMotion::Static)
+        match self.motion {
+            DimMotion::Static => true,
+            DimMotion::Fade { duration_ms } => duration_ms == 0,
+        }
     }
 
     /// The total area covered by the scrim.
@@ -394,11 +402,12 @@ fn complement(screen: Rect, protected: &[Rect]) -> Vec<Rect> {
 }
 
 /// Merges rectangles that share an x-range and are vertically adjacent.
+///
+/// The merge needs a column-major pass: sorting by `(x, y)` puts a column's
+/// runs next to each other, so one pass merges every vertically adjacent pair.
+/// The merged set is then put into row-major reading order for the caller.
 fn merge_vertically(mut runs: Vec<Rect>) -> Vec<Rect> {
-    // Row-major reading order, so a consumer can walk the scrim top to bottom
-    // and left to right. Sorting by `(y, x)` also keeps a column's runs
-    // adjacent, which is what the vertical merge needs.
-    runs.sort_by_key(|rect| (rect.y, rect.x));
+    runs.sort_by_key(|rect| (rect.x, rect.y));
     let mut merged: Vec<Rect> = Vec::with_capacity(runs.len());
     for run in runs {
         let Some(last) = merged.last_mut() else {
@@ -412,6 +421,7 @@ fn merge_vertically(mut runs: Vec<Rect>) -> Vec<Rect> {
             merged.push(run);
         }
     }
+    merged.sort_by_key(|rect| (rect.y, rect.x));
     merged
 }
 
