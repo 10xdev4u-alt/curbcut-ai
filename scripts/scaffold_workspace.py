@@ -141,10 +141,13 @@ CRATE_STATUS = {
         "Reading level scores Flesch, Flesch-Kincaid, SMOG, and ARI, flags\n"
         "non-Latin scripts as unsupported, and caches scores by content hash.\n"
         "The jargon dictionary carries a source and locale per entry, supports\n"
-        "user overrides, and expands acronyms while flagging unknown ones. See\n"
+        "user overrides, and expands acronyms while flagging unknown ones.\n"
+        "Numbers, dates, and measurements are spoken: money in hundreds,\n"
+        "ambiguous dates rejected, and a locale's unit system honoured. See\n"
         "[`../../docs/RULES.md`](../../docs/RULES.md),\n"
-        "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md), and\n"
-        "[`../../docs/JARGON.md`](../../docs/JARGON.md)."
+        "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),\n"
+        "[`../../docs/JARGON.md`](../../docs/JARGON.md), and\n"
+        "[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md)."
     ),
     "curbcut-store": (
         "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
