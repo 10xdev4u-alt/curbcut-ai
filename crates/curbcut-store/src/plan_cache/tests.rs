@@ -102,6 +102,66 @@ fn invalidate_content_drops_only_that_hash() {
 }
 
 #[test]
+fn capacity_is_honest() {
+    let mut cache = PlanCache::new(3);
+    assert_eq!(cache.capacity(), 3);
+    for id in 0..10 {
+        cache.put(key(app("a"), window(id), 1), id);
+    }
+
+    assert_eq!(cache.capacity(), 3);
+    assert_eq!(cache.len(), 3);
+    assert_eq!(cache.keys().count(), 3);
+}
+
+#[test]
+fn a_miss_leaves_the_recency_order_unchanged() {
+    let mut cache = PlanCache::new(3);
+    cache.put(key(app("a"), window(1), 1), 1);
+    cache.put(key(app("a"), window(2), 1), 2);
+    let before: Vec<PlanKey> = cache.keys().cloned().collect();
+
+    assert_eq!(cache.get(&key(app("a"), window(9), 9)), None);
+
+    let after: Vec<PlanKey> = cache.keys().cloned().collect();
+    assert_eq!(before, after);
+}
+
+#[test]
+fn replacing_a_key_in_a_full_cache_preserves_capacity() {
+    let mut cache = PlanCache::new(2);
+    cache.put(key(app("a"), window(1), 1), "one");
+    cache.put(key(app("a"), window(2), 1), "two");
+
+    cache.put(key(app("a"), window(1), 1), "replaced");
+
+    assert_eq!(cache.len(), 2);
+    assert_eq!(cache.get(&key(app("a"), window(1), 1)), Some(&"replaced"));
+    // The replaced entry is most recently used, so window 2 is now the LRU.
+    cache.put(key(app("a"), window(3), 1), "three");
+    assert_eq!(cache.get(&key(app("a"), window(2), 1)), None);
+    assert_eq!(cache.get(&key(app("a"), window(1), 1)), Some(&"replaced"));
+}
+
+#[test]
+fn invalidation_respects_app_and_window_boundaries() {
+    let mut cache = PlanCache::new(16);
+    cache.put(key(app("a"), window(1), 7), 1);
+    cache.put(key(app("b"), window(1), 7), 2);
+    cache.put(key(app("a"), window(2), 7), 3);
+
+    // A content hash is global: dropping it drops entries in every app.
+    assert_eq!(cache.invalidate_content(ContentHash::new(7)), 3);
+    assert!(cache.is_empty());
+
+    cache.put(key(app("a"), window(1), 1), 1);
+    cache.put(key(app("b"), window(1), 1), 2);
+    // The window belongs to a different app, so it stays.
+    assert_eq!(cache.invalidate_window(&app("a"), window(1)), 1);
+    assert_eq!(cache.get(&key(app("b"), window(1), 1)), Some(&2));
+}
+
+#[test]
 fn scroll_reuses_the_plan_but_a_content_change_misses() {
     let mut cache = PlanCache::new(8);
     let before = key(app("a"), window(1), 100);

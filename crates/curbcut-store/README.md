@@ -1,6 +1,6 @@
 # curbcut-store
 
-Storage schema, migrations, repositories, and key handling.
+Storage schema, migrations, repositories, key handling, and the plan cache.
 
 ## Status
 

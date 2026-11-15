@@ -25,9 +25,13 @@ stored.
 
 Four operations keep the cache correct:
 
-- **A scroll reuses the plan.** A scroll changes the viewport, not the content,
-  so the `ContentHash` is unchanged and the cached plan still describes the
-  window. Recomputing on every scroll would be wasted work.
+- **A scroll reuses the plan, if the value is content-relative.** A scroll
+  changes the viewport, not the content, so the `ContentHash` is unchanged and
+  the cached plan is still valid for the window. Recomputing on every scroll
+  would be wasted work. The cached value must be relative to the content, not
+  the viewport: `OverlayPlan` tile rects are screen-space, so a consumer
+  caching one must translate the rects by the scroll delta (see
+  `docs/ARCHITECTURE.md` §6.4) or include the viewport in the key.
 - **A content change misses.** A different `ContentHash` is a different key, so
   the old plan is not returned. The caller computes a new plan and stores it.
 - **`invalidate_content(hash)`** drops every entry with a given hash, for the
@@ -43,9 +47,9 @@ dropped, so a caller can log a count without logging a key.
 
 `put` stores an entry at the front. If the cache is full, the least recently
 used entry is evicted. `get` returns an entry and moves it to the front, so the
-recency order reflects actual use. Storing an existing key replaces it in place
-without growing the cache. `keys()` returns the keys most-recent-first, which
-is the eviction order reversed.
+recency order reflects actual use. Storing an existing key replaces it and marks
+it most recently used, without growing the cache. `keys()` returns the keys
+most-recent-first, which is the eviction order reversed.
 
 The value type is a generic `V`, so the cache stores plans, not any particular
 plan shape.
@@ -70,7 +74,9 @@ apps is deterministic and a disabled app can never surface a stale choice:
 
 ## Privacy
 
-The cache stores a content hash, not content. The memory stores a caller-supplied
-choice value, which must be a preference (a profile id, a mode, a size) and
-never a label, OCR text, or accessibility string. The workspace canary scan
+The cache stores a content hash, not content. Both the cached plan and the
+remembered choice are caller-supplied values, and both must be content-free: a
+plan or a preference (a profile id, a mode, a size), never a label, OCR text, or
+accessibility string. `Debug` is derived on both containers, so a `V` holding
+content would print if the cache were debug-logged. The workspace canary scan
 covers this crate.

@@ -7,11 +7,21 @@
 //! The cache key contains a [`ContentHash`], never content. A scroll that does
 //! not change the content reuses the plan, because the plan describes the
 //! window's content rather than the viewport; a content change produces a new
-//! hash and therefore a new entry. [`PlanCache::invalidate_app`] and
-//! [`PlanCache::invalidate_window`] drop everything for an app or window, for
-//! the cases where the caller knows the context is gone.
+//! hash and therefore a new entry. That reuse is only correct when the cached
+//! value is content-relative. `OverlayPlan` tile rects are screen-space, so a
+//! consumer caching one must translate the rects by the scroll delta (see
+//! `docs/ARCHITECTURE.md` §6.4) or include the viewport in the key.
+//! [`PlanCache::invalidate_app`] and [`PlanCache::invalidate_window`] drop
+//! everything for an app or window, for the cases where the caller knows the
+//! context is gone.
 //!
-//! Both types are pure data structures: no I/O, no clock, no panics.
+//! Both types are pure data structures: no I/O, no clock, and no reachable
+//! panics.
+//!
+//! The caller owns the privacy boundary for `V`. A plan or a remembered choice
+//! must be content-free: no labels, OCR text, or accessibility strings. The key
+//! holds a hash, but `Debug` prints `V`, so a `V` containing content would leak
+//! if the cache is debug-logged.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -97,13 +107,17 @@ impl<V> PlanCache<V> {
             .entries
             .iter()
             .position(|(candidate, _)| candidate == key)?;
-        let entry = self.entries.remove(index).expect("the entry is present");
-        self.entries.push_front(entry);
+        // The index came from `position`, so the entry is present. The `if let`
+        // keeps the "no panics" claim literal.
+        if let Some(entry) = self.entries.remove(index) {
+            self.entries.push_front(entry);
+        }
         self.entries.front().map(|(_, value)| value)
     }
 
     /// Stores a plan, evicting the least recently used entry if the cache is
-    /// full. Storing an existing key replaces it in place.
+    /// full. Storing an existing key replaces it and marks it most recently
+    /// used, without growing the cache.
     pub fn put(&mut self, key: PlanKey, value: V) {
         if self.capacity == 0 {
             return;
