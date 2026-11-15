@@ -158,6 +158,12 @@ CRATE_STATUS = {
         "[`../../docs/HOVER.md`](../../docs/HOVER.md), and\n"
         "[`../../docs/CLICKS.md`](../../docs/CLICKS.md)."
     ),
+    "curbcut-render": (
+        "The focus surfaces are implemented: `ReadingRuler` highlights one to\n"
+        "three text lines and `FocusLens` magnifies a region with a pointer lead\n"
+        "and a jitter dead zone; both are disabled under reduced motion. See\n"
+        "[`../../docs/FOCUS.md`](../../docs/FOCUS.md)."
+    ),
 }
 
 

@@ -384,6 +384,21 @@ Rendering rules:
 - Animations capped at 150 ms and disabled under reduced motion.
 - Colors and fonts come from the profile; the overlay never inherits the app's colors (they may be the problem).
 
+### 9.1 Focus surfaces
+
+Implemented in `crates/curbcut-render/src/focus.rs`. See
+[`docs/FOCUS.md`](FOCUS.md).
+
+- `ReadingRuler` highlights one to three text lines (`line_count` clamped to
+  `1..=3`) and spans the screen width; `move_to`/`rect` clamp the band to the
+  screen.
+- `FocusLens` magnifies a region. `update` leads the pointer in the direction of
+  travel by `lead_px`, moves the centre halfway to the target, and rejects a move
+  inside `dead_zone_px` so the lens does not jitter.
+- `source_rect` is the magnified region: a square of side
+  `screen.width / magnification`, clamped to the screen.
+- Both surfaces return `None` under `MotionMode::Reduced`.
+
 ---
 
 ## 10. Input and action model

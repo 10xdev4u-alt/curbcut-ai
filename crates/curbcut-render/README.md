@@ -4,9 +4,10 @@ Overlay plan types, hit-testing, and rendering contracts.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The focus surfaces are implemented: `ReadingRuler` highlights one to
+three text lines and `FocusLens` magnifies a region with a pointer lead
+and a jitter dead zone; both are disabled under reduced motion. See
+[`../../docs/FOCUS.md`](../../docs/FOCUS.md).
 
 ## Build and test
 
