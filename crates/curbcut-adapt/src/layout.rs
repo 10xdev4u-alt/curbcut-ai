@@ -19,7 +19,7 @@ use curbcut_core::id::ElementId;
 use curbcut_core::types::Rect;
 
 /// A width and height in whole pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Size {
     /// Width in pixels.
     pub width: u32,
@@ -164,7 +164,7 @@ impl LayoutSolution {
 /// `Rect::right` and `Rect::bottom` add in `i32` and would overflow on a
 /// rectangle whose far edge leaves the `i32` range; the solver never emits one,
 /// and computing the edges here keeps the checkers total.
-fn edges(rect: Rect) -> (i64, i64, i64, i64) {
+pub(crate) fn edges(rect: Rect) -> (i64, i64, i64, i64) {
     let left = i64::from(rect.x);
     let top = i64::from(rect.y);
     let right = left + i64::from(rect.width);
@@ -173,7 +173,7 @@ fn edges(rect: Rect) -> (i64, i64, i64, i64) {
 }
 
 /// Whether two rectangles share any area, in `i64` edges.
-fn edges_intersect(left: Rect, right: Rect) -> bool {
+pub(crate) fn edges_intersect(left: Rect, right: Rect) -> bool {
     let (a_left, a_top, a_right, a_bottom) = edges(left);
     let (b_left, b_top, b_right, b_bottom) = edges(right);
     let x = a_left.max(b_left);

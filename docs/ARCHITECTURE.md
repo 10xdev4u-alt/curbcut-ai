@@ -311,6 +311,39 @@ Implemented in `crates/curbcut-adapt/src/layout.rs`. See
   the invariants; p95 solve time is printed by the test.
 - Animate only when `prefers-reduced-motion` is false.
 
+### 8.4 Icon grid
+
+Implemented in `crates/curbcut-adapt/src/grid.rs`. See
+[`docs/GRID.md`](GRID.md).
+
+- Input: a viewport `Rect`, a list of `GridTile` (id, label, reading order),
+  and the profile's `IconGrid` settings.
+- Output: `GridLayout` with the honoured column count, the square tile size,
+  `placed` rectangles in row-major reading order, and `dropped` tile ids.
+- A tile is never smaller than `icon_grid.min_tile` (72 pt by default). The
+  column count is reduced until that holds; a viewport that cannot fit one
+  minimum tile drops everything rather than clipping.
+- `validate_label` enforces a plain, non-empty label of at most eight words;
+  `search_tiles` filters by an AND of case-insensitive tokens in reading order.
+- Pure and deterministic, and total on extreme viewports.
+
+### 8.5 Dimming
+
+Implemented in `crates/curbcut-adapt/src/dim.rs`. See
+[`docs/DIMMING.md`](DIMMING.md).
+
+- Input: a screen `Rect`, the focused control, the except-regions, the profile
+  opacity, and a `DimMotion`.
+- Output: `DimPlan` with the scrim `rects`, the validated `opacity`, the
+  `motion`, and the clipped `protected` rectangles.
+- The focused control and every except-region are never dimmed. The scrim
+  covers the screen minus the protected union exactly, with no overlap.
+- The complement is computed by coordinate compression and a 2D difference
+  array; `DimPlan::covers_exactly` checks the area identity and the tests
+  sample the plane.
+- `DimMotion::Static` is the reduced-motion path. The screen is clamped to the
+  `i32` range, so extreme geometry is total.
+
 ---
 
 ## 9. Rendering
