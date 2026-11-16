@@ -631,6 +631,22 @@ Implemented in `crates/curbcut-adapt/src/provenance.rs`. See
 - Memory-zeroing for frame buffers and text caches on drop.
 - Network access is compiled in only for updates and optional sync; a runtime kill-switch disables it.
 
+### 11.3 Telemetry
+
+Implemented in `crates/curbcut-telemetry`. See [`docs/TELEMETRY.md`](TELEMETRY.md).
+
+- `MetricKey::ALL` is a 16-entry allowlist; `MetricKey::from_name` returns `None`
+  for any other name, so a metric cannot be filed under a key that would carry
+  content, a label, or a session identifier.
+- `Snapshot` is a `BTreeMap<MetricKey, u64>`. `serialize` writes a
+  `schema_version` marker and one `key=value` line per key in declaration order;
+  `parse` reads it back and rejects an unknown key, a malformed line, or a
+  different version.
+- `TelemetryExporter::export` is `None` until `opt_in`; `opt_out` disables and
+  clears the counts; `set_enabled` keeps them.
+- No timestamp, no session id, no network call. `Debug` prints key names and
+  numbers only.
+
 ---
 
 ## 12. Model serving
