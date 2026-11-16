@@ -29,6 +29,11 @@
 //! refuses. See
 //! [`../../../docs/SENSITIVE_CONTENT.md`](../../../docs/SENSITIVE_CONTENT.md).
 //!
+//! [`meaning`] rejects a simplification that drops a named entity, a number, a
+//! negation, or a comparative, and falls back to the original. Reports and logs
+//! hold counts only. See
+//! [`../../../docs/MEANING.md`](../../../docs/MEANING.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -46,6 +51,7 @@ pub mod chunking;
 pub mod distraction;
 pub mod engine;
 pub mod jargon;
+pub mod meaning;
 pub mod normalize;
 pub mod reading;
 pub mod roles;

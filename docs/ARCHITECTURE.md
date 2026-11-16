@@ -333,6 +333,23 @@ Implemented in `crates/curbcut-understand/src/actions.rs`. See
   `NotRequired` otherwise. `can_proceed` is true only for `NotRequired`; the
   catalog has no perform method that skips the preview.
 
+### 7.9 Meaning preservation
+
+Implemented in `crates/curbcut-understand/src/meaning.rs`. See
+[`docs/MEANING.md`](MEANING.md).
+
+- `MeaningChecker::check` extracts named entities, numbers, negations, and
+  comparatives from the original and the candidate, then counts the original
+  tokens with no counterpart in the candidate as a multiset.
+- Any missing token is a rejection: `Preserved` or `Rejected(MeaningReport)`.
+  `MeaningReport` holds counts in the four categories; `recall` is
+  `1 - missing / original`.
+- `rewrite` returns the candidate only when it is non-empty and preserved, and
+  otherwise returns the original.
+- `RejectionLog` accumulates rejection reasons as counts; `describe` is a fixed
+  sentence built from reason labels and counts, so a rejection is logged without
+  quoting the screen.
+
 ---
 
 ## 8. Adaptation engine
