@@ -206,6 +206,14 @@ CRATE_STATUS = {
         "[`../../docs/SPEECH.md`](../../docs/SPEECH.md) and\n"
         "[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md)."
     ),
+    "curbcut-telemetry": (
+        "The counts-only telemetry schema is implemented: `MetricKey` is a\n"
+        "16-entry allowlist, `Snapshot` serializes keys and numbers and parses\n"
+        "the same format back while rejecting an unknown key, and\n"
+        "`TelemetryExporter` renders an export only after an opt-in and\n"
+        "clears the counts on opt-out. See\n"
+        "[`../../docs/TELEMETRY.md`](../../docs/TELEMETRY.md)."
+    ),
 }
 
 
