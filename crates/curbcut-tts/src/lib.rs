@@ -9,6 +9,11 @@
 //! [`voice::VoiceCatalog`] holds the voices and the opt-in download policy, and
 //! [`focus::AudioFocus`] is the single-holder state machine for speaking.
 //!
+//! [`command`] is the deterministic layer on top of speech recognition: a
+//! versioned phrase catalog, the "what can I say?" panel, and the hold-or-toggle
+//! push-to-talk machine. See
+//! [`../../../docs/VOICE_COMMANDS.md`](../../../docs/VOICE_COMMANDS.md).
+//!
 //! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -26,6 +31,9 @@ pub mod engine;
 
 /// Audio focus.
 pub mod focus;
+
+/// Voice command grammar, help, and push-to-talk.
+pub mod command;
 
 /// Voices and the download policy.
 pub mod voice;

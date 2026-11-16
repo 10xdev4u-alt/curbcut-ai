@@ -105,6 +105,7 @@ docs/
   JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
   NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
   SPEECH.md                TTS engines, voices, fallback chain, and audio focus
+  VOICE_COMMANDS.md        Voice command grammar, help, and push-to-talk
   SENSITIVE_CONTENT.md     Sensitive-content guard: financial, medical, legal
   DESTRUCTIVE_ACTIONS.md   Destructive-action catalog, preview, and confirmation
   MERGE.md                 A11y + vision merge: IoU matching, provenance, conflicts
