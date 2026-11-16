@@ -16,8 +16,9 @@ link every change to its rule and to a log-safe original. See
 [`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),
 [`../../docs/GRID.md`](../../docs/GRID.md),
 [`../../docs/DIMMING.md`](../../docs/DIMMING.md),
-[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md), and
-[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md).
+[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md),
+[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md), and
+[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md).
 
 ## Build and test
 

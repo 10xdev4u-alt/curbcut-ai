@@ -25,6 +25,11 @@
 //! action to its rule and to the value it replaced, and content-derived
 //! originals are kept as a hash rather than text. See
 //! [`../../../docs/PROVENANCE.md`](../../../docs/PROVENANCE.md).
+//!
+//! [`stop_motion`] turns detected motion regions into a plan that covers each
+//! one with a static snapshot and offers a play button. It never controls the
+//! underlying media. See
+//! [`../../../docs/STOP_MOTION.md`](../../../docs/STOP_MOTION.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -55,6 +60,9 @@ pub mod confirm;
 
 /// Provenance panel data model.
 pub mod provenance;
+
+/// Stop-motion mode.
+pub mod stop_motion;
 
 #[cfg(test)]
 mod tests {

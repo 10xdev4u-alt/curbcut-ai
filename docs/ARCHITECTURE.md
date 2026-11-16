@@ -483,6 +483,21 @@ Implemented in `crates/curbcut-store/src/plan_cache.rs`. See
 - Pure data structures: no I/O, no clock, and no reachable panics. The caller
   owns the privacy boundary for `V`; both containers derive `Debug`.
 
+### 8.7 Stop-motion mode
+
+Implemented in `crates/curbcut-adapt/src/stop_motion.rs`. See
+[`docs/STOP_MOTION.md`](STOP_MOTION.md).
+
+- `StopMotionPlanner::plan` keeps the motion regions whose `MotionKind` is
+  enabled by `StopMotionConfig` (carousels, autoplay, countdowns), sorts them by
+  `StableId`, and gives each a `FrozenRegion` with a content-free snapshot hash.
+- The plan only covers a region; it never pauses, seeks, or otherwise controls
+  the underlying media. There is no such method.
+- `StopMotionPlan::restore` lifts one snapshot, `restore_all` lifts the rest,
+  and `should_cover(rect)` reports whether a covered region intersects a rect.
+- `StopMotionSession` pairs the config with the plan and an enabled flag;
+  `should_cover` is false while disabled, and disabling lifts every snapshot.
+
 ---
 
 ## 9. Rendering
