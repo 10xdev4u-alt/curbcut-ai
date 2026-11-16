@@ -100,6 +100,7 @@ docs/
   HOVER.md                 Pointer tracking: dwell, move threshold, Wayland limit
   CLICKS.md                Click routing: consume or hand off, focus, no double-click
   PROVENANCE.md            Provenance panel: rule links, originals, log-safe hashes
+  STOP_MOTION.md           Stop-motion mode: freeze carousels, autoplay, countdowns
   FOCUS.md                 Reading ruler and focus lens: lead, dead zone, reduced motion
   READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
   JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
