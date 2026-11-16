@@ -199,8 +199,12 @@ CRATE_STATUS = {
         "trait, `ScriptEngine` is the always-available local fallback, and\n"
         "`FallbackChain` skips engines that are unavailable, over the start\n"
         "budget, or on the network. `VoiceCatalog` gates downloads behind an\n"
-        "opt-in and `AudioFocus` is a single-holder state machine. See\n"
-        "[`../../docs/SPEECH.md`](../../docs/SPEECH.md)."
+        "opt-in and `AudioFocus` is a single-holder state machine. The voice\n"
+        "command grammar matches the longest catalog phrase on a word boundary,\n"
+        "renders the \"what can I say?\" panel, and `PushToTalk` is a hold-or-\n"
+        "toggle microphone state machine. See\n"
+        "[`../../docs/SPEECH.md`](../../docs/SPEECH.md) and\n"
+        "[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md)."
     ),
 }
 

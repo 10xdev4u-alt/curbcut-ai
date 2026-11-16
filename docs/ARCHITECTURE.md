@@ -706,5 +706,12 @@ Implemented in `crates/curbcut-tts`. See [`docs/SPEECH.md`](SPEECH.md).
   with one holder at a time; a grant without a request is ignored.
 - `Utterance` implements `Debug` with the text redacted and `describe` reports a
   length and a hash. No speech text is logged.
+- `command::CommandGrammar` matches a normalized utterance against a versioned
+  phrase catalog, keeping the longest phrase that matches at a word boundary;
+  the remainder is the argument. An unmatched utterance is `VoiceCommand::Unknown`
+  and is answered with a line that points at the help command.
+- `command::CommandGrammar::help` renders the "what can I say?" panel.
+- `command::PushToTalk` is a hold-or-toggle microphone state machine; `press`,
+  `release`, and `toggle` change the state, and `transitions` counts changes.
 - Platform adapters for Piper, AVSpeechSynthesizer, SAPI, and espeak-ng are not
   implemented; the abstraction and the local fallback are.
