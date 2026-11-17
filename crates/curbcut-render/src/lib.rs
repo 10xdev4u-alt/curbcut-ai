@@ -20,6 +20,8 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Reading ruler and focus lens.
 pub mod focus;
 
+pub mod animation;
+
 #[cfg(test)]
 mod tests {
     #[test]

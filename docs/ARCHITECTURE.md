@@ -550,6 +550,20 @@ Implemented in `crates/curbcut-render/src/focus.rs`. See
   `screen.width / magnification`, clamped to the screen.
 - Both surfaces return `None` under `MotionMode::Reduced`.
 
+### 9.2 Animation policy
+
+Implemented in `crates/curbcut-render/src/animation.rs`. See
+[`docs/ANIMATION.md`](ANIMATION.md).
+
+- `AnimationPolicy::plan` returns `Option<AnimationPlan>`; `None` means apply
+  the end state at once, never skip the change.
+- `MAX_DURATION_MS` is 150 and `AnimationPolicy::new` clamps a requested ceiling
+  to it, so the cap cannot be raised.
+- Under `MotionPreference::Reduced`, an essential kind (`Fade`, `Highlight`) is
+  planned with a zero duration and a non-essential kind is refused.
+- `Spin`, `Zoom`, and `Parallax` are vestibular triggers and are refused under
+  either preference.
+
 ---
 
 ## 10. Input and action model
