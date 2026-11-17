@@ -188,6 +188,37 @@ fn auto_scan_advances_once_per_interval() {
 }
 
 #[test]
+fn auto_scan_carries_time_beyond_one_interval() {
+    let mut access = SwitchAccess::new(sequence(&[1, 2, 3]), SwitchMode::AutoScan);
+    assert_eq!(
+        access.tick(250),
+        SwitchEvent::ScanChanged(ScanTargetId(3)),
+        "250 ms is two steps and a 50 ms remainder"
+    );
+    assert_eq!(
+        access.tick(50),
+        SwitchEvent::ScanChanged(ScanTargetId(1)),
+        "the remainder is kept"
+    );
+}
+
+#[test]
+fn a_single_control_reports_no_scan_change() {
+    let mut auto = SwitchAccess::new(ScanSequence::new(vec![item(1)], 100), SwitchMode::AutoScan);
+    assert_eq!(auto.tick(100), SwitchEvent::None);
+    assert_eq!(auto.current_id(), Some(ScanTargetId(1)));
+
+    let mut step = SwitchAccess::new(ScanSequence::new(vec![item(1)], 100), SwitchMode::StepScan);
+    assert_eq!(step.press(), SwitchEvent::None);
+    assert_eq!(
+        step.release(),
+        SwitchEvent::None,
+        "the highlight cannot move"
+    );
+    assert_eq!(step.current_id(), Some(ScanTargetId(1)));
+}
+
+#[test]
 fn auto_scan_press_selects_the_highlighted_control() {
     let mut access = SwitchAccess::new(sequence(&[1, 2, 3]), SwitchMode::AutoScan);
     access.tick(100);

@@ -5,6 +5,8 @@
 //!
 //! - **Auto scan.** The highlight advances by itself every
 //!   [`ScanSequence::interval_ms`], and a press selects the highlighted control.
+//!   A tick longer than the interval advances several steps and carries the
+//!   remainder.
 //! - **Step scan.** A press starts a dwell on the highlighted control: release
 //!   before the threshold to step to the next one, hold to select it. A tap
 //!   steps, a hold selects.
@@ -295,6 +297,9 @@ pub enum SwitchEvent {
     /// Nothing changed.
     None,
     /// The highlight moved.
+    ///
+    /// A step that leaves the highlight on the same control reports
+    /// [`SwitchEvent::None`] instead.
     ScanChanged(ScanTargetId),
     /// The highlighted control was selected.
     Selected(ScanTargetId),
@@ -384,35 +389,38 @@ impl SwitchAccess {
     /// A switch release.
     ///
     /// In step mode, a press that did not reach the dwell threshold advances the
-    /// highlight. In auto-scan mode nothing changes.
+    /// highlight. In auto-scan mode nothing changes. A step that leaves the
+    /// highlight where it was reports [`SwitchEvent::None`].
     pub fn release(&mut self) -> SwitchEvent {
         if self.mode != SwitchMode::StepScan || !self.held {
             return SwitchEvent::None;
         }
         self.held = false;
         self.dwell.reset();
-        match self.sequence.advance() {
-            Some(id) => SwitchEvent::ScanChanged(id),
-            None => SwitchEvent::None,
-        }
+        self.step()
     }
 
     /// Advances time by `delta_ms`.
     ///
-    /// In auto scan the highlight advances once per interval. In step scan a held
-    /// switch selects the highlighted control once the dwell threshold passes.
+    /// In auto scan the highlight advances once per interval and carries any
+    /// remainder, so a delta longer than the interval advances several steps.
+    /// In step scan a held switch selects the highlighted control once the
+    /// dwell threshold passes.
     pub fn tick(&mut self, delta_ms: u64) -> SwitchEvent {
         match self.mode {
             SwitchMode::AutoScan => {
                 self.scan_elapsed_ms = self.scan_elapsed_ms.saturating_add(delta_ms);
-                if self.scan_elapsed_ms >= self.sequence.interval_ms() {
-                    self.scan_elapsed_ms = 0;
-                    match self.sequence.advance() {
-                        Some(id) => SwitchEvent::ScanChanged(id),
-                        None => SwitchEvent::None,
+                let interval = self.sequence.interval_ms();
+                let mut moved = None;
+                while self.scan_elapsed_ms >= interval {
+                    self.scan_elapsed_ms -= interval;
+                    if let SwitchEvent::ScanChanged(id) = self.step() {
+                        moved = Some(id);
                     }
-                } else {
-                    SwitchEvent::None
+                }
+                match moved {
+                    Some(id) => SwitchEvent::ScanChanged(id),
+                    None => SwitchEvent::None,
                 }
             }
             SwitchMode::StepScan => {
@@ -439,6 +447,18 @@ impl SwitchAccess {
         match self.sequence.current_id() {
             Some(id) => SwitchEvent::Selected(id),
             None => SwitchEvent::None,
+        }
+    }
+
+    /// Advances the highlight once, reporting only a real move.
+    ///
+    /// A sequence with a single enabled control cannot move, so it reports
+    /// [`SwitchEvent::None`] rather than a change to the same control.
+    fn step(&mut self) -> SwitchEvent {
+        let before = self.sequence.current_id();
+        match self.sequence.advance() {
+            Some(id) if Some(id) != before => SwitchEvent::ScanChanged(id),
+            _ => SwitchEvent::None,
         }
     }
 }

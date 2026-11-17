@@ -8,6 +8,8 @@
 1. **Auto scan.** The highlight advances by itself every
    `ScanSequence::interval_ms` and a press selects the highlighted control. This
    is the one-switch scanning mode: the user waits for the control and presses.
+   A tick longer than the interval advances several steps and carries the
+   remainder, so a slow frame does not slow the scan.
 2. **Step scan.** A press starts a dwell on the highlighted control. Release
    before the threshold to step to the next control; hold past it to select. A
    tap steps, a hold selects, so the scanning order is always logical and the
@@ -44,8 +46,8 @@ when the user switches modes. `set_dwell_ms` sets the dwell time; the default is
 | `DwellTimer::tick(delta_ms)` | Advances the dwell; `true` once the threshold is reached. |
 | `DwellTimer::progress` | The dwell progress from `0.0` to `1.0`. |
 | `SwitchAccess::press` | Auto scan selects; step scan starts a dwell. |
-| `SwitchAccess::release` | Step scan advances when the dwell did not complete. |
-| `SwitchAccess::tick(delta_ms)` | Auto scan advances per interval; step scan selects on dwell. |
+| `SwitchAccess::release` | Step scan advances when the dwell did not complete; a no-op step reports `None`. |
+| `SwitchAccess::tick(delta_ms)` | Auto scan advances per interval and carries the remainder; step scan selects on dwell. |
 | `set_dwell_ms` / `set_mode` | Changes the threshold or mode and clears pending state. |
 
 `DwellTimer` stays complete after the threshold until `reset`, so a caller that
