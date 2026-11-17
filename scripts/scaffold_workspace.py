@@ -196,9 +196,12 @@ CRATE_STATUS = {
         "and a jitter dead zone; both are disabled under reduced motion. The\n"
         "animation policy caps every animation at 150 ms, applies an essential\n"
         "change instantly under reduced motion, refuses decoration, and never\n"
-        "allows a vestibular trigger. See\n"
-        "[`../../docs/FOCUS.md`](../../docs/FOCUS.md) and\n"
-        "[`../../docs/ANIMATION.md`](../../docs/ANIMATION.md)."
+        "allows a vestibular trigger. Large-target mode scales every target to\n"
+        "a 60 px minimum, translates rather than crops at the maximum scale, and\n"
+        "keeps targets at least 8 px apart. See\n"
+        "[`../../docs/FOCUS.md`](../../docs/FOCUS.md),\n"
+        "[`../../docs/ANIMATION.md`](../../docs/ANIMATION.md), and\n"
+        "[`../../docs/LARGE_TARGETS.md`](../../docs/LARGE_TARGETS.md)."
     ),
     "curbcut-tts": (
         "The speech abstraction is implemented: `TtsEngine` is the adapter\n"

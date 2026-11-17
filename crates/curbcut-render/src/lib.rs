@@ -22,6 +22,8 @@ pub mod focus;
 
 pub mod animation;
 
+pub mod targets;
+
 #[cfg(test)]
 mod tests {
     #[test]
