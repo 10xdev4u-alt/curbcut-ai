@@ -193,8 +193,12 @@ CRATE_STATUS = {
     "curbcut-render": (
         "The focus surfaces are implemented: `ReadingRuler` highlights one to\n"
         "three text lines and `FocusLens` magnifies a region with a pointer lead\n"
-        "and a jitter dead zone; both are disabled under reduced motion. See\n"
-        "[`../../docs/FOCUS.md`](../../docs/FOCUS.md)."
+        "and a jitter dead zone; both are disabled under reduced motion. The\n"
+        "animation policy caps every animation at 150 ms, applies an essential\n"
+        "change instantly under reduced motion, refuses decoration, and never\n"
+        "allows a vestibular trigger. See\n"
+        "[`../../docs/FOCUS.md`](../../docs/FOCUS.md) and\n"
+        "[`../../docs/ANIMATION.md`](../../docs/ANIMATION.md)."
     ),
     "curbcut-tts": (
         "The speech abstraction is implemented: `TtsEngine` is the adapter\n"
