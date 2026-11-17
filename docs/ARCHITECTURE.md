@@ -679,9 +679,9 @@ Implemented in `crates/curbcut-input/src/focus_order.rs`. See
 - `FocusOrder` is the tab cycle over the overlay's controls. `advance` /
   `back` visit enabled controls in order and wrap; `first` / `last` jump to
   the ends; `focus` / `focus_index` refuse a disabled control.
-- A trapping control keeps Tab on itself, so `escape` is the way out.
-  `validate` rejects `NoEnabled`, `DuplicateId`, and an order whose only enabled
-  control traps focus.
+- A trapping control keeps Tab on itself, so `escape` is the way out, wrapping
+  to the next enabled control. `validate` rejects `NoEnabled`, `DuplicateId`,
+  and an order where every enabled control traps focus.
 - `nearest(direction)` picks the closest enabled control by distance along the
   direction plus twice the perpendicular offset, breaking ties by id.
 - `shortcuts` lists every focusable's shortcut in cycle order for the UI.

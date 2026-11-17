@@ -38,8 +38,8 @@ fn an_error_explains_itself() {
         "two controls share an id"
     );
     assert_eq!(
-        FocusOrderError::TrappedAlone.to_string(),
-        "the only enabled control traps focus"
+        FocusOrderError::AllTrapped.to_string(),
+        "every enabled control traps focus"
     );
 }
 
@@ -132,6 +132,42 @@ fn a_trapping_item_keeps_tab_and_escape_leaves() {
 }
 
 #[test]
+fn escape_wraps_to_the_first_enabled_item() {
+    let mut order = FocusOrder::new(vec![
+        item(1, 0, 0),
+        item(2, 100, 0).with_enabled(false),
+        item(3, 200, 0).with_trap(true),
+    ]);
+    assert_eq!(order.current_id(), Some(FocusableId(1)));
+    order.escape();
+    assert_eq!(order.current_id(), Some(FocusableId(3)));
+
+    assert_eq!(
+        order.escape(),
+        Some(FocusableId(1)),
+        "escape wraps past the disabled item"
+    );
+}
+
+#[test]
+fn escape_walks_past_a_trapping_item_to_a_free_one() {
+    let mut order = FocusOrder::new(vec![
+        item(1, 0, 0).with_trap(true),
+        item(2, 100, 0).with_trap(true),
+        item(3, 200, 0),
+    ]);
+    assert_eq!(order.current_id(), Some(FocusableId(1)));
+    assert_eq!(
+        order.escape(),
+        Some(FocusableId(2)),
+        "the next enabled item"
+    );
+    assert!(order.is_trapped());
+    assert_eq!(order.escape(), Some(FocusableId(3)), "and on to a free one");
+    assert!(!order.is_trapped());
+}
+
+#[test]
 fn validate_reports_no_enabled() {
     let order = FocusOrder::new(vec![item(1, 0, 0).with_enabled(false)]);
     assert_eq!(order.validate(), Err(FocusOrderError::NoEnabled));
@@ -150,7 +186,32 @@ fn validate_reports_duplicate_ids() {
 #[test]
 fn validate_reports_a_single_trap() {
     let order = FocusOrder::new(vec![item(1, 0, 0).with_trap(true)]);
-    assert_eq!(order.validate(), Err(FocusOrderError::TrappedAlone));
+    assert_eq!(order.validate(), Err(FocusOrderError::AllTrapped));
+}
+
+#[test]
+fn validate_reports_an_order_where_every_enabled_item_traps() {
+    let order = FocusOrder::new(vec![
+        item(1, 0, 0).with_trap(true),
+        item(2, 100, 0).with_trap(true),
+    ]);
+    assert_eq!(order.validate(), Err(FocusOrderError::AllTrapped));
+
+    let with_disabled = FocusOrder::new(vec![
+        item(1, 0, 0).with_trap(true),
+        item(2, 100, 0).with_trap(true).with_enabled(false),
+    ]);
+    assert_eq!(with_disabled.validate(), Err(FocusOrderError::AllTrapped));
+}
+
+#[test]
+fn an_order_with_one_non_trapping_item_is_valid() {
+    let order = FocusOrder::new(vec![
+        item(1, 0, 0).with_trap(true),
+        item(2, 100, 0).with_trap(true),
+        item(3, 200, 0),
+    ]);
+    assert_eq!(order.validate(), Ok(()));
 }
 
 #[test]
@@ -173,6 +234,17 @@ fn nearest_picks_the_closest_item_in_a_direction() {
 
     order.focus(FocusableId(3));
     assert_eq!(order.nearest(Direction::Left), Some(FocusableId(2)));
+}
+
+#[test]
+fn nearest_picks_down_and_up() {
+    let mut order = FocusOrder::new(vec![item(1, 0, 0), item(2, 0, 100), item(3, 0, 200)]);
+    assert_eq!(order.nearest(Direction::Down), Some(FocusableId(2)));
+    assert_eq!(order.nearest(Direction::Up), None);
+
+    order.focus(FocusableId(3));
+    assert_eq!(order.nearest(Direction::Up), Some(FocusableId(2)));
+    assert_eq!(order.nearest(Direction::Down), None);
 }
 
 #[test]

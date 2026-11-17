@@ -8,7 +8,7 @@
 //!   [`FocusOrder::back`] wrap around.
 //! - **There is no trap.** A trapping item keeps Tab on itself, so
 //!   [`FocusOrder::escape`] is the way out. [`FocusOrder::validate`] rejects an
-//!   order whose only enabled item traps focus, because then focus can never
+//!   order where every enabled item traps focus, because then focus can never
 //!   leave.
 //! - **Shortcuts are discoverable.** [`FocusOrder::shortcuts`] lists every
 //!   focusable's shortcut in cycle order, so the UI can show it.
@@ -140,8 +140,8 @@ pub enum FocusOrderError {
     NoEnabled,
     /// Two controls share an id.
     DuplicateId,
-    /// The only enabled control traps focus, so focus can never leave.
-    TrappedAlone,
+    /// Every enabled control traps focus, so focus can never leave.
+    AllTrapped,
 }
 
 impl fmt::Display for FocusOrderError {
@@ -149,7 +149,7 @@ impl fmt::Display for FocusOrderError {
         match self {
             Self::NoEnabled => write!(f, "no control can be focused"),
             Self::DuplicateId => write!(f, "two controls share an id"),
-            Self::TrappedAlone => write!(f, "the only enabled control traps focus"),
+            Self::AllTrapped => write!(f, "every enabled control traps focus"),
         }
     }
 }
@@ -287,7 +287,9 @@ impl FocusOrder {
 
     /// Leaves a trapping control.
     ///
-    /// Moves to the next enabled control after the current one, wrapping.
+    /// Moves to the next enabled control after the current one, wrapping. The
+    /// target may itself trap; [`FocusOrder::validate`] rejects an order where
+    /// every enabled control traps, so `escape` always reaches a free control.
     pub fn escape(&mut self) -> Option<FocusableId> {
         let current = self.current?;
         let mut index = (current + 1) % self.items.len();
@@ -359,12 +361,13 @@ impl FocusOrder {
                 }
             }
         }
-        if self.enabled_count() == 1 {
-            if let Some(only) = self.items.iter().find(|item| item.enabled) {
-                if only.trap {
-                    return Err(FocusOrderError::TrappedAlone);
-                }
-            }
+        if self
+            .items
+            .iter()
+            .filter(|item| item.enabled)
+            .all(Focusable::traps)
+        {
+            return Err(FocusOrderError::AllTrapped);
         }
         Ok(())
     }

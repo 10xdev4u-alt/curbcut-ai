@@ -8,7 +8,7 @@ controls. `CC-070`.
 1. **The cycle is logical.** Controls are visited in the order given, only
    enabled controls are visited, and `advance` / `back` wrap around.
 2. **There is no trap.** A trapping control keeps Tab on itself, so `escape` is
-   the way out. `validate` rejects an order whose only enabled control traps
+   the way out. `validate` rejects an order where every enabled control traps
    focus, because then focus can never leave.
 3. **Shortcuts are discoverable.** `shortcuts` lists every focusable's shortcut
    in cycle order, so the UI can show it.
@@ -23,7 +23,7 @@ control in a direction and breaks ties by id.
 - `Focusable` — an id, a `Rect`, an `enabled` flag, a `trap` flag, and an
   optional `ShortcutAction`. `new(id, rect)` is enabled, non-trapping, and has
   no shortcut; `with_enabled`, `with_trap`, and `with_shortcut` adjust it.
-- `FocusOrderError` — `NoEnabled`, `DuplicateId`, `TrappedAlone`.
+- `FocusOrderError` — `NoEnabled`, `DuplicateId`, `AllTrapped`.
 
 ## Methods
 
@@ -34,7 +34,7 @@ control in a direction and breaks ties by id.
 | `focus(id)` / `focus_index(i)` | Focuses an enabled control; a disabled one is refused. |
 | `advance` / `back` | Moves through enabled controls, wrapping. |
 | `first` / `last` | Focuses the first or last enabled control. |
-| `escape` | Leaves a trapping control for the next enabled one. |
+| `escape` | Leaves a trapping control for the next enabled one, wrapping. |
 | `nearest(direction)` | The closest enabled control in a direction. |
 | `shortcuts` | Every focusable's shortcut in cycle order. |
 | `validate` | Checks the order. |
