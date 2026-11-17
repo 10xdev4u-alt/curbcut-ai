@@ -30,6 +30,10 @@
 //! one with a static snapshot and offers a play button. It never controls the
 //! underlying media. See
 //! [`../../../docs/STOP_MOTION.md`](../../../docs/STOP_MOTION.md).
+//!
+//! [`one_step`] walks a multi-step flow one step at a time with a progress
+//! indicator and a persistent "Your answers" panel. See
+//! [`../../../docs/ONE_STEP.md`](../../../docs/ONE_STEP.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -63,6 +67,9 @@ pub mod provenance;
 
 /// Stop-motion mode.
 pub mod stop_motion;
+
+/// One-step mode with visible answers.
+pub mod one_step;
 
 #[cfg(test)]
 mod tests {

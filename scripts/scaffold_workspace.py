@@ -135,8 +135,9 @@ CRATE_STATUS = {
         "[`../../docs/GRID.md`](../../docs/GRID.md),\n"
         "[`../../docs/DIMMING.md`](../../docs/DIMMING.md),\n"
         "[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md),\n"
-        "[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md), and\n"
-        "[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md)."
+        "[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md),\n"
+        "[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md), and\n"
+        "[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md)."
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
