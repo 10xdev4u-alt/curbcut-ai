@@ -9,9 +9,12 @@ three text lines and `FocusLens` magnifies a region with a pointer lead
 and a jitter dead zone; both are disabled under reduced motion. The
 animation policy caps every animation at 150 ms, applies an essential
 change instantly under reduced motion, refuses decoration, and never
-allows a vestibular trigger. See
-[`../../docs/FOCUS.md`](../../docs/FOCUS.md) and
-[`../../docs/ANIMATION.md`](../../docs/ANIMATION.md).
+allows a vestibular trigger. Large-target mode scales every target to
+a 60 px minimum, translates rather than crops at the maximum scale, and
+keeps targets at least 8 px apart. See
+[`../../docs/FOCUS.md`](../../docs/FOCUS.md),
+[`../../docs/ANIMATION.md`](../../docs/ANIMATION.md), and
+[`../../docs/LARGE_TARGETS.md`](../../docs/LARGE_TARGETS.md).
 
 ## Build and test
 

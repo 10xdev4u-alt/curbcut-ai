@@ -566,6 +566,19 @@ Implemented in `crates/curbcut-render/src/animation.rs`. See
 - `Pulse` repeats until stopped, so its total duration is unbounded; the policy
   refuses it under either preference.
 
+### 9.3 Large-target mode
+
+Implemented in `crates/curbcut-render/src/targets.rs`. See
+[`docs/LARGE_TARGETS.md`](LARGE_TARGETS.md).
+
+- `TargetLayout::fit` scales a target up to a 60 px minimum (`MIN_TARGET_PX`)
+  and translates it inside the bounds instead of cropping; a target that cannot
+  meet the minimum inside the bounds is clamped and `clipped`.
+- `TargetLayout::layout` fits every target in input order, then pushes a pair
+  that is closer than `MIN_SPACING_PX` (8) apart along the axis that needs the
+  smaller move, marking the later target `clipped` when the bounds prevent it.
+- The mode is per profile: a profile carries its own `TargetLayout`.
+
 ---
 
 ## 10. Input and action model

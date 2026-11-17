@@ -104,6 +104,7 @@ docs/
   ONE_STEP.md              One-step mode: one visible step, progress, Your answers
   FOCUS.md                 Reading ruler and focus lens: lead, dead zone, reduced motion
   ANIMATION.md             Animation policy: 150 ms cap, reduced motion, no vestibular triggers
+  LARGE_TARGETS.md         Large-target mode: 60 px minimum, spacing, no clipping
   READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
   JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
   NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
