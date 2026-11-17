@@ -99,6 +99,7 @@ docs/
   CONFIRM.md               Confirmation and undo: consequence, outcome, action log
   HOVER.md                 Pointer tracking: dwell, move threshold, Wayland limit
   CLICKS.md                Click routing: consume or hand off, focus, no double-click
+  FOCUS_ORDER.md           Keyboard focus order: tab cycle, no traps, shortcuts
   PROVENANCE.md            Provenance panel: rule links, originals, log-safe hashes
   STOP_MOTION.md           Stop-motion mode: freeze carousels, autoplay, countdowns
   ONE_STEP.md              One-step mode: one visible step, progress, Your answers

@@ -186,9 +186,14 @@ CRATE_STATUS = {
         "is dwell, not presence. Click-through routing is implemented:\n"
         "`ClickRouter` consumes or hands off each click, never both, and a\n"
         "handoff owes focus until it returns. See\n"
+        "The keyboard focus order is implemented: `FocusOrder` visits enabled\n"
+        "controls in order, wraps, keeps a trapping control until `escape`,\n"
+        "lists every shortcut for the UI, and moves spatially with the arrow\n"
+        "keys. See\n"
         "[`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md),\n"
-        "[`../../docs/HOVER.md`](../../docs/HOVER.md), and\n"
-        "[`../../docs/CLICKS.md`](../../docs/CLICKS.md)."
+        "[`../../docs/HOVER.md`](../../docs/HOVER.md),\n"
+        "[`../../docs/CLICKS.md`](../../docs/CLICKS.md), and\n"
+        "[`../../docs/FOCUS_ORDER.md`](../../docs/FOCUS_ORDER.md)."
     ),
     "curbcut-render": (
         "The focus surfaces are implemented: `ReadingRuler` highlights one to\n"
