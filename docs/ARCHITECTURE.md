@@ -686,6 +686,22 @@ Implemented in `crates/curbcut-input/src/focus_order.rs`. See
   direction plus twice the perpendicular offset, breaking ties by id.
 - `shortcuts` lists every focusable's shortcut in cycle order for the UI.
 
+### 10.7 Switch access and dwell clicking
+
+Implemented in `crates/curbcut-input/src/switch_access.rs`. See
+[`docs/SWITCH_ACCESS.md`](SWITCH_ACCESS.md).
+
+- `SwitchAccess` drives the overlay from one switch. `AutoScan` advances the
+  highlight every `ScanSequence::interval_ms` and a press selects;
+  `StepScan` starts a dwell on press, so a tap steps and a hold selects.
+- `ScanSequence` holds the controls in logical order, skips disabled ones, wraps
+  on `advance`/`back`, and validates `NoEnabled` and `DuplicateId`.
+- `DwellTimer` measures a configurable threshold
+  (`DwellTimer::DEFAULT_THRESHOLD_MS` is 1000 ms), reports `progress` from 0.0 to
+  1.0, and stays complete until `reset`.
+- `set_dwell_ms` and `set_mode` change the threshold or mode and clear pending
+  state, so a mode change cannot leave a half-elapsed dwell behind.
+
 ---
 
 ## 11. Storage and privacy

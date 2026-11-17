@@ -10,15 +10,17 @@ and rebinds with a taken-chord check. The pointer tracker is
 implemented: `HoverTracker` classifies movement from samples so a hover
 is dwell, not presence. Click-through routing is implemented:
 `ClickRouter` consumes or hands off each click, never both, and a
-handoff owes focus until it returns. See
-The keyboard focus order is implemented: `FocusOrder` visits enabled
-controls in order, wraps, keeps a trapping control until `escape`,
-lists every shortcut for the UI, and moves spatially with the arrow
-keys. See
+handoff owes focus until it returns. The keyboard focus order is
+implemented: `FocusOrder` visits enabled controls in order, wraps, keeps
+a trapping control until `escape`, lists every shortcut for the UI, and
+moves spatially with the arrow keys. Switch access is implemented:
+`SwitchAccess` drives the overlay from one switch with auto scan, step
+scan, and a configurable dwell. See
 [`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md),
 [`../../docs/HOVER.md`](../../docs/HOVER.md),
-[`../../docs/CLICKS.md`](../../docs/CLICKS.md), and
-[`../../docs/FOCUS_ORDER.md`](../../docs/FOCUS_ORDER.md).
+[`../../docs/CLICKS.md`](../../docs/CLICKS.md),
+[`../../docs/FOCUS_ORDER.md`](../../docs/FOCUS_ORDER.md), and
+[`../../docs/SWITCH_ACCESS.md`](../../docs/SWITCH_ACCESS.md).
 
 ## Build and test
 
