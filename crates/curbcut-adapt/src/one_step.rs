@@ -11,7 +11,8 @@
 //! - **Answers persist.** [`Answers`] keeps every value keyed by [`StepId`], so
 //!   moving back and forward does not lose an entry.
 //! - **Back is always available.** [`OneStepSession::back`] is callable at any
-//!   time; at the first step it reports `false` and changes nothing.
+//!   time; at the first step of an unfinished flow it reports `false` and
+//!   changes nothing, and a finished flow can always be resumed by going back.
 //! - **Values are redacted.** [`Answers`] and [`Answer`] implement `Debug` by
 //!   hand and print `<redacted>` for every value, so a log line cannot print
 //!   what the user typed.
@@ -141,11 +142,20 @@ impl Step {
         &self.choices
     }
 
-    /// Whether a value is one of the offered choices.
+    /// Whether a value is acceptable for this step.
     ///
-    /// A step with no choices accepts any value.
+    /// A step with choices accepts only one of them. A confirm step without
+    /// choices accepts only `yes` or `no`, case-insensitively. Any other step
+    /// accepts any value.
     pub fn accepts(&self, value: &str) -> bool {
-        self.choices.is_empty() || self.choices.iter().any(|choice| choice.as_str() == value)
+        if !self.choices.is_empty() {
+            return self.choices.iter().any(|choice| choice.as_str() == value);
+        }
+        if self.kind == StepKind::Confirm {
+            let normalized = value.trim().to_ascii_lowercase();
+            return matches!(normalized.as_str(), "yes" | "no");
+        }
+        true
     }
 }
 
@@ -309,12 +319,13 @@ impl Progress {
     /// The fraction of the flow reached, `0.0..=1.0`.
     ///
     /// The visible step counts as reached, so the first step of three is
-    /// `1/3` and the last is `1.0`. An empty flow is `0.0`.
+    /// `1/3` and the last is `1.0`. An empty flow is `0.0`. An out-of-range
+    /// `current` is clamped to `1.0` rather than producing a value above it.
     pub fn ratio(self) -> f32 {
         if self.total == 0 {
             0.0
         } else {
-            (self.current + 1) as f32 / self.total as f32
+            ((self.current + 1) as f32 / self.total as f32).clamp(0.0, 1.0)
         }
     }
 
@@ -473,9 +484,12 @@ impl OneStepSession {
         self.flow.is_valid_index(self.index) && self.index + 1 == self.flow.len()
     }
 
-    /// Whether back would move.
+    /// Whether back would resume or move.
+    ///
+    /// A finished flow can always be resumed by going back, including one that
+    /// finished while sitting on the first step.
     pub fn can_back(&self) -> bool {
-        self.index > 0
+        self.index > 0 || self.finished
     }
 
     /// Whether advancing would move.
@@ -485,14 +499,18 @@ impl OneStepSession {
 
     /// Moves to the previous step.
     ///
-    /// Back is always callable. At the first step it reports `false` and
-    /// changes nothing.
+    /// Back is always callable. At the first step of a flow that is not
+    /// finished it reports `false` and changes nothing. Going back from a
+    /// finished flow resumes it: it clears the finished flag and, when the
+    /// flow finished on a later step, also steps back.
     pub fn back(&mut self) -> bool {
         if !self.can_back() {
             return false;
         }
         self.finished = false;
-        self.index -= 1;
+        if self.index > 0 {
+            self.index -= 1;
+        }
         true
     }
 
@@ -541,7 +559,13 @@ impl OneStepSession {
     }
 
     /// Answers a step by id, whether or not it is visible.
+    ///
+    /// Returns `false` when the flow is finished or the value is not accepted by
+    /// the step.
     pub fn answer_step(&mut self, id: StepId, value: impl Into<String>) -> bool {
+        if self.finished {
+            return false;
+        }
         let value = value.into();
         match self.flow.steps.iter().find(|step| step.id == id) {
             Some(step) if step.accepts(&value) => {

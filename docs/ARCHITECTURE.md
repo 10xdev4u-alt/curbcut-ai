@@ -508,11 +508,13 @@ Implemented in `crates/curbcut-adapt/src/one_step.rs`. See
 - `Answers` is a `BTreeMap<StepId, String>` that keeps every value across
   navigation, so moving back and forward does not lose an entry.
 - `Progress::new(current, total)` is the indicator: `ratio`, `percent`, and
-  `label` (`Step 2 of 5`).
-- `back` is callable at any time and is a no-op at the first step; `advance`
-  stops at the last step; `jump_to` moves by id.
+  `label` (`Step 2 of 5`); `ratio` counts the visible step as reached and
+  clamps to `1.0` for an out-of-range index.
+- `back` is callable at any time and is a no-op at the first step of an
+  unfinished flow; `advance` stops at the last step; `jump_to` moves by id.
 - `finish` marks the flow finished only when every required step is answered; a
-  finished flow shows no step and takes no answer, and going back resumes it.
+  finished flow shows no step and takes no answer from `answer` or
+  `answer_step`, and going back resumes it, including from the first step.
 - `Debug` for `Answers` and `Answer` prints `<redacted>` and a count, never a
   value.
 

@@ -78,6 +78,17 @@ fn a_choice_step_only_accepts_its_choices() {
 }
 
 #[test]
+fn a_confirm_step_accepts_only_yes_or_no() {
+    let confirm = Step::new(StepId(3), StepKind::Confirm, "Ready?", false);
+    assert!(confirm.accepts("yes"));
+    assert!(confirm.accepts("no"));
+    assert!(confirm.accepts("Yes"), "the check is case-insensitive");
+    assert!(confirm.accepts("  no  "), "the check trims whitespace");
+    assert!(!confirm.accepts("maybe"), "the label says yes or no");
+    assert!(!confirm.accepts(""), "an empty value is not a decision");
+}
+
+#[test]
 fn an_empty_panel_is_empty() {
     let answers = Answers::new();
     assert!(answers.is_empty());
@@ -180,6 +191,20 @@ fn answers_debug_redacts_every_value() {
 }
 
 #[test]
+fn session_debug_redacts_every_answer() {
+    let mut session = OneStepSession::new(Flow::new(vec![step(1, "Name"), step(2, "Note")]));
+    session.answer("a-secret-value");
+    session.advance();
+    session.answer("Ada");
+
+    let debug = format!("{session:?}");
+    assert!(debug.contains("<redacted>"), "{debug}");
+    assert!(!debug.contains("a-secret-value"), "{debug}");
+    assert!(!debug.contains("Ada"), "{debug}");
+    assert!(debug.contains("count"), "{debug}");
+}
+
+#[test]
 fn progress_reports_position() {
     let progress = Progress::new(1, 3);
     assert_eq!(progress.current(), 1);
@@ -216,6 +241,17 @@ fn progress_handles_empty_and_end() {
     assert_eq!(last.ratio(), 1.0);
     assert_eq!(last.percent(), 100.0);
     assert_eq!(last.label(), "Step 3 of 3");
+}
+
+#[test]
+fn progress_ratio_clamps_an_out_of_range_index() {
+    let beyond = Progress::new(5, 3);
+    assert_eq!(beyond.ratio(), 1.0, "an out-of-range index clamps to 1.0");
+    assert_eq!(beyond.percent(), 100.0);
+    assert_eq!(beyond.step_number(), 6, "the raw index is still reported");
+
+    let first = Progress::new(0, 3);
+    assert!((first.ratio() - 1.0f32 / 3.0f32).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -386,7 +422,12 @@ fn a_finished_flow_shows_no_step_and_takes_no_answer() {
     assert!(session.finish());
     assert_eq!(session.visible_count(), 0, "a finished flow shows no step");
     assert!(session.visible().is_none());
-    assert!(!session.answer("late"), "a finished flow takes no answer");
+    assert!(!session.answer("yes"), "a finished flow takes no answer");
+    assert!(
+        !session.answer_step(StepId(3), "yes"),
+        "a finished flow takes no out-of-order answer either"
+    );
+    assert_eq!(session.answers().len(), 2, "the panel is unchanged");
 }
 
 #[test]
@@ -403,6 +444,27 @@ fn going_back_from_a_finished_flow_resumes_it() {
     assert_eq!(session.index(), 1);
     assert_eq!(session.visible_count(), 1);
     assert_eq!(session.answers().len(), 2, "the answers stay");
+}
+
+#[test]
+fn back_resumes_a_finished_flow_that_sits_on_the_first_step() {
+    let mut session = OneStepSession::new(Flow::new(vec![step(1, "Only")]));
+    assert!(session.answer("an-answer"));
+    assert!(session.finish());
+    assert!(session.is_finished());
+    assert!(session.visible().is_none(), "a finished flow shows no step");
+    assert!(!session.can_advance());
+
+    assert!(session.can_back(), "a finished flow can always be resumed");
+    assert!(session.back());
+    assert!(!session.is_finished(), "going back resumes the flow");
+    assert_eq!(session.index(), 0, "it was already on the first step");
+    assert_eq!(session.visible().map(Step::id), Some(StepId(1)));
+    assert_eq!(
+        session.answers().get(StepId(1)),
+        Some("an-answer"),
+        "the answer stays"
+    );
 }
 
 #[test]

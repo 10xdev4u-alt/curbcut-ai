@@ -23,8 +23,10 @@ entered value in a persistent "Your answers" panel. `CC-061`.
 `Confirm`; `from_name` resolves a stable name.
 
 `Step::new(id, kind, prompt, required)` creates a step. `Step::choice(...)`
-additionally takes the offered choices. `accepts(value)` is true for any value
-when there are no choices, and true only for a listed choice otherwise.
+additionally takes the offered choices. `accepts(value)` is true only for a
+listed choice when the step has choices; a `Confirm` step without choices accepts
+only `yes` or `no`, trimmed and case-insensitively; any other step accepts any
+value.
 
 `prompt` is the label the app already shows; the module treats it as an opaque
 string and never derives content from it.
@@ -56,7 +58,7 @@ and `<redacted>`.
 | --- | --- |
 | `current` / `total` | The index and the count. |
 | `step_number` | One-based step number, 0 when the flow is empty. |
-| `ratio` / `percent` | `0.0..=1.0` and `0.0..=100.0`; the visible step counts as reached, so an empty flow is `0.0` and the last step is `1.0`. |
+| `ratio` / `percent` | `0.0..=1.0` and `0.0..=100.0`; the visible step counts as reached, so an empty flow is `0.0`, the last step is `1.0`, and an out-of-range index clamps to `1.0`. |
 | `is_first` / `is_last` / `is_empty` | Position predicates. |
 | `label` | For example `Step 2 of 5`. |
 
@@ -74,11 +76,11 @@ and `<redacted>`.
 | --- | --- |
 | `visible` / `current` / `visible_count` | The one visible step, or `None`; the count is 0 or 1. |
 | `index` / `is_first` / `is_last` | Position. |
-| `can_back` / `back` | Back is always callable; at the first step it is a no-op. |
+| `can_back` / `back` | Back is always callable; at the first step of an unfinished flow it is a no-op. A finished flow can always be resumed by going back. |
 | `can_advance` / `advance` | Advancing stops at the last step. |
 | `jump_to(id)` | Moves to a step by id; an unknown id changes nothing. |
 | `answer(value)` | Answers the visible step; rejects an unlisted choice. |
-| `answer_step(id, value)` | Answers any step, visible or not. |
+| `answer_step(id, value)` | Answers any step, visible or not; a finished flow takes no answer. |
 | `answers` | The "Your answers" panel. |
 | `progress` | The progress indicator. |
 | `is_complete` | Every required step has an answer. |
@@ -86,8 +88,9 @@ and `<redacted>`.
 | `finish` | Marks the flow finished when it is complete. |
 | `restart` | Returns to the first step and clears the answers. |
 
-A finished flow shows no step and takes no answer. Going back from a finished
-flow resumes it and keeps the answers.
+A finished flow shows no step and takes no answer, whether through `answer` or
+`answer_step`. Going back from a finished flow resumes it and keeps the answers,
+including when it finished while sitting on the first step.
 
 ## Privacy
 
