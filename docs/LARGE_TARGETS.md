@@ -14,8 +14,9 @@ every overlay target to a minimum edge and keeps targets apart. `CC-072`.
    minimum inside the bounds is clamped, and that is reported as `clipped`.
 3. **Targets keep their spacing.** `MIN_SPACING_PX` is `8`. After fitting, two
    targets closer than the spacing are pushed apart along the axis that needs
-   the smaller move, in input order. If the bounds cannot fit the move, the
-   target is reported as `clipped`.
+   the smaller move, away from each other, in input order. Separation repeats
+   until a pass moves nothing, and a pair that is still too close is reported
+   on the later target as `clipped`.
 
 The layout reads ids and rectangles only; it never sees screen content.
 
@@ -37,8 +38,9 @@ The layout reads ids and rectangles only; it never sees screen content.
 | `TargetLayout::are_spaced(a, b, spacing_px)` | Whether two rectangles are at least `spacing_px` apart on either axis. |
 
 `layout` keeps the input order. A pair is separated along the axis that needs
-the smaller move; if the bounds prevent the full move, the later target is
-clamped and marked `clipped`.
+the smaller move, away from each other; separation repeats until a pass moves
+nothing. If the bounds prevent the full move, the later target is clamped and
+marked `clipped`.
 
 ## Profile
 

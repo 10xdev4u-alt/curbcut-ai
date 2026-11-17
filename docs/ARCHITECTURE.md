@@ -576,7 +576,8 @@ Implemented in `crates/curbcut-render/src/targets.rs`. See
   meet the minimum inside the bounds is clamped and `clipped`.
 - `TargetLayout::layout` fits every target in input order, then pushes a pair
   that is closer than `MIN_SPACING_PX` (8) apart along the axis that needs the
-  smaller move, marking the later target `clipped` when the bounds prevent it.
+  smaller move, away from each other. Separation repeats until a pass moves
+  nothing; a pair still too close marks the later target `clipped`.
 - The mode is per profile: a profile carries its own `TargetLayout`.
 
 ---

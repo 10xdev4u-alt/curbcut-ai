@@ -113,6 +113,109 @@ fn overlapping_targets_are_pushed_apart() {
 }
 
 #[test]
+fn a_target_to_the_left_is_pushed_left() {
+    let layout = TargetLayout::default();
+    let bounds = Rect::new(0, 0, 1000, 1000);
+    let fitted = layout.layout(
+        &[target(1, 500, 500, 60, 60), target(2, 440, 500, 60, 60)],
+        bounds,
+    );
+
+    assert_eq!(fitted[1].rect(), Rect::new(432, 500, 60, 60));
+    assert!(
+        !fitted[1].is_clipped(),
+        "there is room, so it must not be flagged"
+    );
+    assert!(TargetLayout::are_spaced(
+        fitted[0].rect(),
+        fitted[1].rect(),
+        8
+    ));
+}
+
+#[test]
+fn a_target_above_is_pushed_up() {
+    let layout = TargetLayout::default();
+    let bounds = Rect::new(0, 0, 1000, 1000);
+    let fitted = layout.layout(
+        &[target(1, 500, 500, 60, 60), target(2, 500, 440, 60, 60)],
+        bounds,
+    );
+
+    assert_eq!(fitted[1].rect(), Rect::new(500, 432, 60, 60));
+    assert!(!fitted[1].is_clipped());
+    assert!(TargetLayout::are_spaced(
+        fitted[0].rect(),
+        fitted[1].rect(),
+        8
+    ));
+}
+
+#[test]
+fn a_three_target_layout_flags_an_infeasible_middle_target() {
+    let layout = TargetLayout::default();
+    let bounds = Rect::new(0, 0, 1000, 1000);
+    let fitted = layout.layout(
+        &[
+            target(1, 234, 0, 60, 60),
+            target(2, 100, 0, 60, 60),
+            target(3, 164, 0, 60, 60),
+        ],
+        bounds,
+    );
+
+    assert!(
+        fitted[2].is_clipped(),
+        "the middle target cannot satisfy both neighbours"
+    );
+}
+
+#[test]
+fn every_pair_in_a_layout_is_spaced_or_flagged() {
+    let layout = TargetLayout::default();
+    let bounds = Rect::new(0, 0, 1000, 1000);
+    let fitted = layout.layout(
+        &[
+            target(1, 234, 0, 60, 60),
+            target(2, 100, 0, 60, 60),
+            target(3, 164, 0, 60, 60),
+        ],
+        bounds,
+    );
+
+    for i in 0..fitted.len() {
+        for j in (i + 1)..fitted.len() {
+            if !TargetLayout::are_spaced(fitted[i].rect(), fitted[j].rect(), 8) {
+                assert!(
+                    fitted[i].is_clipped() || fitted[j].is_clipped(),
+                    "an unspaced pair must be reported"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_custom_profile_scales_and_spaces_differently() {
+    let layout = TargetLayout::new(100, 12);
+    let bounds = Rect::new(0, 0, 1000, 1000);
+    let fitted = layout.layout(&[target(1, 0, 0, 40, 40), target(2, 50, 0, 40, 40)], bounds);
+
+    assert_eq!(fitted[0].rect(), Rect::new(0, 0, 100, 100));
+    assert_eq!(fitted[1].rect(), Rect::new(112, 0, 100, 100));
+    assert!(TargetLayout::are_spaced(
+        fitted[0].rect(),
+        fitted[1].rect(),
+        12
+    ));
+    assert!(!TargetLayout::are_spaced(
+        fitted[0].rect(),
+        fitted[1].rect(),
+        13
+    ));
+}
+
+#[test]
 fn targets_that_cannot_be_separated_are_clipped() {
     let layout = TargetLayout::default();
     let bounds = Rect::new(0, 0, 100, 100);

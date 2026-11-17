@@ -11,8 +11,9 @@
 //!   minimum inside the bounds is clamped, and that is reported as `clipped`.
 //! - **Targets keep their spacing.** After fitting, two targets that are closer
 //!   than the spacing are pushed apart along the axis that needs the smaller
-//!   move, in input order. If the bounds cannot fit the move, the target is
-//!   reported as `clipped`.
+//!   move, away from each other, in input order. Separation repeats until a
+//!   pass moves nothing, and a pair that is still too close is reported on the
+//!   later target as `clipped`.
 //!
 //! The layout reads ids and rectangles only; it never sees screen content. See
 //! [`../../../docs/LARGE_TARGETS.md`](../../../docs/LARGE_TARGETS.md).
@@ -93,7 +94,10 @@ impl FittedTarget {
         self.scale
     }
 
-    /// Whether the target could not meet the minimum inside the bounds.
+    /// Whether the target could not be laid out as asked.
+    ///
+    /// True when it could not meet the minimum inside the bounds, or when its
+    /// spacing from another target could not be satisfied.
     pub const fn is_clipped(&self) -> bool {
         self.clipped
     }
@@ -187,6 +191,9 @@ impl TargetLayout {
     /// Fits every target and separates the ones that are too close.
     ///
     /// Targets are processed in input order and the result keeps that order.
+    /// Separation repeats until a pass moves nothing, so moving one target
+    /// cannot leave it too close to an earlier one. A pair that is still too
+    /// close after the passes is reported: the later target is marked `clipped`.
     pub fn layout(&self, targets: &[Target], bounds: Rect) -> Vec<FittedTarget> {
         let mut fitted: Vec<FittedTarget> = targets
             .iter()
@@ -194,32 +201,38 @@ impl TargetLayout {
             .map(|target| self.fit(target, bounds))
             .collect();
         let spacing = i64::from(self.spacing_px);
+        let passes = fitted.len().max(1);
+        for _ in 0..passes {
+            let mut moved = false;
+            for i in 0..fitted.len() {
+                for j in (i + 1)..fitted.len() {
+                    let a = fitted[i].rect;
+                    let b = fitted[j].rect;
+                    if is_spaced(a, b, spacing) {
+                        continue;
+                    }
+                    let (gap_x, gap_y) = gaps(a, b);
+                    let need_x = spacing - gap_x;
+                    let need_y = spacing - gap_y;
+                    let (dx, dy) = if need_x <= need_y {
+                        (need_x * direction(b.x, a.x), 0)
+                    } else {
+                        (0, need_y * direction(b.y, a.y))
+                    };
+                    let separated = clamp_rect(b, dx, dy, bounds);
+                    if separated != b {
+                        moved = true;
+                    }
+                    fitted[j].rect = separated;
+                }
+            }
+            if !moved {
+                break;
+            }
+        }
         for i in 0..fitted.len() {
             for j in (i + 1)..fitted.len() {
-                let a = fitted[i].rect;
-                let b = fitted[j].rect;
-                if is_spaced(a, b, spacing) {
-                    continue;
-                }
-                let (gap_x, gap_y) = gaps(a, b);
-                let need_x = spacing - gap_x;
-                let need_y = spacing - gap_y;
-                let (dx, dy) = if need_x <= need_y {
-                    (need_x, 0)
-                } else {
-                    (0, need_y)
-                };
-                let mut x = i64::from(b.x) + dx;
-                let mut y = i64::from(b.y) + dy;
-                let min_x = i64::from(bounds.x);
-                let min_y = i64::from(bounds.y);
-                let max_x = i64::from(bounds.right()) - i64::from(b.width);
-                let max_y = i64::from(bounds.bottom()) - i64::from(b.height);
-                x = x.clamp(min_x, max_x.max(min_x));
-                y = y.clamp(min_y, max_y.max(min_y));
-                let moved = Rect::new(x as i32, y as i32, b.width, b.height);
-                fitted[j].rect = moved;
-                if !is_spaced(a, moved, spacing) {
+                if !is_spaced(fitted[i].rect, fitted[j].rect, spacing) {
                     fitted[j].clipped = true;
                 }
             }
@@ -250,6 +263,29 @@ fn gaps(a: Rect, b: Rect) -> (i64, i64) {
 fn is_spaced(a: Rect, b: Rect, spacing: i64) -> bool {
     let (gap_x, gap_y) = gaps(a, b);
     gap_x >= spacing || gap_y >= spacing
+}
+
+/// Which way `b` sits relative to `a`: `1` when `b` is at or after `a`, else
+/// `-1`. Multiplying a separation distance by this moves `b` away from `a`.
+fn direction(b: i32, a: i32) -> i64 {
+    if b >= a {
+        1
+    } else {
+        -1
+    }
+}
+
+/// Translates a rectangle by `(dx, dy)` and clamps it inside `bounds`.
+fn clamp_rect(rect: Rect, dx: i64, dy: i64, bounds: Rect) -> Rect {
+    let mut x = i64::from(rect.x) + dx;
+    let mut y = i64::from(rect.y) + dy;
+    let min_x = i64::from(bounds.x);
+    let min_y = i64::from(bounds.y);
+    let max_x = i64::from(bounds.right()) - i64::from(rect.width);
+    let max_y = i64::from(bounds.bottom()) - i64::from(rect.height);
+    x = x.clamp(min_x, max_x.max(min_x));
+    y = y.clamp(min_y, max_y.max(min_y));
+    Rect::new(x as i32, y as i32, rect.width, rect.height)
 }
 
 #[cfg(test)]
