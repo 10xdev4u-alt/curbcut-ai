@@ -17,6 +17,11 @@
 //! controls in order, wraps, keeps a trapping control until `escape`, exposes
 //! every shortcut for the UI, and moves spatially with the arrow keys. See
 //! [`../../../docs/FOCUS_ORDER.md`](../../../docs/FOCUS_ORDER.md).
+//!
+//! [`switch_access::SwitchAccess`] drives the overlay from one switch: auto
+//! scan advances the highlight and a press selects, step scan dwells on a
+//! highlighted control so a tap steps and a hold selects. See
+//! [`../../../docs/SWITCH_ACCESS.md`](../../../docs/SWITCH_ACCESS.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -34,6 +39,8 @@ pub mod hover;
 pub mod click;
 
 pub mod focus_order;
+
+pub mod switch_access;
 
 #[cfg(test)]
 mod tests {
