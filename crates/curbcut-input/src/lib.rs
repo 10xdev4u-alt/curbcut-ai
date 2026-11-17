@@ -12,6 +12,11 @@
 //! [`click::ClickRouter`] is the single decision point for a click: a click is
 //! consumed or handed off, never both, and a handoff owes focus until it
 //! returns. See [`../../../docs/CLICKS.md`](../../../docs/CLICKS.md).
+//!
+//! [`focus_order::FocusOrder`] is the keyboard tab cycle: it visits enabled
+//! controls in order, wraps, keeps a trapping control until `escape`, exposes
+//! every shortcut for the UI, and moves spatially with the arrow keys. See
+//! [`../../../docs/FOCUS_ORDER.md`](../../../docs/FOCUS_ORDER.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -27,6 +32,8 @@ pub mod shortcuts;
 pub mod hover;
 
 pub mod click;
+
+pub mod focus_order;
 
 #[cfg(test)]
 mod tests {
