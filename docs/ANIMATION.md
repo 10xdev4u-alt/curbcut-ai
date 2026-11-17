@@ -7,7 +7,9 @@ and for how long. `CC-073`.
 
 1. **Nothing exceeds 150 ms.** `MAX_DURATION_MS` is `150`.
    `AnimationPolicy::new` clamps a requested ceiling to it, so a caller cannot
-   raise the cap; a caller may lower it.
+   raise the cap; a caller may lower it. A repeating kind is refused under
+   either preference, because it has no end and its total duration is
+   unbounded.
 2. **Reduced motion disables non-essential motion.** Under reduced motion
    (`MotionPreference::Reduced`) an essential change (a fade or a static
    highlight) is applied at once, and decoration is refused. A refusal means
@@ -28,7 +30,7 @@ content, so there is nothing to redact.
 | `Spin` | no | yes | no |
 | `Zoom` | no | yes | no |
 | `Parallax` | no | yes | no |
-| `Pulse` | no | no | yes |
+| `Pulse` | no | no | yes — refused |
 | `Highlight` | yes | no | no |
 
 ## Requests and plans

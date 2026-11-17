@@ -4,7 +4,8 @@
 //! [`AnimationPlan`], or refuses it. Three rules hold:
 //!
 //! - **Nothing exceeds 150 ms.** [`MAX_DURATION_MS`] is the ceiling, and
-//!   [`AnimationPolicy::new`] clamps a requested ceiling to it.
+//!   [`AnimationPolicy::new`] clamps a requested ceiling to it. A repeating kind
+//!   is refused outright, because its total duration is unbounded.
 //! - **Reduced motion disables non-essential motion.** Under
 //!   [`MotionPreference::Reduced`] an essential change is applied instantly and
 //!   a non-essential one is refused.
@@ -89,6 +90,9 @@ impl AnimationKind {
     }
 
     /// Whether the motion repeats until stopped.
+    ///
+    /// A repeating kind has no end, so its total duration is unbounded and it
+    /// can never satisfy the cap. [`AnimationPolicy`] refuses it.
     pub const fn is_repeating(self) -> bool {
         matches!(self, Self::Pulse)
     }
@@ -252,8 +256,12 @@ impl AnimationPolicy {
     }
 
     /// Whether a kind may animate at all under this policy.
+    ///
+    /// A repeating kind is refused under either preference: it has no end, so
+    /// its total duration is unbounded and no per-cycle cap can satisfy the
+    /// 150 ms rule.
     pub const fn allows(self, kind: AnimationKind) -> bool {
-        if kind.is_vestibular_trigger() {
+        if kind.is_vestibular_trigger() || kind.is_repeating() {
             return false;
         }
         if self.preference.is_reduced() {

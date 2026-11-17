@@ -192,6 +192,25 @@ fn vestibular_triggers_are_always_refused() {
 }
 
 #[test]
+fn repeating_motion_is_refused_under_both_preferences() {
+    let full = AnimationPolicy::default();
+    let reduced = AnimationPolicy::from_preference(MotionPreference::Reduced);
+
+    assert!(AnimationKind::Pulse.is_repeating());
+    assert!(!full.allows(AnimationKind::Pulse), "a pulse never ends");
+    assert!(!reduced.allows(AnimationKind::Pulse));
+    assert_eq!(
+        full.plan(AnimationRequest::new(AnimationKind::Pulse, 150)),
+        None,
+        "no per-cycle cap can bound an unbounded total"
+    );
+    assert_eq!(
+        reduced.plan(AnimationRequest::new(AnimationKind::Pulse, 1)),
+        None
+    );
+}
+
+#[test]
 fn reduced_motion_refuses_non_essential_motion() {
     let reduced = AnimationPolicy::from_preference(MotionPreference::Reduced);
     for kind in [

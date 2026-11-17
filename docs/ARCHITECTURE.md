@@ -563,6 +563,8 @@ Implemented in `crates/curbcut-render/src/animation.rs`. See
   planned with a zero duration and a non-essential kind is refused.
 - `Spin`, `Zoom`, and `Parallax` are vestibular triggers and are refused under
   either preference.
+- `Pulse` repeats until stopped, so its total duration is unbounded; the policy
+  refuses it under either preference.
 
 ---
 
