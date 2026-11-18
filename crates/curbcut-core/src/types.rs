@@ -77,13 +77,19 @@ impl Rect {
     }
 
     /// Right edge, exclusive.
+    ///
+    /// Saturated: a rectangle with coordinates near `i32::MAX` yields `i32::MAX`
+    /// rather than overflowing.
     pub fn right(self) -> i32 {
-        self.x + self.width as i32
+        self.x.saturating_add(self.width as i32)
     }
 
     /// Bottom edge, exclusive.
+    ///
+    /// Saturated: a rectangle with coordinates near `i32::MAX` yields `i32::MAX`
+    /// rather than overflowing.
     pub fn bottom(self) -> i32 {
-        self.y + self.height as i32
+        self.y.saturating_add(self.height as i32)
     }
 
     /// Area.
@@ -783,6 +789,17 @@ mod tests {
         assert_eq!(a.intersection(b), Some(Rect::new(5, 5, 5, 5)));
         assert_eq!(a.union(b), Rect::new(0, 0, 15, 15));
         assert_eq!(a.intersection(Rect::new(20, 20, 1, 1)), None);
+    }
+
+    #[test]
+    fn rect_edges_saturate_instead_of_overflowing() {
+        let rect = Rect::new(i32::MAX - 10, i32::MAX - 10, 100, 100);
+        assert_eq!(rect.right(), i32::MAX);
+        assert_eq!(rect.bottom(), i32::MAX);
+        assert_eq!(
+            rect.intersection(rect),
+            Some(Rect::new(i32::MAX - 10, i32::MAX - 10, 10, 10))
+        );
     }
 
     #[test]

@@ -365,6 +365,20 @@ Implemented in `crates/curbcut-understand/src/text_chunking.rs`. See
   inside a number or a known abbreviation does not end a sentence, and a clause
   break needs a following space.
 
+### 7.11 Interruption detection
+
+Implemented in `crates/curbcut-understand/src/interruption.rs`. See
+[`docs/INTERRUPTIONS.md`](INTERRUPTIONS.md).
+
+- `detect_interruptions` collects `Dialog` and `Alert` elements and `Modal` and
+  `Floating` regions, drops a surface mostly contained in a larger one, and
+  classifies in a fixed order: cookie notice, paywall, toast, banner, popup.
+- Each `Interruption` records a screen rectangle and dismissibility; a surface is
+  dismissible when it holds a control labelled as a dismiss action or contains an
+  alert.
+- `InterruptionDetector::with_config` moves any threshold and clamps it to
+  `0.0..=1.0`. The result is sorted by rectangle and holds no content.
+
 ---
 
 ## 8. Adaptation engine

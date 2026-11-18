@@ -1,9 +1,9 @@
 //! Classification, chunking, simplification, and reading level.
 //!
 //! The deterministic rule layer: [`rule`] holds the versioned, user-disableable
-//! rule set; [`roles`], [`chunking`], [`reading`], and [`distraction`] are pure
-//! functions; [`engine`] applies them and attaches a rationale to every result.
-//! No model calls.
+//! rule set; [`roles`], [`chunking`], [`reading`], [`distraction`], and
+//! [`interruption`] are pure functions; [`engine`] applies them and attaches a
+//! rationale to every result. No model calls.
 //!
 //! [`actions`] keeps a versioned catalog of destructive requests and returns a
 //! plain preview before anything is performed; [`sensitive`] refuses to
@@ -39,6 +39,11 @@
 //! id, a table stays whole, and no split lands mid-word. See
 //! [`../../../docs/TEXT_CHUNKING.md`](../../../docs/TEXT_CHUNKING.md).
 //!
+//! [`interruption`] reads a merged screen graph and reports its transient
+//! overlays — toast, banner, popup, cookie notice, or paywall — with a rectangle
+//! and a dismissibility flag. It reads labels in memory and never logs them. See
+//! [`../../../docs/INTERRUPTIONS.md`](../../../docs/INTERRUPTIONS.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -55,6 +60,7 @@ pub mod actions;
 pub mod chunking;
 pub mod distraction;
 pub mod engine;
+pub mod interruption;
 pub mod jargon;
 pub mod meaning;
 pub mod normalize;
