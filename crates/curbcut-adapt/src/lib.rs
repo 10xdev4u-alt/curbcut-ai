@@ -34,6 +34,11 @@
 //! [`one_step`] walks a multi-step flow one step at a time with a progress
 //! indicator and a persistent "Your answers" panel. See
 //! [`../../../docs/ONE_STEP.md`](../../../docs/ONE_STEP.md).
+//!
+//! [`inbox`] files detected interruptions into a quiet, review-on-demand list:
+//! nothing is auto-dismissed, batches group by app and kind, and one cursor
+//! walks the list with the keyboard. See
+//! [`../../../docs/INTERRUPTION_INBOX.md`](../../../docs/INTERRUPTION_INBOX.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -55,6 +60,9 @@ pub mod layout;
 
 /// Icon-grid layout, label policy, and search.
 pub mod grid;
+
+/// The interruption inbox.
+pub mod inbox;
 
 /// Dimming with except-regions.
 pub mod dim;

@@ -11,15 +11,18 @@ tile packer plus a no-clip reflow; an icon-grid layout with a
 label policy and search; a dimming planner that covers the screen
 except the focused control and except-regions; confirmation with
 undo for destructive actions; and a provenance panel whose entries
-link every change to its rule and to a log-safe original. See
+link every change to its rule and to a log-safe original. The
+interruption inbox files detected interruptions without auto-dismissing
+them, batches by app and kind, and walks the list with one cursor. See
 [`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),
 [`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),
 [`../../docs/GRID.md`](../../docs/GRID.md),
 [`../../docs/DIMMING.md`](../../docs/DIMMING.md),
 [`../../docs/CONFIRM.md`](../../docs/CONFIRM.md),
 [`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md),
-[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md), and
-[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md).
+[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md),
+[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md), and
+[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md).
 
 ## Build and test
 
