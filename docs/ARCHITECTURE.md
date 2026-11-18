@@ -222,6 +222,23 @@ Implemented in `crates/curbcut-a11y/src/stability.rs`. See
 - `should_reanalyze(rect)` skips a region only when a live track covers it and no
   scroll motion was detected; `content_changed` compares label hashes.
 
+### 6.5 Motion classification
+
+Implemented in `crates/curbcut-vision/src/motion_report.rs`. See
+[`docs/MOTION_DETECTION.md`](MOTION_DETECTION.md).
+
+- `MotionClassifier::classify` reads a region's changed-sample fraction,
+  rectangle, and a11y roles, in a fixed order: static, countdown, carousel,
+  autoplay. A `NaN` score is static and a zero-area rect is never a countdown.
+- A countdown must be small in both change (`0.15`) and area (`0.08` of the
+  screen); a carousel needs a `Tab`, `ListItem`, or `List` role.
+- `MotionDetector::observe` keeps one state per stable id and reports a region
+  once it has moved for `min_motion_ms` (default 500 ms); a reported region stays
+  quiet until it goes static and moves again. A gap longer than `min_motion_ms`
+  is not credited as motion.
+- `MotionConfig::clamped` bounds every ratio to `0.0..=1.0` and falls back to the
+  default on `NaN`.
+
 ---
 
 ## 7. Understanding pipeline

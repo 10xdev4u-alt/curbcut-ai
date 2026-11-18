@@ -150,7 +150,10 @@ CRATE_STATUS = {
     "curbcut-vision": (
         "The vision pipeline is implemented: Detector, Ocr, and IconCaptioner\n"
         "traits, a deterministic motion-aware scheduler, and VisionPipeline.\n"
-        "See [`../../docs/VISION.md`](../../docs/VISION.md)."
+        "Motion classification reports a region as static, carousel, autoplay,\n"
+        "or countdown once it has moved for long enough. See\n"
+        "[`../../docs/VISION.md`](../../docs/VISION.md) and\n"
+        "[`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md)."
     ),
     "curbcut-understand": (
         "The deterministic rule layer is implemented: versioned rules, role\n"
