@@ -291,6 +291,9 @@ impl Inbox {
         match self.entries.iter().position(|entry| entry.id == id) {
             Some(index) => {
                 self.entries.remove(index);
+                if index < self.cursor {
+                    self.cursor -= 1;
+                }
                 if self.cursor >= self.entries.len() {
                     self.cursor = self.entries.len().saturating_sub(1);
                 }

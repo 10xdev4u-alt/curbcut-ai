@@ -95,6 +95,30 @@ fn a_batch_preserves_filing_order() {
 }
 
 #[test]
+fn batches_are_sorted_even_when_filed_out_of_order() {
+    let mut inbox = Inbox::new();
+    inbox.file(app("beta"), interruption(InterruptionKind::Popup, false));
+    inbox.file(app("alpha"), interruption(InterruptionKind::Banner, false));
+    inbox.file(app("alpha"), interruption(InterruptionKind::Toast, true));
+    inbox.file(app("beta"), interruption(InterruptionKind::Toast, true));
+
+    let batches = inbox.batches();
+    let keys: Vec<(&str, InterruptionKind)> = batches
+        .iter()
+        .map(|batch| (batch.app().as_str(), batch.kind()))
+        .collect();
+    assert_eq!(
+        keys,
+        vec![
+            ("alpha", InterruptionKind::Toast),
+            ("alpha", InterruptionKind::Banner),
+            ("beta", InterruptionKind::Toast),
+            ("beta", InterruptionKind::Popup),
+        ]
+    );
+}
+
+#[test]
 fn the_panel_is_review_on_demand() {
     let mut inbox = Inbox::new();
     assert!(!inbox.is_open());
@@ -159,6 +183,23 @@ fn remove_deletes_only_that_entry() {
         .map(|entry| entry.id().get())
         .collect();
     assert_eq!(ids, vec![first.get(), third.get()]);
+    assert_eq!(inbox.len(), 2);
+}
+
+#[test]
+fn removing_an_entry_before_the_cursor_keeps_the_same_entry() {
+    let mut inbox = Inbox::new();
+    let first = inbox.file(app("alpha"), interruption(InterruptionKind::Toast, true));
+    let second = inbox.file(app("alpha"), interruption(InterruptionKind::Toast, true));
+    inbox.file(app("alpha"), interruption(InterruptionKind::Toast, true));
+    inbox.move_next();
+    assert_eq!(inbox.current_id(), Some(second));
+    assert!(inbox.remove(first));
+    assert_eq!(
+        inbox.current_id(),
+        Some(second),
+        "removing an earlier entry shifts the viewed entry down"
+    );
     assert_eq!(inbox.len(), 2);
 }
 

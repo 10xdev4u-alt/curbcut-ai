@@ -20,7 +20,8 @@ The inbox keeps it until the user acts. It is the adaptation engine's side of
    flag. The module never opens itself.
 4. **The list is keyboard navigable.** `move_next` and `move_prev` move one
    cursor over the flat list and clamp at the ends, so a held key cannot run
-   off the list. `move_to` jumps to a filed id.
+   off the list. `move_to` jumps to a filed id. Removing an entry before the
+   cursor shifts the cursor with it, so the entry under it stays the same.
 
 ## API
 
