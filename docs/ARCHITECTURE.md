@@ -547,6 +547,22 @@ Implemented in `crates/curbcut-adapt/src/one_step.rs`. See
 - `Debug` for `Answers` and `Answer` prints `<redacted>` and a count, never a
   value.
 
+### 8.9 Interruption inbox
+
+Implemented in `crates/curbcut-adapt/src/inbox.rs`. See
+[`docs/INTERRUPTION_INBOX.md`](INTERRUPTION_INBOX.md).
+
+- `Inbox::file` stores the kind, rectangle, and dismissibility flag under the
+  app that produced it and returns a sequential `InboxId`; `file_all` files a
+  batch from one app.
+- Nothing is auto-dismissed: the inbox has no timer or expiry, and an entry
+  leaves only through `remove` or `clear`.
+- `batches` groups entries by `(app, kind)` and sorts groups by app then kind;
+  entries inside a group keep filing order.
+- `open`, `close`, and `toggle` drive one review-on-demand flag, and
+  `move_next`/`move_prev` walk one cursor over the flat list, clamping at the
+  ends.
+
 ---
 
 ## 9. Rendering
