@@ -229,12 +229,13 @@ Implemented in `crates/curbcut-vision/src/motion_report.rs`. See
 
 - `MotionClassifier::classify` reads a region's changed-sample fraction,
   rectangle, and a11y roles, in a fixed order: static, countdown, carousel,
-  autoplay.
+  autoplay. A `NaN` score is static and a zero-area rect is never a countdown.
 - A countdown must be small in both change (`0.15`) and area (`0.08` of the
   screen); a carousel needs a `Tab`, `ListItem`, or `List` role.
 - `MotionDetector::observe` keeps one state per stable id and reports a region
   once it has moved for `min_motion_ms` (default 500 ms); a reported region stays
-  quiet until it goes static and moves again.
+  quiet until it goes static and moves again. A gap longer than `min_motion_ms`
+  is not credited as motion.
 - `MotionConfig::clamped` bounds every ratio to `0.0..=1.0` and falls back to the
   default on `NaN`.
 

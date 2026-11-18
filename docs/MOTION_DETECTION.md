@@ -11,11 +11,12 @@ Motion is a changed-sample fraction: a region is compared by
 
 `MotionClassifier::classify(score, rect, roles)` checks, in order:
 
-1. **Static** — the changed fraction is below `motion_threshold` (default
-   `0.08`).
+1. **Static** — the changed fraction is `NaN` or below `motion_threshold`
+   (default `0.08`).
 2. **Countdown** — the region is small in both change and area: the changed
-   fraction is at most `countdown_max_ratio` (default `0.15`) and the region
-   covers at most `countdown_max_area_ratio` (default `0.08`) of the screen.
+   fraction is at most `countdown_max_ratio` (default `0.15`) and a non-empty
+   region covers at most `countdown_max_area_ratio` (default `0.08`) of the
+   screen. A zero-area rectangle is never a countdown.
 3. **Carousel** — a role inside the region is `Tab`, `ListItem`, or `List`.
 4. **Autoplay** — anything else that moved.
 
@@ -29,6 +30,11 @@ state per stable id and returns a `MotionReport` the first time the region has
 moved for `min_motion_ms` (default `500` ms). A reported region stays quiet until
 it goes static and moves again. A region that never moves is never reported, and
 the first observation of a region is always static.
+
+`elapsed_ms` is the time since the previous observation. A gap longer than
+`min_motion_ms` is not credited, because the detector has no observation during
+it: the accumulator starts over rather than treating the gap as motion. One
+changed frame seen after a long pause is therefore not reported.
 
 `forget(id)` drops a region's state. `region_count()` reports how many regions
 are tracked.

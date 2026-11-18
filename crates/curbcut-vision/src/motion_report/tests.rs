@@ -130,6 +130,48 @@ fn a_small_change_in_a_large_region_is_not_a_countdown() {
 }
 
 #[test]
+fn a_zero_area_rect_is_not_a_countdown() {
+    let classifier = MotionClassifier::new(screen());
+    let kind = classifier.classify(0.09375, Rect::new(0, 0, 0, 0), &[]);
+    assert_eq!(kind, MotionClass::Autoplay);
+}
+
+#[test]
+fn a_nan_score_is_static() {
+    let classifier = MotionClassifier::new(screen());
+    assert_eq!(
+        classifier.classify(f32::NAN, Rect::new(0, 0, 10, 10), &[]),
+        MotionClass::Static
+    );
+}
+
+#[test]
+fn threshold_boundaries_are_exact() {
+    let classifier = MotionClassifier::new(screen());
+    let small = Rect::new(400, 400, 40, 40);
+    assert_eq!(classifier.classify(0.0625, small, &[]), MotionClass::Static);
+    assert_eq!(
+        classifier.classify(0.09375, small, &[]),
+        MotionClass::Countdown
+    );
+    assert_eq!(
+        classifier.classify(0.125, small, &[]),
+        MotionClass::Countdown
+    );
+    assert_eq!(
+        classifier.classify(0.15625, small, &[]),
+        MotionClass::Autoplay
+    );
+}
+
+#[test]
+fn countdown_takes_precedence_over_carousel() {
+    let classifier = MotionClassifier::new(screen());
+    let kind = classifier.classify(0.09375, Rect::new(400, 400, 40, 40), &[Role::Tab]);
+    assert_eq!(kind, MotionClass::Countdown);
+}
+
+#[test]
 fn a_region_resets_after_going_static() {
     let mut detector = MotionDetector::new(screen(), MotionConfig::default());
     let rect = Rect::new(200, 200, 200, 200);
@@ -151,6 +193,42 @@ fn a_region_resets_after_going_static() {
 }
 
 #[test]
+fn regions_are_tracked_independently() {
+    let mut detector = MotionDetector::new(screen(), MotionConfig::default());
+    let rect = Rect::new(200, 200, 200, 200);
+    let roles = [Role::Tab];
+    let mut first = None;
+    for step in 0..6 {
+        if let Some(found) = detector.observe(id(1), rect, &roles, &gradient(step), 100) {
+            first = Some(found);
+        }
+    }
+    assert!(first.is_some(), "region 1 reports on its own motion");
+    assert_eq!(detector.region_count(), 1);
+
+    assert!(
+        detector
+            .observe(id(2), rect, &roles, &gradient(0), 100)
+            .is_none(),
+        "a fresh region starts static"
+    );
+    let mut second = None;
+    for step in 1..6 {
+        if let Some(found) = detector.observe(id(2), rect, &roles, &gradient(step), 100) {
+            second = Some(found);
+        }
+    }
+    assert!(second.is_some(), "region 2 reports on its own motion");
+    assert_eq!(detector.region_count(), 2);
+    assert!(
+        detector
+            .observe(id(1), rect, &roles, &gradient(9), 100)
+            .is_none(),
+        "a reported region stays quiet while another moves"
+    );
+}
+
+#[test]
 fn forget_drops_a_region() {
     let mut detector = MotionDetector::new(screen(), MotionConfig::default());
     observe(&mut detector, Rect::new(0, 0, 100, 100), &[], &gradient(0));
@@ -158,6 +236,26 @@ fn forget_drops_a_region() {
     detector.forget(id(1));
     assert_eq!(detector.region_count(), 0);
     assert!(observe(&mut detector, Rect::new(0, 0, 100, 100), &[], &gradient(0)).is_none());
+}
+
+#[test]
+fn forget_after_a_report_starts_a_fresh_window() {
+    let mut detector = MotionDetector::new(screen(), MotionConfig::default());
+    let rect = Rect::new(200, 200, 200, 200);
+    let roles = [Role::Tab];
+    for step in 0..6 {
+        observe(&mut detector, rect, &roles, &gradient(step));
+    }
+    detector.forget(id(1));
+    assert_eq!(detector.region_count(), 0);
+    assert!(observe(&mut detector, rect, &roles, &gradient(0)).is_none());
+    let mut report = None;
+    for step in 1..6 {
+        if let Some(found) = observe(&mut detector, rect, &roles, &gradient(step)) {
+            report = Some(found);
+        }
+    }
+    assert!(report.is_some(), "a forgotten region reports again");
 }
 
 #[test]
@@ -178,6 +276,30 @@ fn min_motion_ms_gates_the_report() {
     let report = observe(&mut detector, rect, &roles, &gradient(10))
         .expect("the tenth moving observation reaches 1000 ms");
     assert_eq!(report.kind, MotionClass::Carousel);
+}
+
+#[test]
+fn a_long_gap_is_not_credited_as_motion() {
+    let mut detector = MotionDetector::new(screen(), MotionConfig::default());
+    let rect = Rect::new(200, 200, 200, 200);
+    let roles = [Role::Tab];
+    detector.observe(id(1), rect, &roles, &gradient(0), 100);
+    assert!(
+        detector
+            .observe(id(1), rect, &roles, &gradient(1), 60_000)
+            .is_none(),
+        "one changed frame after a long pause is not 60 s of motion"
+    );
+    let mut report = None;
+    for step in 2..7 {
+        if let Some(found) = detector.observe(id(1), rect, &roles, &gradient(step), 100) {
+            report = Some(found);
+        }
+    }
+    assert!(
+        report.is_some(),
+        "resumed motion reports after a fresh 500 ms"
+    );
 }
 
 #[test]

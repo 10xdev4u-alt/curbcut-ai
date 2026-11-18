@@ -15,6 +15,9 @@
 //!   until it goes static and moves again.
 //! - **A countdown is small in both area and change.** A large change, or a
 //!   large region, is a carousel or autoplay instead.
+//! - **A long gap is not motion.** A gap between observations longer than
+//!   `min_motion_ms` is not credited, because the detector has no observation
+//!   during it.
 //! - **Classification is deterministic.** The same score, rectangle, and roles
 //!   always give the same class.
 
@@ -171,8 +174,11 @@ impl MotionClassifier {
     }
 
     /// Classifies one observation.
+    ///
+    /// A `NaN` score is static: it is not evidence of motion, and letting it
+    /// fall through would make it look like a small change.
     pub fn classify(&self, score: f32, rect: Rect, roles: &[Role]) -> MotionClass {
-        if score < self.config.motion_threshold {
+        if score.is_nan() || score < self.config.motion_threshold {
             return MotionClass::Static;
         }
         if self.is_countdown(score, rect) {
@@ -188,8 +194,10 @@ impl MotionClassifier {
     }
 
     /// Whether a moving region is small enough in area and change to be a timer.
+    ///
+    /// A zero-area rect is never a timer: its area ratio is trivially zero.
     fn is_countdown(&self, score: f32, rect: Rect) -> bool {
-        if self.screen.is_empty() || score > self.config.countdown_max_ratio {
+        if self.screen.is_empty() || rect.is_empty() || score > self.config.countdown_max_ratio {
             return false;
         }
         rect.area() as f32 / self.screen.area() as f32 <= self.config.countdown_max_area_ratio
@@ -261,7 +269,8 @@ impl MotionDetector {
     ///
     /// `region_pixels` is the region's own pixel slice, so the signature is
     /// scoped to the region rather than the whole frame. `elapsed_ms` is the
-    /// time since the previous observation.
+    /// time since the previous observation. A gap longer than `min_motion_ms`
+    /// is not credited, because the detector has no observation during it.
     pub fn observe(
         &mut self,
         id: StableId,
@@ -289,7 +298,12 @@ impl MotionDetector {
             return None;
         }
 
-        state.moving_ms = state.moving_ms.saturating_add(elapsed_ms);
+        // A long gap is a break in continuity, not evidence of motion.
+        if elapsed_ms > self.config.min_motion_ms {
+            state.moving_ms = 0;
+        } else {
+            state.moving_ms = state.moving_ms.saturating_add(elapsed_ms);
+        }
         if state.reported || state.moving_ms < self.config.min_motion_ms {
             return None;
         }
