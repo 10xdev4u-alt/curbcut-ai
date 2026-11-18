@@ -5,6 +5,11 @@
 //! [`ocr::Ocr`], and [`caption::IconCaptioner`] run. Every model call is
 //! on-device and every result type has a content-free [`Debug`](std::fmt::Debug).
 //!
+//! [`motion_report`] classifies a region's changed-sample fraction, rectangle,
+//! and a11y roles as static, carousel, autoplay, or countdown, and reports a
+//! region once it has moved for long enough. See
+//! [`../../../docs/MOTION_DETECTION.md`](../../../docs/MOTION_DETECTION.md).
+//!
 //! See [`../../../docs/VISION.md`](../../../docs/VISION.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -21,6 +26,7 @@ pub mod caption;
 pub mod detector;
 pub mod frame;
 pub mod motion;
+pub mod motion_report;
 pub mod ocr;
 pub mod pipeline;
 pub mod scheduler;
