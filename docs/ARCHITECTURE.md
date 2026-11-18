@@ -350,6 +350,21 @@ Implemented in `crates/curbcut-understand/src/meaning.rs`. See
   sentence built from reason labels and counts, so a rejection is logged without
   quoting the screen.
 
+### 7.10 Text chunking
+
+Implemented in `crates/curbcut-understand/src/text_chunking.rs`. See
+[`docs/TEXT_CHUNKING.md`](TEXT_CHUNKING.md).
+
+- `chunk_text` walks the source once and emits `heading`, `list-item`, `table`,
+  and `sentence` chunks with ids sequential from zero.
+- `split_clauses` cuts a byte range into `clause` chunks, continuing ids from a
+  caller-supplied `first_id`.
+- A chunk is a half-open byte range; `TextChunk::text` borrows the source rather
+  than copying it, so the module never retains content.
+- A run of `|`-delimited lines is one table chunk and is never split; a period
+  inside a number or a known abbreviation does not end a sentence, and a clause
+  break needs a following space.
+
 ---
 
 ## 8. Adaptation engine
