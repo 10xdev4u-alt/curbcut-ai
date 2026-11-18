@@ -25,20 +25,23 @@ The thresholds are fixed and checked in this order:
    spans most of the width.
 2. **Paywall** — the surface covers at least `0.55` of the screen area.
 3. **Toast** — an alert role is present, or the surface covers at most `0.12` of
-   the area and sits at the top or bottom edge.
+   the area, is narrower than a banner, and sits at the top or bottom edge.
 4. **Banner** — the surface spans at least `0.6` of the width and at most `0.3`
    of the height.
 5. **Popup** — everything else.
 
 `InterruptionDetector::with_config` accepts a `DetectorConfig` to move any
-threshold; every threshold is clamped to `0.0..=1.0`.
+threshold; every threshold is clamped to `0.0..=1.0`, and a `NaN` threshold
+falls back to its default because `NaN` would make every comparison false.
 
 ## Dismissibility
 
-A surface is dismissible when it holds an interactive control whose label reads
-as a dismiss action — `close`, `dismiss`, `accept`, `agree`, `ok`, `okay`,
-`reject`, `decline`, `got it`, `no thanks`, `not now`, `x`, or `×` — or when an
-alert role sits inside it, because an alert is transient by definition.
+A surface is dismissible when it holds an interactive control whose label or
+text reads as a dismiss action — `close`, `dismiss`, `accept`, `agree`, `ok`,
+`okay`, `reject`, `decline`, `got it`, `no thanks`, `not now`, `x`, or `×` — or
+when an alert role sits inside it, because an alert is transient by definition.
+A dismiss control carried in the visible text counts as well as one carried in
+the accessible label.
 
 ## API
 

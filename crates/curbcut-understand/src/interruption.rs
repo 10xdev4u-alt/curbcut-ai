@@ -93,14 +93,27 @@ impl Default for DetectorConfig {
 
 impl DetectorConfig {
     /// Clamps every threshold into `0.0..=1.0`.
+    ///
+    /// A `NaN` threshold falls back to its default, because `NaN` would make
+    /// every comparison false.
     pub fn clamped(mut self) -> Self {
-        self.paywall_area_ratio = self.paywall_area_ratio.clamp(0.0, 1.0);
-        self.banner_width_ratio = self.banner_width_ratio.clamp(0.0, 1.0);
-        self.banner_height_ratio = self.banner_height_ratio.clamp(0.0, 1.0);
-        self.toast_area_ratio = self.toast_area_ratio.clamp(0.0, 1.0);
-        self.edge_margin_ratio = self.edge_margin_ratio.clamp(0.0, 1.0);
-        self.containment_ratio = self.containment_ratio.clamp(0.0, 1.0);
+        self.paywall_area_ratio = clamp_ratio(self.paywall_area_ratio, DEFAULT_PAYWALL_AREA_RATIO);
+        self.banner_width_ratio = clamp_ratio(self.banner_width_ratio, DEFAULT_BANNER_WIDTH_RATIO);
+        self.banner_height_ratio =
+            clamp_ratio(self.banner_height_ratio, DEFAULT_BANNER_HEIGHT_RATIO);
+        self.toast_area_ratio = clamp_ratio(self.toast_area_ratio, DEFAULT_TOAST_AREA_RATIO);
+        self.edge_margin_ratio = clamp_ratio(self.edge_margin_ratio, DEFAULT_EDGE_MARGIN_RATIO);
+        self.containment_ratio = clamp_ratio(self.containment_ratio, DEFAULT_CONTAINMENT_RATIO);
         self
+    }
+}
+
+/// Clamps one threshold, falling back to `default` when it is `NaN`.
+fn clamp_ratio(value: f32, default: f32) -> f32 {
+    if value.is_nan() {
+        default
+    } else {
+        value.clamp(0.0, 1.0)
     }
 }
 
@@ -175,7 +188,8 @@ impl InterruptionDetector {
     /// Classifies one surface.
     ///
     /// The order is fixed: a cookie notice, then a paywall, then a toast, then a
-    /// banner, and anything left is a popup.
+    /// banner, and anything left is a popup. A toast must be narrower than a
+    /// banner, so a full-width edge bar is a banner rather than a wide toast.
     pub fn classify(&self, surface: &Surface) -> InterruptionKind {
         let screen = self.screen;
         if screen.is_empty() {
@@ -197,7 +211,9 @@ impl InterruptionDetector {
             return InterruptionKind::Paywall;
         }
         if surface.has_alert
-            || (area_ratio <= self.config.toast_area_ratio && (near_top || near_bottom))
+            || (area_ratio <= self.config.toast_area_ratio
+                && width_ratio < self.config.banner_width_ratio
+                && (near_top || near_bottom))
         {
             return InterruptionKind::Toast;
         }
@@ -210,11 +226,15 @@ impl InterruptionDetector {
     }
 
     /// Whether `rect` holds a control that dismisses its surface.
+    ///
+    /// The label and the text are both read, so a dismiss glyph carried in
+    /// either one counts.
     pub fn has_dismiss_control(&self, graph: &ScreenGraph, rect: Rect) -> bool {
         graph.elements.iter().any(|element| {
             element.is_interactive()
                 && rect.contains(center(element.rect))
-                && element.label.as_deref().is_some_and(label_dismisses)
+                && (element.label.as_deref().is_some_and(label_dismisses)
+                    || element.text.as_deref().is_some_and(label_dismisses))
         })
     }
 
@@ -268,11 +288,11 @@ pub fn detect_interruptions(screen: Rect, graph: &ScreenGraph) -> Vec<Interrupti
     InterruptionDetector::new(screen).detect(graph)
 }
 
-/// The centre of a rectangle.
+/// The centre of a rectangle, saturated so a huge rect cannot overflow.
 fn center(rect: Rect) -> Point {
     Point::new(
-        rect.x + rect.width as i32 / 2,
-        rect.y + rect.height as i32 / 2,
+        rect.x.saturating_add(rect.width as i32 / 2),
+        rect.y.saturating_add(rect.height as i32 / 2),
     )
 }
 
@@ -289,13 +309,14 @@ fn label_dismisses(label: &str) -> bool {
 
 /// Whether a surface's elements mention cookies.
 fn mentions_cookie(graph: &ScreenGraph, rect: Rect) -> bool {
+    fn mentions(text: &str) -> bool {
+        text.to_lowercase().contains("cookie")
+    }
+
     graph.elements.iter().any(|element| {
         rect.intersects(element.rect)
-            && element
-                .label
-                .as_deref()
-                .or(element.text.as_deref())
-                .is_some_and(|text| text.to_lowercase().contains("cookie"))
+            && (element.label.as_deref().is_some_and(mentions)
+                || element.text.as_deref().is_some_and(mentions))
     })
 }
 

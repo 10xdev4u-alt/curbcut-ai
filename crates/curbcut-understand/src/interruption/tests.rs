@@ -88,6 +88,78 @@ fn a_bottom_cookie_notice_is_classified() {
 }
 
 #[test]
+fn a_cookie_mention_in_the_text_counts_when_the_label_differs() {
+    let region = Region {
+        kind: RegionKind::Floating,
+        rect: Rect::new(0, 700, 1000, 100),
+        reading_order: 0,
+    };
+    let text = Element {
+        label: Some("Sign in".to_string()),
+        text: Some("We use cookies".to_string()),
+        ..element(1, Rect::new(0, 700, 1000, 100), Role::StaticText)
+    };
+    let detected = detect_interruptions(screen(), &graph(vec![text], vec![region]));
+    assert_eq!(kinds(&detected), vec![InterruptionKind::CookieNotice]);
+}
+
+#[test]
+fn a_top_bar_is_a_banner() {
+    let region = Region {
+        kind: RegionKind::Floating,
+        rect: Rect::new(0, 0, 1000, 80),
+        reading_order: 0,
+    };
+    let detected = detect_interruptions(screen(), &graph(Vec::new(), vec![region]));
+    assert_eq!(kinds(&detected), vec![InterruptionKind::Banner]);
+}
+
+#[test]
+fn a_full_width_edge_bar_is_a_banner_not_a_wide_toast() {
+    let detector = InterruptionDetector::new(screen());
+    let surface = Surface {
+        rect: Rect::new(0, 0, 1000, 80),
+        dismissible: false,
+        mentions_cookie: false,
+        has_alert: false,
+    };
+    assert_eq!(detector.classify(&surface), InterruptionKind::Banner);
+}
+
+#[test]
+fn a_dismiss_glyph_in_the_text_counts() {
+    let dialog = element(1, Rect::new(400, 300, 200, 200), Role::Dialog);
+    let close = with_text(element(2, Rect::new(500, 480, 80, 16), Role::Button), "×");
+    let detected = detect_interruptions(screen(), &graph(vec![dialog, close], Vec::new()));
+    assert!(detected[0].dismissible);
+}
+
+#[test]
+fn an_alert_inside_a_full_screen_modal_is_part_of_the_modal() {
+    let region = Region {
+        kind: RegionKind::Modal,
+        rect: Rect::new(0, 0, 1000, 800),
+        reading_order: 0,
+    };
+    let alert = element(1, Rect::new(400, 760, 200, 30), Role::Alert);
+    let detected = detect_interruptions(screen(), &graph(vec![alert], vec![region]));
+    assert_eq!(detected.len(), 1);
+    assert_eq!(kinds(&detected), vec![InterruptionKind::Paywall]);
+    assert!(detected[0].dismissible, "the modal inherits the alert");
+}
+
+#[test]
+fn a_huge_rectangle_does_not_overflow() {
+    let dialog = element(
+        1,
+        Rect::new(i32::MAX - 10, i32::MAX - 10, 100, 100),
+        Role::Dialog,
+    );
+    let detected = detect_interruptions(screen(), &graph(vec![dialog], Vec::new()));
+    assert_eq!(detected.len(), 1);
+}
+
+#[test]
 fn a_bottom_bar_without_a_cookie_word_is_a_banner() {
     let region = Region {
         kind: RegionKind::Floating,
@@ -186,6 +258,18 @@ fn thresholds_are_clamped() {
     let clamped = InterruptionDetector::with_config(screen(), config).config();
     assert_eq!(clamped.paywall_area_ratio, 1.0);
     assert_eq!(clamped.banner_width_ratio, 0.0);
+}
+
+#[test]
+fn a_nan_threshold_falls_back_to_its_default() {
+    let config = DetectorConfig {
+        paywall_area_ratio: f32::NAN,
+        containment_ratio: f32::NAN,
+        ..DetectorConfig::default()
+    };
+    let clamped = InterruptionDetector::with_config(screen(), config).config();
+    assert_eq!(clamped.paywall_area_ratio, DEFAULT_PAYWALL_AREA_RATIO);
+    assert_eq!(clamped.containment_ratio, DEFAULT_CONTAINMENT_RATIO);
 }
 
 #[test]
