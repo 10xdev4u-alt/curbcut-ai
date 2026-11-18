@@ -110,6 +110,7 @@ docs/
   READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
   JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
   TEXT_CHUNKING.md         Text chunking: headings, list items, tables, sentences, clauses
+  INTERRUPTIONS.md         Interruption detection: toast, banner, popup, cookie, paywall
   NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
   SPEECH.md                TTS engines, voices, fallback chain, and audio focus
   VOICE_COMMANDS.md        Voice command grammar, help, and push-to-talk
