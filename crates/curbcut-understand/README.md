@@ -17,10 +17,14 @@ medical, and legal text and always returns the original. A versioned
 destructive-action catalog returns a plain preview and requires
 confirmation before anything is performed. The meaning-preservation
 checker rejects a rewrite that drops a named entity, a number, a
-negation, or a comparative, and logs rejections as counts only. See
+negation, or a comparative, and logs rejections as counts only. Text
+chunking splits plain text into headings, list items, tables, sentences,
+and clauses as half-open byte ranges, keeps a table whole, and never
+splits mid-word. See
 [`../../docs/RULES.md`](../../docs/RULES.md),
 [`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),
 [`../../docs/JARGON.md`](../../docs/JARGON.md),
+[`../../docs/TEXT_CHUNKING.md`](../../docs/TEXT_CHUNKING.md),
 [`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md),
 [`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md), and
 [`../../docs/DESTRUCTIVE_ACTIONS.md`](../../docs/DESTRUCTIVE_ACTIONS.md), and

@@ -34,6 +34,11 @@
 //! hold counts only. See
 //! [`../../../docs/MEANING.md`](../../../docs/MEANING.md).
 //!
+//! [`text_chunking`] splits plain text into headings, list items, tables,
+//! sentences, and clauses. A chunk is a half-open byte range with a sequential
+//! id, a table stays whole, and no split lands mid-word. See
+//! [`../../../docs/TEXT_CHUNKING.md`](../../../docs/TEXT_CHUNKING.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -57,6 +62,7 @@ pub mod reading;
 pub mod roles;
 pub mod rule;
 pub mod sensitive;
+pub mod text_chunking;
 
 #[cfg(test)]
 mod tests {
