@@ -44,6 +44,11 @@
 //! and a dismissibility flag. It reads labels in memory and never logs them. See
 //! [`../../../docs/INTERRUPTIONS.md`](../../../docs/INTERRUPTIONS.md).
 //!
+//! [`icon_semantics`] combines an icon's accessible label, its caption, and its
+//! neighbours into a plain "what this does" label of at most eight words, and
+//! marks a guess as uncertain. See
+//! [`../../../docs/ICON_SEMANTICS.md`](../../../docs/ICON_SEMANTICS.md).
+//!
 //! See [`../../../docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -60,6 +65,7 @@ pub mod actions;
 pub mod chunking;
 pub mod distraction;
 pub mod engine;
+pub mod icon_semantics;
 pub mod interruption;
 pub mod jargon;
 pub mod meaning;

@@ -23,12 +23,15 @@ and clauses as half-open byte ranges, keeps a table whole, and never
 splits mid-word. Interruption detection reports the transient overlays
 in a merged graph — toast, banner, popup, cookie notice, or paywall —
 with a rectangle and a dismissibility flag, and reads labels in memory
-only. See
+only. Icon semantics combines an icon's accessible label, its caption,
+and its neighbours into a plain what-this-does label of at most eight
+words, and marks a guess as uncertain. See
 [`../../docs/RULES.md`](../../docs/RULES.md),
 [`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),
 [`../../docs/JARGON.md`](../../docs/JARGON.md),
 [`../../docs/TEXT_CHUNKING.md`](../../docs/TEXT_CHUNKING.md),
 [`../../docs/INTERRUPTIONS.md`](../../docs/INTERRUPTIONS.md),
+[`../../docs/ICON_SEMANTICS.md`](../../docs/ICON_SEMANTICS.md),
 [`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md),
 [`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md), and
 [`../../docs/DESTRUCTIVE_ACTIONS.md`](../../docs/DESTRUCTIVE_ACTIONS.md), and
