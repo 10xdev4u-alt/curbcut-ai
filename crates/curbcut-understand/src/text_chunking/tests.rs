@@ -241,6 +241,53 @@ fn an_empty_clause_is_skipped() {
 }
 
 #[test]
+fn a_word_ending_in_an_abbreviation_is_still_a_boundary() {
+    let source = "He aims. Then he rests.";
+    let chunks = chunk_text(source);
+    assert_eq!(texts(&chunks, source), vec!["He aims.", "Then he rests."]);
+}
+
+#[test]
+fn a_digit_ending_sentence_followed_by_a_digit_starting_sentence_splits() {
+    let source = "Version 2. 5 items follow.";
+    let chunks = chunk_text(source);
+    assert_eq!(
+        texts(&chunks, source),
+        vec!["Version 2.", "5 items follow."]
+    );
+}
+
+#[test]
+fn an_all_caps_list_item_is_a_list_item() {
+    let source = "- IMPORTANT\n- URGENT\n";
+    let chunks = chunk_text(source);
+    assert_eq!(kinds(&chunks), vec!["list-item", "list-item"]);
+    assert_eq!(texts(&chunks, source), vec!["- IMPORTANT", "- URGENT"]);
+}
+
+#[test]
+fn a_unicode_lowercase_word_after_a_period_is_not_a_boundary() {
+    let source = "Hi. élan vital.";
+    let chunks = chunk_text(source);
+    assert_eq!(texts(&chunks, source), vec!["Hi. élan vital."]);
+}
+
+#[test]
+fn split_clauses_rejects_a_non_char_boundary() {
+    let source = "héllo, world";
+    assert!(split_clauses(source, 0, 2, 0).is_empty());
+    assert!(split_clauses(source, 2, 12, 0).is_empty());
+    assert!(split_clauses(source, 0, 20, 0).is_empty());
+}
+
+#[test]
+fn an_indented_special_line_is_trimmed() {
+    let source = "  # Title";
+    let chunks = chunk_text(source);
+    assert_eq!(texts(&chunks, source), vec!["# Title"]);
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/TEXT_CHUNKING.md");
     for word in ["chunk", "sentence", "clause", "table", "heading"] {

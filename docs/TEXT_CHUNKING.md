@@ -9,9 +9,13 @@ for reading and highlighting. `CC-048`.
    ids sequential from zero, so a chunk id is stable for highlighting.
 2. **A table stays whole.** Consecutive table lines become one `table` chunk
    and are never split across chunks, even when a cell holds a sentence.
-3. **No mid-word splits.** A period inside a number (`3.14`) or a known
+3. **No mid-word splits.** A period inside a number (`3.14`) or a whole-word
    abbreviation (`e.g.`, `Dr.`) does not end a sentence, and a clause break
-   needs a following space, so `1,000` and `12:30` stay intact.
+   needs a following space, so `1,000` and `12:30` stay intact. A word that
+   merely ends in an abbreviation string (`he aims.`) is still a boundary.
+
+Only `|`-delimited tables are recognised; a row like `a | b` is read as
+paragraph text.
 
 ## Kinds
 

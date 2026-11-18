@@ -7,8 +7,9 @@
 //!   ids sequential from zero, so a chunk id is stable for highlighting.
 //! - **A table stays whole.** Consecutive table lines become one
 //!   [`ChunkKind::Table`] chunk and are never split across chunks.
-//! - **No mid-word splits.** A period inside a number or a known abbreviation
-//!   does not end a sentence, and a clause break needs a following space.
+//! - **No mid-word splits.** A period inside a number or a whole-word
+//!   abbreviation does not end a sentence, and a clause break needs a following
+//!   space.
 //!
 //! [`split_clauses`] cuts a sentence into clauses. The module reads text the
 //! caller passes and never logs it. See
@@ -123,19 +124,34 @@ pub fn chunk_text(source: &str) -> Vec<TextChunk> {
                 block_end = lines[cursor].1;
                 cursor += 1;
             }
-            push(
+            push_trimmed(
                 &mut chunks,
                 &mut next_id,
                 ChunkKind::Table,
+                source,
                 block_start,
                 block_end,
             );
             index = cursor;
-        } else if is_heading(text) {
-            push(&mut chunks, &mut next_id, ChunkKind::Heading, start, end);
-            index += 1;
         } else if is_list_item(text) {
-            push(&mut chunks, &mut next_id, ChunkKind::ListItem, start, end);
+            push_trimmed(
+                &mut chunks,
+                &mut next_id,
+                ChunkKind::ListItem,
+                source,
+                start,
+                end,
+            );
+            index += 1;
+        } else if is_heading(text) {
+            push_trimmed(
+                &mut chunks,
+                &mut next_id,
+                ChunkKind::Heading,
+                source,
+                start,
+                end,
+            );
             index += 1;
         } else {
             let paragraph_start = start;
@@ -165,9 +181,12 @@ pub fn chunk_text(source: &str) -> Vec<TextChunk> {
 /// Splits the byte range `start..end` of `source` into clauses.
 ///
 /// Ids continue from `first_id`. A clause break needs a following space, so a
-/// comma inside `1,000` or a colon inside `12:30` does not split.
+/// comma inside `1,000` or a colon inside `12:30` does not split. Returns no
+/// clauses when `start..end` is not a valid range on char boundaries.
 pub fn split_clauses(source: &str, start: usize, end: usize, first_id: u64) -> Vec<TextChunk> {
-    let text = &source[start..end];
+    let Some(text) = source.get(start..end) else {
+        return Vec::new();
+    };
     let bytes = text.as_bytes();
     let mut chunks = Vec::new();
     let mut next_id = first_id;
@@ -222,6 +241,20 @@ fn push(chunks: &mut Vec<TextChunk>, next_id: &mut u64, kind: ChunkKind, start: 
     }
     chunks.push(TextChunk::new(ChunkId(*next_id), kind, start, end));
     *next_id += 1;
+}
+
+/// Appends a chunk over the trimmed range, skipping a blank range.
+fn push_trimmed(
+    chunks: &mut Vec<TextChunk>,
+    next_id: &mut u64,
+    kind: ChunkKind,
+    source: &str,
+    start: usize,
+    end: usize,
+) {
+    if let Some((trimmed_start, trimmed_end)) = trimmed_range(source, start, end) {
+        push(chunks, next_id, kind, trimmed_start, trimmed_end);
+    }
 }
 
 /// Appends one clause, trimmed, skipping an empty clause.
@@ -340,19 +373,20 @@ fn sentence_ranges(text: &str) -> Vec<(usize, usize)> {
             while next_index < bytes.len() && bytes[next_index].is_ascii_whitespace() {
                 next_index += 1;
             }
-            let next = bytes.get(next_index).copied();
-            let starts_next = match next {
+            let starts_next = match text[next_index..].chars().next() {
                 None => true,
-                Some(byte) => {
-                    (byte as char).is_uppercase()
-                        || byte.is_ascii_digit()
-                        || matches!(byte, b'"' | b'\'' | b'(' | b'[' | b'{' | b'#')
+                Some(next_char) => {
+                    next_char.is_uppercase()
+                        || next_char.is_ascii_digit()
+                        || matches!(next_char, '"' | '\'' | '(' | '[' | '{' | '#')
                 }
             };
             let decimal = byte == b'.'
                 && index > 0
                 && bytes[index - 1].is_ascii_digit()
-                && next.is_some_and(|byte| byte.is_ascii_digit());
+                && bytes
+                    .get(index + 1)
+                    .is_some_and(|byte| byte.is_ascii_digit());
             let abbreviation = byte == b'.' && ends_abbreviation(text, index);
             if starts_next && !decimal && !abbreviation {
                 if let Some((sentence_start, sentence_end)) = trimmed_range(text, start, end) {
@@ -372,11 +406,16 @@ fn sentence_ranges(text: &str) -> Vec<(usize, usize)> {
 }
 
 /// Whether the period at `dot` ends a known abbreviation.
+///
+/// The abbreviation must be a whole word: `he aims.` ends with `ms.` but is not
+/// the abbreviation, so the character before the match must not be alphanumeric.
 fn ends_abbreviation(text: &str, dot: usize) -> bool {
     let prefix = text[..=dot].to_ascii_lowercase();
-    ABBREVIATIONS
-        .iter()
-        .any(|abbreviation| prefix.ends_with(abbreviation))
+    ABBREVIATIONS.iter().any(|abbreviation| {
+        prefix
+            .strip_suffix(abbreviation)
+            .is_some_and(|head| !head.chars().next_back().is_some_and(char::is_alphanumeric))
+    })
 }
 
 /// Whether the punctuation at `index` sits between digits.
