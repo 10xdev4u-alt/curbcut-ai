@@ -11,11 +11,13 @@
 //!   the author's own description and is never second-guessed.
 //! - **A caption is a fallback, not an answer.** A caption is used only when
 //!   its confidence clears [`IconSemanticsConfig::min_caption_confidence`], and
-//!   a generic caption never counts as a certain answer.
+//!   a generic caption — one that names only the medium, ignoring a leading
+//!   `a`, `an`, or `the` — never counts as a certain answer.
 //! - **A neighbour is a hint.** A neighbour's label is used only when neither
 //!   label nor caption is usable, and it is always marked uncertain.
 //! - **The label is short.** Every label is capped at [`MAX_LABEL_WORDS`]
-//!   words, so an icon label never becomes a sentence.
+//!   words, so an icon label never becomes a sentence. A medium prefix is
+//!   dropped only at a word boundary.
 
 use std::fmt;
 
@@ -76,7 +78,7 @@ impl IconLabelSource {
 }
 
 /// Thresholds for [`resolve`].
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct IconSemanticsConfig {
     /// The lowest caption confidence still read as a description.
     pub min_caption_confidence: f32,
@@ -168,7 +170,7 @@ pub struct RedactedIconSemantics {
 }
 
 /// The evidence available for one icon.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub struct IconInput<'a> {
     /// The platform's accessible label, if it reported one.
     pub a11y_label: Option<&'a str>,
@@ -178,6 +180,17 @@ pub struct IconInput<'a> {
     pub caption_confidence: f32,
     /// Labels of the elements around the icon, in reading order.
     pub neighbours: &'a [&'a str],
+}
+
+impl fmt::Debug for IconInput<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IconInput")
+            .field("a11y_label_len", &self.a11y_label.map_or(0, str::len))
+            .field("caption_len", &self.caption.map_or(0, str::len))
+            .field("caption_confidence", &self.caption_confidence)
+            .field("neighbour_count", &self.neighbours.len())
+            .finish()
+    }
 }
 
 impl<'a> IconInput<'a> {
@@ -203,6 +216,7 @@ impl<'a> IconInput<'a> {
 /// caption, then a neighbour's label, then any caption, then
 /// [`UNLABELED_ICON`].
 pub fn resolve(input: &IconInput<'_>, config: &IconSemanticsConfig) -> IconSemantics {
+    let config = config.clamped();
     if let Some(label) = clean(input.a11y_label.unwrap_or("")) {
         return IconSemantics::new(clip_words(&label), IconLabelSource::A11y, false);
     }
@@ -258,11 +272,17 @@ fn collapse_whitespace(text: &str) -> String {
 }
 
 /// Drops the medium prefix and collapses whitespace.
+///
+/// A prefix is dropped only at a word boundary, so `photo office` keeps its
+/// `photo`.
 fn simplify_caption(caption: &str) -> String {
     let lowered = caption.to_ascii_lowercase();
-    let cut = MEDIUM_PREFIXES
-        .iter()
-        .find_map(|prefix| lowered.strip_prefix(prefix).map(|_| prefix.len()));
+    let cut = MEDIUM_PREFIXES.iter().find_map(|prefix| {
+        lowered
+            .strip_prefix(prefix)
+            .filter(|rest| rest.is_empty() || rest.starts_with(char::is_whitespace))
+            .map(|_| prefix.len())
+    });
     let body = match cut {
         Some(len) => &caption[len..],
         None => caption,
@@ -271,12 +291,30 @@ fn simplify_caption(caption: &str) -> String {
 }
 
 /// Whether a caption names the medium rather than the action.
+///
+/// Leading determiners are ignored, so `a logo` and `the icon` are generic.
 fn is_generic(text: &str) -> bool {
-    let normalized = text
-        .trim()
-        .trim_matches(|c: char| !c.is_alphanumeric())
-        .to_ascii_lowercase();
-    GENERIC_CAPTIONS.contains(&normalized.as_str())
+    let words: Vec<String> = text
+        .split_whitespace()
+        .filter_map(|word| {
+            let trimmed = word.trim_matches(|c: char| !c.is_alphanumeric());
+            if trimmed.is_empty() || is_determiner(trimmed) {
+                None
+            } else {
+                Some(trimmed.to_ascii_lowercase())
+            }
+        })
+        .collect();
+    !words.is_empty()
+        && words
+            .iter()
+            .all(|word| GENERIC_CAPTIONS.contains(&word.as_str()))
+}
+
+/// Whether a word is a leading determiner.
+fn is_determiner(word: &str) -> bool {
+    let lowered = word.to_ascii_lowercase();
+    matches!(lowered.as_str(), "a" | "an" | "the")
 }
 
 #[cfg(test)]

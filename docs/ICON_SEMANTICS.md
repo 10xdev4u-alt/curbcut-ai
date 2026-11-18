@@ -17,13 +17,15 @@ is.
    confidence is at least `min_caption_confidence` (default `0.6`). A caption
    that only names the medium — `icon`, `image`, `photo`, `picture`, `logo`,
    `symbol`, `graphic`, `illustration`, or `button` — never counts as a certain
-   answer.
+   answer. A leading `a`, `an`, or `the` is ignored, so `a logo` and `the icon`
+   are generic too.
 3. **A neighbour is a hint.** A neighbouring element's label is used only when
    neither the accessible label nor a usable caption is available. It is always
    marked uncertain, because a neighbour may not describe the icon.
 4. **The label is short.** Every label is capped at `MAX_LABEL_WORDS` (8) words,
    so an icon label never becomes a sentence. A caption prefix that names the
-   medium — `a photo of`, `an image of`, `a picture of` — is dropped.
+   medium — `a photo of`, `an image of`, `a picture of` — is dropped only at a
+   word boundary, so `photo office` keeps its `photo`.
 
 The order is fixed: accessible label, confident non-generic caption, neighbour,
 any caption, then `unlabeled icon`.
@@ -49,6 +51,7 @@ and falls back to the default on `NaN`.
 
 ## Privacy
 
-The label is derived from screen content. `IconSemantics` never formats it with
-`Debug`: the debug view and [`RedactedIconSemantics`] carry the label length, the
-source, and the uncertainty flag. The module logs nothing.
+The label is derived from screen content. Neither `IconSemantics` nor
+`IconInput` formats it with `Debug`: both debug views carry lengths, the source,
+the confidence, and the uncertainty flag, never the text. The module logs
+nothing.

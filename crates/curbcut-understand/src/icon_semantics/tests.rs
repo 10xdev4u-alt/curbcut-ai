@@ -175,6 +175,98 @@ fn debug_is_redacted() {
 }
 
 #[test]
+fn input_debug_is_redacted() {
+    let input = IconInput::new(
+        Some("Print"),
+        Some("a photo of a printer"),
+        0.9,
+        &["Document"],
+    );
+    let text = format!("{input:?}");
+    assert!(!text.contains("Print"));
+    assert!(!text.contains("printer"));
+    assert!(!text.contains("Document"));
+    assert!(text.contains("caption_confidence"));
+}
+
+#[test]
+fn a_caption_is_capped_at_eight_words() {
+    let input = IconInput::new(
+        None,
+        Some("one two three four five six seven eight nine ten"),
+        0.9,
+        &[],
+    );
+    assert_eq!(
+        resolve(&input, &config()).label(),
+        "one two three four five six seven eight"
+    );
+}
+
+#[test]
+fn a_neighbour_is_capped_at_eight_words() {
+    let input = IconInput::new(
+        None,
+        None,
+        0.0,
+        &["one two three four five six seven eight nine ten"],
+    );
+    assert_eq!(
+        resolve(&input, &config()).label(),
+        "one two three four five six seven eight"
+    );
+}
+
+#[test]
+fn a_generic_caption_with_a_determiner_is_uncertain() {
+    let input = IconInput::new(None, Some("a logo"), 0.9, &[]);
+    assert!(resolve(&input, &config()).is_uncertain());
+}
+
+#[test]
+fn a_prefixed_generic_caption_is_uncertain() {
+    let input = IconInput::new(None, Some("a photo of a logo"), 0.9, &[]);
+    let resolved = resolve(&input, &config());
+    assert_eq!(resolved.label(), "a logo");
+    assert!(resolved.is_uncertain());
+}
+
+#[test]
+fn a_prefix_requires_a_word_boundary() {
+    let input = IconInput::new(None, Some("photo office"), 0.9, &[]);
+    let resolved = resolve(&input, &config());
+    assert_eq!(resolved.label(), "photo office");
+    assert!(!resolved.is_uncertain());
+}
+
+#[test]
+fn a_nan_config_is_clamped_by_resolve() {
+    let config = IconSemanticsConfig {
+        min_caption_confidence: f32::NAN,
+    };
+    let input = IconInput::new(None, Some("printer"), 1.0, &[]);
+    let resolved = resolve(&input, &config);
+    assert_eq!(resolved.source(), IconLabelSource::Caption);
+    assert!(!resolved.is_uncertain());
+}
+
+#[test]
+fn a_generic_accessible_label_still_wins() {
+    let input = IconInput::new(Some("icon"), Some("printer"), 0.9, &[]);
+    let resolved = resolve(&input, &config());
+    assert_eq!(resolved.label(), "icon");
+    assert_eq!(resolved.source(), IconLabelSource::A11y);
+    assert!(!resolved.is_uncertain());
+}
+
+#[test]
+fn a_multibyte_caption_is_sliced_safely() {
+    let input = IconInput::new(None, Some("a photo of a 🔍 printer"), 0.9, &[]);
+    let resolved = resolve(&input, &config());
+    assert_eq!(resolved.label(), "a 🔍 printer");
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/ICON_SEMANTICS.md");
     for word in ["icon", "label", "caption", "neighbour", "uncertain"] {
