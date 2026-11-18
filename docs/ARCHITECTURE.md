@@ -396,6 +396,21 @@ Implemented in `crates/curbcut-understand/src/interruption.rs`. See
 - `InterruptionDetector::with_config` moves any threshold and clamps it to
   `0.0..=1.0`. The result is sorted by rectangle and holds no content.
 
+### 7.12 Icon semantics
+
+Implemented in `crates/curbcut-understand/src/icon_semantics.rs`. See
+[`docs/ICON_SEMANTICS.md`](ICON_SEMANTICS.md).
+
+- `resolve` reads an accessible label, a caption with its confidence, and the
+  labels of neighbouring elements, and produces one label of at most
+  `MAX_LABEL_WORDS` (8) words.
+- The order is fixed: accessible label, confident non-generic caption, neighbour,
+  any caption, then `unlabeled icon`. A generic caption names the medium, not the
+  action.
+- `IconSemantics::is_uncertain` is false only for an accessible label or a
+  confident non-generic caption; `Debug` and `redacted` carry the label length,
+  never the label.
+
 ---
 
 ## 8. Adaptation engine
