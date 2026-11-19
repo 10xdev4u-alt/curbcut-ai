@@ -239,6 +239,27 @@ Implemented in `crates/curbcut-vision/src/motion_report.rs`. See
 - `MotionConfig::clamped` bounds every ratio to `0.0..=1.0` and falls back to the
   default on `NaN`.
 
+### 6.6 Layout analysis
+
+Implemented in `crates/curbcut-vision/src/layout.rs`. See
+[`docs/LAYOUT_ANALYSIS.md`](LAYOUT_ANALYSIS.md).
+
+- `LayoutAnalyzer::analyze` divides a viewport into `Header`, `Footer`, `Nav`,
+  `Aside`, `Main`, `Modal`, and `Floating` regions from element geometry, and
+  merges the graph's own region hints.
+- A header or footer is a wide, shallow band anchored to the top or bottom; a
+  nav or aside is a narrow, tall column anchored to the left or right; main is
+  the residual centre. A modal is a small off-edge surface that is centred or
+  holds a dialog role; otherwise it is floating.
+- Overlaps are resolved deterministically: a region at least
+  `containment_ratio` (default `0.85`) covered by a larger region in the same
+  layer is dropped, the largest region is never a modal, and every element is
+  assigned to the region it overlaps most.
+- Reading order is header, nav, main, aside, footer, modal, floating; elements
+  inside a region are ordered by `(y, x, id)`.
+- `LayoutConfig::clamped` bounds every ratio to `0.0..=1.0` and falls back to
+  the default on `NaN`.
+
 ---
 
 ## 7. Understanding pipeline

@@ -13,6 +13,7 @@ detection, OCR, and icon captioning. All inference is on-device.
 | `detector` | `Detector`, `Detection`, `NoDetector` | Element detection. |
 | `ocr` | `Ocr`, `OcrText`, `NoOcr` | Text recognition. |
 | `caption` | `IconCaptioner`, `IconCaption`, `NoCaptioner` | Icon and image captions. |
+| `layout` | `LayoutAnalyzer`, `LayoutAnalysis`, `AnalyzedRegion` | Regions and reading order. |
 | `pipeline` | `VisionPipeline`, `VisionOutcome`, `VisionResult` | The composed entry point. |
 
 ## Scheduling
@@ -80,3 +81,18 @@ Unit tests cover the scheduler's decision table and the signature math. The
 integration tests in `tests/vision_pipeline.rs` drive the public API the way the
 capture adapter does, including a detector that fails the test if a protected
 frame reaches it.
+
+## Layout
+
+`LayoutAnalyzer::analyze(graph)` divides the viewport into regions and returns
+a reading order. See [`LAYOUT_ANALYSIS.md`](LAYOUT_ANALYSIS.md).
+
+- Header and footer are wide, shallow bands anchored to the top and bottom.
+- Nav and aside are narrow, tall columns anchored to the left and right.
+- Main is the residual centre; a modal is a small off-edge surface that is
+  centred or holds a dialog role; otherwise it is floating.
+- A region at least `containment_ratio` covered by a larger region in the same
+  layer is dropped, and every element is assigned to the region it overlaps
+  most. The largest region is never a modal.
+- Reading order is header, nav, main, aside, footer, modal, floating; elements
+  inside a region are ordered by `(y, x, id)`.
