@@ -14,6 +14,7 @@ name = "curbcut-adapt"
 version = "0.1.0"
 dependencies = [
  "curbcut-core",
+ "curbcut-understand",
 ]
 
 [[package]]

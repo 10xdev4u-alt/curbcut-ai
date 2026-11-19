@@ -491,6 +491,23 @@ rule "destructive_confirm"
 
 Rules are data, versioned, and testable. Users can disable individual rules.
 
+Implemented in `crates/curbcut-adapt/src/rule_engine.rs`. See
+[`docs/RULES_ENGINE.md`](RULES_ENGINE.md).
+
+- Input: a merged `ScreenGraph`, the media regions the perception layer reported,
+  and a `RuleFlags` set. Output: a `RulePlan` of actions plus the superseded
+  offers.
+- Facts are derived before any rule runs and carry no text: `MovingMedia`,
+  `DenseContainer`, `TextLevel`, and `Destructive`.
+- Rules run in catalog order (`carousel_is_distraction`, `dense_menu_to_grid`,
+  `long_text_chunk`, `destructive_confirm`). A later offer for a target and
+  `ConflictGroup` that a higher-priority rule already holds replaces the claim;
+  the displaced action is recorded in `superseded` with `HigherPriority`. At
+  equal priority the rule id that sorts first wins, so the outcome never
+  depends on evaluation order. Every action carries a `Rationale`.
+- A rule is disabled by a `RuleToggles` bit or suppressed by its profile flag;
+  a disabled rule derives no action and is never a winner.
+
 ### 8.3 Layout solver
 
 Implemented in `crates/curbcut-adapt/src/layout.rs`. See
