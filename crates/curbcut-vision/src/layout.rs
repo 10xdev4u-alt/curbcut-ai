@@ -323,8 +323,10 @@ impl LayoutAnalyzer {
             let bottom = rbottom >= vbottom - margin_y;
             let left = rx <= vx + margin_x;
             let right = rright >= vright - margin_x;
-            let tall =
+            let too_tall_for_header =
                 rect.height as f32 > self.config.header_height_ratio * viewport.height as f32;
+            let too_tall_for_footer =
+                rect.height as f32 > self.config.footer_height_ratio * viewport.height as f32;
             let wide =
                 rect.width as f32 >= self.config.header_min_width_ratio * viewport.width as f32;
             let narrow =
@@ -332,10 +334,10 @@ impl LayoutAnalyzer {
             let tall_enough =
                 rect.height as f32 >= self.config.nav_min_height_ratio * viewport.height as f32;
 
-            if top && !tall && wide && rbottom > header_bottom {
+            if top && !too_tall_for_header && wide && rbottom > header_bottom {
                 header_bottom = rbottom;
             }
-            if bottom && !tall && wide && ry < footer_top {
+            if bottom && !too_tall_for_footer && wide && ry < footer_top {
                 footer_top = ry;
             }
             if left && narrow && tall_enough && rright > nav_right {

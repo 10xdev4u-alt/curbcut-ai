@@ -251,6 +251,20 @@ fn a_region_with_no_elements_is_not_emitted() {
 }
 
 #[test]
+fn the_footer_bound_is_independent_of_the_header_bound() {
+    let config = LayoutConfig {
+        footer_height_ratio: 0.05,
+        ..LayoutConfig::default()
+    };
+    let analyzer = LayoutAnalyzer::new(viewport(), config);
+    let analysis = analyzer.analyze(&graph(vec![
+        element(1, 0, 0, 1000, 100),
+        element(2, 0, 700, 1000, 100),
+    ]));
+    assert_eq!(kinds(&analysis), [RegionKind::Header, RegionKind::Main]);
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/LAYOUT_ANALYSIS.md");
     for word in [
