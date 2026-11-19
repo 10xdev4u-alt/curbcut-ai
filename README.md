@@ -91,6 +91,7 @@ docs/
   CLI.md                   Headless CLI: commands, exit codes, redacted dump
   VISION.md                Vision pipeline: scheduler, stages, privacy
   MOTION_DETECTION.md      Motion classification: carousel, autoplay, countdown
+  LAYOUT_ANALYSIS.md       Layout analysis: regions, overlap resolution, reading order
   PROFILE_GRAPH.md         Profile graph: 40-setting registry, preview, validation
   LAYOUT.md                Layout solver: tile packing and reflow, invariants, fuzz
   DIMMING.md               Dimming: except-regions, scrim plan, reduced motion

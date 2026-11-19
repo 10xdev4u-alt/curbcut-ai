@@ -10,6 +10,10 @@
 //! region once it has moved for long enough. See
 //! [`../../../docs/MOTION_DETECTION.md`](../../../docs/MOTION_DETECTION.md).
 //!
+//! [`layout`] divides a viewport into header, nav, main, aside, footer, modal,
+//! and floating regions and produces a stable reading order. See
+//! [`../../../docs/LAYOUT_ANALYSIS.md`](../../../docs/LAYOUT_ANALYSIS.md).
+//!
 //! See [`../../../docs/VISION.md`](../../../docs/VISION.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -25,6 +29,7 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod caption;
 pub mod detector;
 pub mod frame;
+pub mod layout;
 pub mod motion;
 pub mod motion_report;
 pub mod ocr;
