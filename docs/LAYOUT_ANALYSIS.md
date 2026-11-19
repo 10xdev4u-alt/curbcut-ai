@@ -25,6 +25,10 @@ is narrow when its width is at most `sidebar_width_ratio` and tall when its
 height is at least `nav_min_height_ratio`. An element counts as anchored to an
 edge when it is within `edge_margin_ratio` of it.
 
+The overlay cap applies to the whole surface, not to each element: a chain of
+small elements whose union covers more than `overlay_max_area_ratio` is page
+content, not an overlay, and is left to `Main`.
+
 A graph may already carry region hints in `ScreenGraph::regions`. They are
 merged with the geometric regions, clipped to the viewport.
 

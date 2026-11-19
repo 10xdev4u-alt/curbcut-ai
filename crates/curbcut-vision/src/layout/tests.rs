@@ -265,6 +265,42 @@ fn the_footer_bound_is_independent_of_the_header_bound() {
 }
 
 #[test]
+fn an_off_centre_alert_is_floating() {
+    let mut alert = element(2, 100, 100, 100, 100);
+    alert.role = Role::Alert;
+    let analysis = analyze(&graph(vec![element(1, 0, 0, 1000, 800), alert]));
+    assert_eq!(kinds(&analysis), [RegionKind::Main, RegionKind::Floating]);
+}
+
+#[test]
+fn an_off_centre_dialog_is_a_modal() {
+    let analysis = analyze(&graph(vec![
+        element(1, 0, 0, 1000, 800),
+        modal(2, 100, 100, 100, 100),
+    ]));
+    assert_eq!(kinds(&analysis), [RegionKind::Main, RegionKind::Modal]);
+}
+
+#[test]
+fn a_large_cluster_is_not_an_overlay() {
+    let analysis = analyze(&graph(vec![
+        element(1, 0, 0, 1000, 800),
+        element(2, 200, 100, 600, 300),
+        element(3, 200, 399, 600, 300),
+    ]));
+    assert_eq!(kinds(&analysis), [RegionKind::Main]);
+}
+
+#[test]
+fn a_large_off_edge_element_is_not_an_overlay() {
+    let analysis = analyze(&graph(vec![
+        element(1, 0, 0, 1000, 800),
+        element(2, 200, 100, 600, 600),
+    ]));
+    assert_eq!(kinds(&analysis), [RegionKind::Main]);
+}
+
+#[test]
 fn the_documented_rules_match_the_code() {
     let doc = include_str!("../../../../docs/LAYOUT_ANALYSIS.md");
     for word in [

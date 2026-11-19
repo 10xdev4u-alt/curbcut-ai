@@ -441,12 +441,13 @@ impl LayoutAnalyzer {
             let Some(rect) = cluster_union(&cluster) else {
                 continue;
             };
-            if (rect.area() as f32) < min_area {
+            let area = rect.area() as f32;
+            if area < min_area || area > max_overlay {
                 continue;
             }
             let dialog = cluster
                 .iter()
-                .any(|element| matches!(element.role, Role::Dialog | Role::Alert));
+                .any(|element| matches!(element.role, Role::Dialog));
             let kind = if dialog || self.is_centered(rect) {
                 RegionKind::Modal
             } else {
