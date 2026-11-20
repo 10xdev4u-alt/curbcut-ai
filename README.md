@@ -122,6 +122,7 @@ docs/
   DESTRUCTIVE_ACTIONS.md   Destructive-action catalog, preview, and confirmation
   MERGE.md                 A11y + vision merge: IoU matching, provenance, conflicts
   STABILITY.md             StableIds across frames, scroll compensation, re-analysis
+  WRITE_GUARD.md           Write guard: WriteA11y token, attempt log, denied no-op
   MEANING.md               Meaning-preservation checker: entities, numbers, negation
   TELEMETRY.md             Counts-only telemetry schema, allowlist, opt-in export
   ETHICS.md                The never list, honest-claim standard, panel authority

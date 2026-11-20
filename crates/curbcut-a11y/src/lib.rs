@@ -10,6 +10,10 @@
 //! compensates for scroll, and says which regions can skip re-analysis. See
 //! [`../../../docs/STABILITY.md`](../../../docs/STABILITY.md).
 //!
+//! [`write_guard`] is the only write path to another application: it demands a
+//! valid `WriteA11y` capability token and records every attempt, allowed or
+//! denied. See [`../../../docs/WRITE_GUARD.md`](../../../docs/WRITE_GUARD.md).
+//!
 //! The platform adapters are added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -25,6 +29,7 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod mapping;
 pub mod merge;
 pub mod stability;
+pub mod write_guard;
 
 #[cfg(test)]
 mod tests {

@@ -117,9 +117,13 @@ CRATE_STATUS = {
         "unmatched a11y element stays semantic-only, and an unmatched vision\n"
         "detection becomes a vision-only node, and stability tracking assigns\n"
         "StableIds across frames with median scroll compensation and a\n"
-        "Hungarian assignment. See\n"
-        "[`../../docs/MERGE.md`](../../docs/MERGE.md) and\n"
-        "[`../../docs/STABILITY.md`](../../docs/STABILITY.md)."
+        "Hungarian assignment. The write guard makes `WriteGuard::request`\n"
+        "the only path to another app: it requires a valid `WriteA11y`\n"
+        "token, denies and skips the sink otherwise, and records every\n"
+        "attempt. See\n"
+        "[`../../docs/MERGE.md`](../../docs/MERGE.md),\n"
+        "[`../../docs/STABILITY.md`](../../docs/STABILITY.md), and\n"
+        "[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md)."
     ),
     "curbcut-adapt": (
         "The profile graph and layout solvers are implemented: a versioned\n"
