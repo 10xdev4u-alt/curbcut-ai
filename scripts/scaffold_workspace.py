@@ -157,10 +157,14 @@ CRATE_STATUS = {
         "Motion classification reports a region as static, carousel, autoplay,\n"
         "or countdown once it has moved for long enough. Layout analysis divides\n"
         "a viewport into header, nav, main, aside, footer, modal, and floating\n"
-        "regions and produces a stable reading order. See\n"
+        "regions and produces a stable reading order. Dirty-rect re-analysis\n"
+        "reduces two frames to a grid of cell means, merges the changed cells\n"
+        "into rectangles, and triggers re-analysis with a cooldown so a moving\n"
+        "carousel causes one analysis rather than one per frame. See\n"
         "[`../../docs/VISION.md`](../../docs/VISION.md),\n"
-        "[`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md), and\n"
-        "[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md)."
+        "[`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md),\n"
+        "[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md), and\n"
+        "[`../../docs/DIRTY_RECT.md`](../../docs/DIRTY_RECT.md)."
     ),
     "curbcut-understand": (
         "The deterministic rule layer is implemented: versioned rules, role\n"

@@ -194,6 +194,13 @@ Backpressure policy: slow consumers drop non-critical events (vision frames) and
 3. **Layout** (heuristic + optional small model) → regions, reading order, grouping.
 4. **Icon caption** (Florence-2-base or Qwen2.5-VL-3B int4) → only for icons without a11y labels, cached by icon crop hash.
 5. **Media/motion** → detect video/carousel/countdown from pixels + a11y roles.
+6. **Dirty-rect re-analysis** (`crates/curbcut-vision/src/dirty.rs`, see
+   [`docs/DIRTY_RECT.md`](DIRTY_RECT.md)): `diff` reduces two frames to a grid
+   of cell means, merges changed cells into pixel rectangles, and marks the
+   frame significant at a `min_changed_cells` floor. `ReanalysisTrigger` fires
+   on the first frame, on a significant change, and then sleeps for
+   `cooldown_frames`; the baseline follows every frame, so a carousel that
+   stops moving stops re-analysing.
 
 ### 6.3 A11y merge
 
