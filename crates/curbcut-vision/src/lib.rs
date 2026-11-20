@@ -14,6 +14,11 @@
 //! and floating regions and produces a stable reading order. See
 //! [`../../../docs/LAYOUT_ANALYSIS.md`](../../../docs/LAYOUT_ANALYSIS.md).
 //!
+//! [`dirty`] decides which frames are worth a model call: a downscaled grid of
+//! cell means, merged changed rectangles, and a cooldown so a moving carousel
+//! triggers one re-analysis rather than one per frame. See
+//! [`../../../docs/DIRTY_RECT.md`](../../../docs/DIRTY_RECT.md).
+//!
 //! See [`../../../docs/VISION.md`](../../../docs/VISION.md) and
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -28,6 +33,7 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod caption;
 pub mod detector;
+pub mod dirty;
 pub mod frame;
 pub mod layout;
 pub mod motion;

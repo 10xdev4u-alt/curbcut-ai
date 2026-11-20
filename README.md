@@ -92,6 +92,7 @@ docs/
   VISION.md                Vision pipeline: scheduler, stages, privacy
   MOTION_DETECTION.md      Motion classification: carousel, autoplay, countdown
   LAYOUT_ANALYSIS.md       Layout analysis: regions, overlap resolution, reading order
+  DIRTY_RECT.md            Dirty-rect re-analysis: grid diff, regions, cooldown
   PROFILE_GRAPH.md         Profile graph: 40-setting registry, preview, validation
   LAYOUT.md                Layout solver: tile packing and reflow, invariants, fuzz
   DIMMING.md               Dimming: except-regions, scrim plan, reduced motion
