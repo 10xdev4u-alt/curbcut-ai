@@ -15,12 +15,16 @@ implemented: `FocusOrder` visits enabled controls in order, wraps, keeps
 a trapping control until `escape`, lists every shortcut for the UI, and
 moves spatially with the arrow keys. Switch access is implemented:
 `SwitchAccess` drives the overlay from one switch with auto scan, step
-scan, and a configurable dwell. See
+scan, and a configurable dwell. Action consent is implemented:
+`ConsentGate` requires a per-session, per-action consent, states the
+consequence before the choice, scopes a receipt to one action or to the
+session, and logs action class and target role only. See
 [`../../docs/SHORTCUTS.md`](../../docs/SHORTCUTS.md),
 [`../../docs/HOVER.md`](../../docs/HOVER.md),
 [`../../docs/CLICKS.md`](../../docs/CLICKS.md),
-[`../../docs/FOCUS_ORDER.md`](../../docs/FOCUS_ORDER.md), and
-[`../../docs/SWITCH_ACCESS.md`](../../docs/SWITCH_ACCESS.md).
+[`../../docs/FOCUS_ORDER.md`](../../docs/FOCUS_ORDER.md),
+[`../../docs/SWITCH_ACCESS.md`](../../docs/SWITCH_ACCESS.md), and
+[`../../docs/CONSENT.md`](../../docs/CONSENT.md).
 
 ## Build and test
 
