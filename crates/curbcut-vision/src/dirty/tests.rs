@@ -38,6 +38,22 @@ fn quadrant(width: u32, height: u32, value: u8) -> Vec<u8> {
     data
 }
 
+/// A frame with two vertical bands set to `value`.
+fn bands(width: u32, height: u32, value: u8) -> Vec<u8> {
+    let mut data = flat(width, height, 0);
+    for y in 0..height as usize {
+        for x in 0..width as usize {
+            if x < 2 || x + 2 >= width as usize {
+                let base = (y * width as usize + x) * RGBA_BYTES;
+                data[base] = value;
+                data[base + 1] = value;
+                data[base + 2] = value;
+            }
+        }
+    }
+    data
+}
+
 #[test]
 fn an_identical_frame_has_no_changes() {
     let cfg = config();
@@ -67,7 +83,6 @@ fn adjacent_changed_rows_merge_into_one_region() {
         ..config()
     };
     let mut after = flat(4, 4, 0);
-    // Change the whole left column: cells (row 0, col 0) and (row 1, col 0).
     for y in 0..4 {
         let base = (y * 4) * RGBA_BYTES;
         after[base] = 255;
@@ -78,6 +93,24 @@ fn adjacent_changed_rows_merge_into_one_region() {
     let report = diff(&before, &after, 4, 4, &cfg).expect("a report");
     assert_eq!(report.regions, vec![Rect::new(0, 0, 2, 4)]);
     assert_eq!(report.changed_fraction, 2.0 / 4.0);
+}
+
+#[test]
+fn two_bands_on_both_rows_merge_into_two_regions() {
+    let cfg = DirtyConfig {
+        grid_cols: 4,
+        grid_rows: 2,
+        ..config()
+    };
+    let before = flat(8, 4, 0);
+    let after = bands(8, 4, 255);
+    let report = diff(&before, &after, 8, 4, &cfg).expect("a report");
+    assert_eq!(
+        report.regions,
+        vec![Rect::new(0, 0, 2, 4), Rect::new(6, 0, 2, 4)],
+        "each band is one region, not one per row"
+    );
+    assert_eq!(report.changed_fraction, 4.0 / 8.0);
 }
 
 #[test]
@@ -129,6 +162,30 @@ fn a_significance_floor_suppresses_a_single_cell() {
 }
 
 #[test]
+fn a_region_on_a_frame_smaller_than_the_grid_is_not_empty() {
+    let cfg = DirtyConfig {
+        grid_cols: 16,
+        grid_rows: 9,
+        ..config()
+    };
+    let mut after = flat(8, 8, 0);
+    after[0] = 255;
+    after[1] = 255;
+    after[2] = 255;
+    let before = flat(8, 8, 0);
+    let report = diff(&before, &after, 8, 8, &cfg).expect("a report");
+    assert!(!report.regions.is_empty());
+    assert!(
+        report
+            .regions
+            .iter()
+            .all(|rect| rect.width > 0 && rect.height > 0),
+        "no zero-area rectangle may reach region-of-interest capture: {:?}",
+        report.regions
+    );
+}
+
+#[test]
 fn a_truncated_frame_is_rejected() {
     let cfg = config();
     let frame = flat(8, 8, 0);
@@ -164,6 +221,48 @@ fn the_config_is_clamped() {
 }
 
 #[test]
+fn the_grid_check_does_not_overflow() {
+    // 65536 * 65536 wraps to zero in u32, so a u32 product would accept it.
+    let cfg = DirtyConfig {
+        grid_cols: 65536,
+        grid_rows: 65536,
+        ..DirtyConfig::default()
+    }
+    .clamped();
+    assert!(cfg.cells() <= MAX_GRID_CELLS);
+    assert!(cfg.grid_cols > 0 && cfg.grid_rows > 0);
+}
+
+#[test]
+fn the_significance_floor_is_capped_to_the_grid() {
+    let cfg = DirtyConfig {
+        min_changed_cells: 5000,
+        ..DirtyConfig::default()
+    }
+    .clamped();
+    assert!(cfg.min_changed_cells <= cfg.cells());
+    assert!(cfg.min_changed_cells > 0);
+}
+
+#[test]
+fn the_public_diff_clamps_its_config() {
+    let cfg = DirtyConfig {
+        grid_cols: 0,
+        grid_rows: 0,
+        change_threshold: 0,
+        ..DirtyConfig::default()
+    };
+    let frame = flat(8, 8, 200);
+    let report = diff(&frame, &frame, 8, 8, &cfg).expect("a report");
+    assert!(report.changed_fraction.is_finite());
+    assert_eq!(report.changed_fraction, 0.0);
+    assert!(
+        !report.significant,
+        "a zero threshold must not report every cell changed"
+    );
+}
+
+#[test]
 fn the_first_frame_always_triggers() {
     let mut trigger = ReanalysisTrigger::new(config());
     let frame = flat(8, 8, 0);
@@ -190,7 +289,7 @@ fn a_static_screen_never_retriggers() {
 }
 
 #[test]
-fn a_moving_carousel_triggers_once_per_cooldown() {
+fn a_continuously_moving_carousel_fires_once_per_cooldown_window() {
     let cfg = DirtyConfig {
         cooldown_frames: 2,
         ..config()
@@ -199,28 +298,41 @@ fn a_moving_carousel_triggers_once_per_cooldown() {
     let first = flat(8, 8, 0);
     trigger.observe(&first, 8, 8).expect("first frame");
 
-    let moving = quadrant(8, 8, 255);
-    assert!(
-        trigger.observe(&moving, 8, 8).is_some(),
-        "the first changed frame triggers"
+    let a = quadrant(8, 8, 255);
+    let b = quadrant(8, 8, 128);
+    let mut fires = 0;
+    for step in 0..9 {
+        let frame = if step % 2 == 0 { &a } else { &b };
+        if trigger.observe(frame, 8, 8).is_some() {
+            fires += 1;
+        }
+    }
+    assert_eq!(
+        fires, 3,
+        "one fire every cooldown_frames + 1 frames, not one per frame"
     );
-    assert!(trigger.cooling_down());
+}
+
+#[test]
+fn a_cooldown_suppresses_a_significant_frame() {
+    let cfg = DirtyConfig {
+        cooldown_frames: 2,
+        ..config()
+    };
+    let mut trigger = ReanalysisTrigger::new(cfg);
+    trigger.observe(&flat(8, 8, 0), 8, 8).expect("first frame");
+    let a = quadrant(8, 8, 255);
+    let b = quadrant(8, 8, 128);
+    // The first frame armed a cooldown of two, so the next two frames are
+    // suppressed even though each is a significant change.
     assert!(
-        trigger.observe(&moving, 8, 8).is_none(),
-        "the cooldown suppresses the second"
+        trigger.observe(&a, 8, 8).is_none(),
+        "suppressed while cooling"
     );
+    assert!(trigger.observe(&b, 8, 8).is_none(), "still cooling");
     assert!(
-        trigger.observe(&moving, 8, 8).is_none(),
-        "the cooldown suppresses the third"
-    );
-    assert!(
-        trigger.observe(&moving, 8, 8).is_none(),
-        "an unchanged carousel is static once the baseline catches up"
-    );
-    let later = quadrant(8, 8, 128);
-    assert!(
-        trigger.observe(&later, 8, 8).is_some(),
-        "a fresh change after the cooldown fires"
+        trigger.observe(&a, 8, 8).is_some(),
+        "fires after the cooldown"
     );
 }
 
@@ -233,12 +345,17 @@ fn the_baseline_follows_suppressed_frames() {
     let mut trigger = ReanalysisTrigger::new(cfg);
     trigger.observe(&flat(8, 8, 0), 8, 8).expect("first");
     let moving = quadrant(8, 8, 255);
-    trigger.observe(&moving, 8, 8).expect("change");
-    assert!(trigger.observe(&moving, 8, 8).is_none());
-    // The frame has been the baseline for two observations, so it is now static.
     assert!(
         trigger.observe(&moving, 8, 8).is_none(),
-        "a stable carousel stops re-analysing"
+        "the first change is suppressed by the cooldown, but the baseline follows it"
+    );
+    assert!(
+        trigger.observe(&moving, 8, 8).is_none(),
+        "the carousel is now the baseline, so it is static"
+    );
+    assert!(
+        trigger.observe(&flat(8, 8, 0), 8, 8).is_some(),
+        "a fresh change fires"
     );
 }
 
@@ -266,6 +383,21 @@ fn reports_carry_no_pixels() {
     assert!(dbg.contains("changed_fraction"));
     assert!(!dbg.contains(CANARY));
     assert!(!dbg.contains("SECRET"));
+}
+
+#[test]
+fn the_trigger_debug_prints_the_baseline_shape_not_its_bytes() {
+    let mut trigger = ReanalysisTrigger::new(config());
+    let frame = quadrant(8, 8, 255);
+    trigger.observe(&frame, 8, 8).expect("first");
+    let dbg = format!("{trigger:?}");
+    assert!(dbg.contains("ReanalysisTrigger"));
+    assert!(dbg.contains("cooldown_left"));
+    assert!(dbg.contains("baseline"));
+    assert!(
+        !dbg.contains(CANARY) && !dbg.contains("SECRET"),
+        "the baseline is a downscaled proxy of the screen and must not print"
+    );
 }
 
 #[test]

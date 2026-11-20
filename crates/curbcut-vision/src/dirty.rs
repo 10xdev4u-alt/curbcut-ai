@@ -6,9 +6,12 @@
 //! cooldown, so a burst of motion causes one re-analysis rather than one per
 //! frame.
 //!
-//! Only cell means are kept, never pixels. The grid is a downscaled proxy, so
+//! Only cell means are kept, never pixels, and the trigger's `Debug` prints the
+//! baseline's shape rather than its bytes. The grid is a downscaled proxy, so
 //! the trigger costs a fraction of a frame diff. See
 //! [`../../../docs/DIRTY_RECT.md`](../../../docs/DIRTY_RECT.md).
+
+use std::fmt;
 
 use curbcut_core::types::Rect;
 
@@ -58,8 +61,9 @@ impl DirtyConfig {
     /// Clamps every field to a usable range.
     ///
     /// A zero grid dimension, threshold, or cell requirement falls back to the
-    /// default, and a grid larger than [`MAX_GRID_CELLS`] is halved until it
-    /// fits.
+    /// default, a grid larger than [`MAX_GRID_CELLS`] is halved until it fits,
+    /// and `min_changed_cells` is capped to the grid size so a floor can never
+    /// be unreachable.
     pub fn clamped(mut self) -> Self {
         if self.grid_cols == 0 {
             self.grid_cols = DEFAULT_GRID_COLS;
@@ -73,12 +77,16 @@ impl DirtyConfig {
         if self.min_changed_cells == 0 {
             self.min_changed_cells = DEFAULT_MIN_CHANGED_CELLS;
         }
-        while self.grid_cols * self.grid_rows > MAX_GRID_CELLS as u32 {
+        while u64::from(self.grid_cols) * u64::from(self.grid_rows) > MAX_GRID_CELLS as u64 {
             if self.grid_cols >= self.grid_rows {
                 self.grid_cols /= 2;
             } else {
                 self.grid_rows /= 2;
             }
+        }
+        let cells = self.cells();
+        if self.min_changed_cells > cells {
+            self.min_changed_cells = cells;
         }
         self
     }
@@ -87,6 +95,16 @@ impl DirtyConfig {
     pub fn cells(&self) -> usize {
         self.grid_cols as usize * self.grid_rows as usize
     }
+}
+
+/// The pixel range of one grid cell.
+///
+/// The end is clamped to at least one pixel so a frame smaller than the grid
+/// still maps to a non-empty rectangle.
+fn cell_range(index: usize, extent: usize, cells: usize) -> (usize, usize) {
+    let start = index * extent / cells;
+    let end = ((index + 1) * extent / cells).max(start + 1).min(extent);
+    (start, end)
 }
 
 /// Rec.709 luma of one RGBA pixel, 0..=255.
@@ -113,11 +131,9 @@ pub fn cell_means(frame: &[u8], width: u32, height: u32, config: &DirtyConfig) -
     let height = height as usize;
     let mut means = vec![0u8; cols * rows];
     for cell_row in 0..rows {
-        let y0 = cell_row * height / rows;
-        let y1 = ((cell_row + 1) * height / rows).max(y0 + 1).min(height);
+        let (y0, y1) = cell_range(cell_row, height, rows);
         for cell_col in 0..cols {
-            let x0 = cell_col * width / cols;
-            let x1 = ((cell_col + 1) * width / cols).max(x0 + 1).min(width);
+            let (x0, x1) = cell_range(cell_col, width, cols);
             let mut total: u64 = 0;
             let mut count: u64 = 0;
             for y in y0..y1 {
@@ -172,9 +188,15 @@ fn diff_means(
     if before.len() != cols * rows || after.len() != cols * rows {
         return None;
     }
+
+    // (first_col, last_col, index into runs) for the row above, so a run can
+    // merge with any run on the previous row, not just the last one.
     let mut runs: Vec<CellRun> = Vec::new();
+    let mut previous: Vec<(usize, usize, usize)> = Vec::new();
     let mut changed_cells = 0usize;
+
     for row in 0..rows {
+        let mut current: Vec<(usize, usize, usize)> = Vec::new();
         let mut col = 0;
         while col < cols {
             let index = row * cols + col;
@@ -197,32 +219,35 @@ fn diff_means(
                 first_col,
                 last_col: col,
             };
-            if let Some(last) = runs.last_mut() {
-                if last.last_row + 1 == run.first_row
-                    && last.first_col == run.first_col
-                    && last.last_col == run.last_col
-                {
-                    last.last_row = run.last_row;
-                    continue;
+            let merged = previous
+                .iter()
+                .find(|(first, last, _)| *first == run.first_col && *last == run.last_col)
+                .map(|(_, _, index)| *index);
+            match merged {
+                Some(index) => {
+                    runs[index].last_row = row;
+                    current.push((run.first_col, run.last_col, index));
+                }
+                None => {
+                    let index = runs.len();
+                    runs.push(run);
+                    current.push((run.first_col, run.last_col, index));
                 }
             }
-            runs.push(run);
         }
+        previous = current;
     }
 
+    let width_usize = width as usize;
+    let height_usize = height as usize;
     let regions = runs
         .into_iter()
         .map(|run| {
-            let x0 = run.first_col as u32 * width / config.grid_cols;
-            let x1 = run.last_col as u32 * width / config.grid_cols;
-            let y0 = run.first_row as u32 * height / config.grid_rows;
-            let y1 = (run.last_row as u32 + 1) * height / config.grid_rows;
-            Rect::new(
-                x0 as i32,
-                y0 as i32,
-                x1.saturating_sub(x0),
-                y1.saturating_sub(y0),
-            )
+            let (x0, _) = cell_range(run.first_col, width_usize, cols);
+            let (_, x1) = cell_range(run.last_col - 1, width_usize, cols);
+            let (y0, _) = cell_range(run.first_row, height_usize, rows);
+            let (_, y1) = cell_range(run.last_row, height_usize, rows);
+            Rect::new(x0 as i32, y0 as i32, (x1 - x0) as u32, (y1 - y0) as u32)
         })
         .collect::<Vec<_>>();
 
@@ -237,9 +262,11 @@ fn diff_means(
 
 /// Diffs two frames and reports the changed regions.
 ///
-/// Returns `None` when either dimension is zero or either frame is shorter
-/// than `width * height` RGBA pixels. A cell is changed when the absolute
-/// difference of its mean luma reaches [`DirtyConfig::change_threshold`].
+/// The configuration is clamped, so a zero grid dimension or threshold cannot
+/// produce a `NaN` fraction or report every cell changed. Returns `None` when
+/// either dimension is zero or either frame is shorter than `width * height`
+/// RGBA pixels. A cell is changed when the absolute difference of its mean luma
+/// reaches [`DirtyConfig::change_threshold`].
 pub fn diff(
     previous: &[u8],
     next: &[u8],
@@ -247,18 +274,20 @@ pub fn diff(
     height: u32,
     config: &DirtyConfig,
 ) -> Option<ChangeReport> {
-    let before = cell_means(previous, width, height, config)?;
-    let after = cell_means(next, width, height, config)?;
-    diff_means(&before, &after, width, height, config)
+    let config = config.clamped();
+    let before = cell_means(previous, width, height, &config)?;
+    let after = cell_means(next, width, height, &config)?;
+    diff_means(&before, &after, width, height, &config)
 }
 
 /// Decides when a frame is worth re-analysing.
 ///
 /// The first frame is always significant: there is no baseline yet. After a
-/// trigger the trigger sleeps for [`DirtyConfig::cooldown_frames`] frames, so a
-/// burst of motion causes one re-analysis. The baseline follows every frame,
-/// including the ones suppressed by the cooldown.
-#[derive(Debug)]
+/// trigger the trigger sleeps for [`DirtyConfig::cooldown_frames`] frames, and
+/// the cooldown gates every frame — including a significant one — so a
+/// continuously moving carousel causes one re-analysis per cooldown window.
+/// The baseline follows every frame, including the ones the cooldown
+/// suppressed.
 pub struct ReanalysisTrigger {
     config: DirtyConfig,
     baseline: Option<(u32, u32, Vec<u8>)>,
@@ -300,7 +329,7 @@ impl ReanalysisTrigger {
                 self.baseline = Some((width, height, means));
                 Some(report)
             }
-            Some((base_width, base_height, means)) => {
+            Some((base_width, base_height, mut means)) => {
                 let next = cell_means(frame, width, height, &self.config);
                 match next {
                     Some(next) if base_width == width && base_height == height => {
@@ -309,21 +338,49 @@ impl ReanalysisTrigger {
                         report
                     }
                     // A size change or a bad frame resets the baseline; the next
-                    // good frame is treated as a first frame.
-                    _ => None,
+                    // good frame is treated as a first frame. The discarded
+                    // means are scrubbed, matching MotionSignature.
+                    _ => {
+                        means.fill(0);
+                        None
+                    }
                 }
             }
         };
 
-        let fire = report.as_ref().is_some_and(|report| report.significant);
+        let significant = report.as_ref().is_some_and(|report| report.significant);
+        let fire = significant && self.cooldown_left == 0;
         if fire {
             self.cooldown_left = self.config.cooldown_frames;
+        } else if self.cooldown_left > 0 {
+            self.cooldown_left -= 1;
+        }
+        if fire {
             report
         } else {
-            if self.cooldown_left > 0 {
-                self.cooldown_left -= 1;
-            }
             None
+        }
+    }
+}
+
+impl fmt::Debug for ReanalysisTrigger {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let baseline = self
+            .baseline
+            .as_ref()
+            .map(|(width, height, means)| (*width, *height, means.len()));
+        f.debug_struct("ReanalysisTrigger")
+            .field("config", &self.config)
+            .field("baseline", &baseline)
+            .field("cooldown_left", &self.cooldown_left)
+            .finish()
+    }
+}
+
+impl Drop for ReanalysisTrigger {
+    fn drop(&mut self) {
+        if let Some((_, _, means)) = &mut self.baseline {
+            means.fill(0);
         }
     }
 }

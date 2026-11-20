@@ -25,14 +25,21 @@ time and returns a `ChangeReport` only when re-analysis should run.
   least `min_changed_cells` cells changed (default 1). The floor exists so a
   single noisy cell can be ignored without tuning a fraction.
 - **A cooldown collapses a burst.** After a trigger the trigger sleeps for
-  `cooldown_frames` frames (default 1), so a carousel animating at 30 fps causes
-  one re-analysis, not thirty.
+  `cooldown_frames` frames (default 1), and the cooldown gates every frame —
+  including a significant one. A carousel animating at 30 fps causes one
+  re-analysis per cooldown window, not thirty.
 - **The baseline follows every frame**, including the ones the cooldown
   suppressed. A carousel that stops moving becomes static and stops
   re-analysing.
 - **The first frame always triggers**: there is no baseline yet.
 - A size change or a truncated frame resets the baseline; the next good frame
   is treated as a first frame.
+- **Configuration is clamped** on every entry point. `grid_cols * grid_rows` is
+  computed in `u64` and halved until it fits [`MAX_GRID_CELLS`], so a large
+  dimension cannot wrap the product and request a huge table;
+  `min_changed_cells` is capped to the grid size so a floor is never
+  unreachable; and `diff` clamps its config, so a zero threshold or grid cannot
+  produce a `NaN` fraction or report every cell changed.
 
 ## API
 
@@ -61,7 +68,9 @@ the piece that makes it reachable by skipping analysis on an unchanged screen.
 
 Only cell means are stored. A `ChangeReport` carries dimensions, a fraction,
 rectangles, and a flag — never pixels, OCR text, or accessibility strings. The
-crate's no-content-logging canary enforces this.
+trigger's `Debug` prints the baseline's dimensions and cell count, not its
+bytes, and the discarded baseline is scrubbed when it is reset. The crate's
+no-content-logging canary enforces this.
 
 ## Tests
 
@@ -69,12 +78,15 @@ crate's no-content-logging canary enforces this.
 
 - an identical frame producing no regions;
 - one changed quadrant becoming one rectangle;
-- vertical merging of adjacent changed rows and separation of distinct columns;
+- vertical merging of adjacent changed rows, including two bands that must stay
+  two regions, and separation of distinct columns;
 - a change below the threshold and a significance floor;
+- a frame smaller than the grid producing no zero-area rectangle;
 - truncated frames and zero dimensions rejected;
-- config clamping, including an oversized grid;
-- the first frame triggering, a static screen never retriggering, a moving
-  carousel triggering once per cooldown, and the baseline following
-  suppressed frames;
+- config clamping, including an oversized grid and the significance floor;
+- the public `diff` clamping a zero grid and threshold;
+- the first frame triggering, a static screen never retriggering, a
+  continuously moving carousel firing once per cooldown window, and the
+  baseline following suppressed frames;
 - a size change resetting the baseline;
-- report and document canaries.
+- report, trigger-debug, and document canaries.
