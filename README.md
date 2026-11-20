@@ -109,6 +109,7 @@ docs/
   FOCUS.md                 Reading ruler and focus lens: lead, dead zone, reduced motion
   ANIMATION.md             Animation policy: 150 ms cap, reduced motion, no vestibular triggers
   LARGE_TARGETS.md         Large-target mode: 60 px minimum, spacing, no clipping
+  PROTECTED_CONTENT.md     Protected content: DRM, secure desktop, a11y-only fallback
   READING_LEVEL.md         Reading scores: Flesch, FK, SMOG, ARI, script check, cache
   JARGON.md                Jargon dictionary and acronym expansion: sources, locales, overrides
   TEXT_CHUNKING.md         Text chunking: headings, list items, tables, sentences, clauses

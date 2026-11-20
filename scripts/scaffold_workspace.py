@@ -142,6 +142,14 @@ CRATE_STATUS = {
         "[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md), and\n"
         "[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md)."
     ),
+    "curbcut-capture": (
+        "The zeroizing frame ring buffer is implemented: a fixed-capacity\n"
+        "ring with a byte budget, best-effort `mlock`, and a guard byte on\n"
+        "release. Protected-content detection refuses a DRM surface, a\n"
+        "secure desktop, an uncapturable window, or a black frame, and\n"
+        "returns the accessibility-only fallback message. See\n"
+        "[`../../docs/PROTECTED_CONTENT.md`](../../docs/PROTECTED_CONTENT.md)."
+    ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
         "panic commands, with stable exit codes. See\n"

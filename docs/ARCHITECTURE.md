@@ -186,6 +186,14 @@ Backpressure policy: slow consumers drop non-critical events (vision frames) and
 - **Mode C — region of interest**: after the first analysis, re-capture only changed regions using a dirty-rect heuristic.
 - Frame ring buffer: 2 seconds, zeroized on release, `mlock` where the OS allows.
 - Motion detection: frame differencing on a downscaled grayscale buffer; triggers re-analysis only on significant change.
+- **Protected content** (`crates/curbcut-capture/src/protected.rs`, see
+  [`docs/PROTECTED_CONTENT.md`](PROTECTED_CONTENT.md)): `CapturePolicy::observe`
+  refuses a frame with a `ProtectedReason` instead of analysing it. A secure
+  desktop is refused before any pixel is read, then an uncapturable window, then
+  an adapter-reported DRM surface, then a black frame. A black frame needs
+  `required_black_frames` consecutive hits, so a single dark frame is not
+  protected. `report(reason)` returns the user-facing message and the
+  `Fallback::A11yOnly` offer.
 
 ### 6.2 Vision
 
