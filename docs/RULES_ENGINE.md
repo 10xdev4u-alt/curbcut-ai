@@ -20,13 +20,19 @@ be logged, dumped, or stored without a redaction pass. The four fact kinds are:
 | --- | --- |
 | `MovingMedia` | a `Media` region whose kind is `Carousel` and whose `motion` is true |
 | `DenseContainer` | a `List`, `Table`, or `Dialog` element whose rectangle contains at least the dense threshold interactive-element centres |
-| `TextLevel` | an element with at least one whitespace-separated word, its word count, and its Flesch band |
-| `Destructive` | a `Button` whose accessible name contains a destructive term on a word boundary |
+| `TextLevel` | a Latin-script element with at least one whitespace-separated word, its word count, and its Flesch band |
+| `Destructive` | an enabled `Button` whose accessible name contains a destructive term on a Unicode word boundary |
 
 The platform's `menu` role maps to one of the container roles or to
 `Role::Unknown`. An unknown role is never treated as a container: an unmapped
 menu is missed rather than guessed at, because a wrong icon grid is worse than
 no icon grid.
+
+A `TextLevel` fact is only derived for a Latin script. The Flesch scores handle
+Latin alone, so a non-Latin or mixed text is skipped rather than mis-scored: a
+missed chunk is better than a wrong band. Whitespace runs in an accessible name
+collapse to one space before the multi-word terms (`sign out`, `log out`,
+`close account`, `empty trash`, `clear all`, `factory reset`) are matched.
 
 `Media` has no element id, so the engine matches a media rectangle to the
 element it overlaps most. Ties go to the smaller element, then to the smaller
@@ -58,7 +64,8 @@ priority order: priority decides a conflict, not the order of evaluation.
 A rule reads two switches: the profile flag (`stop_motion`, `icon_grid`,
 `chunking`, `confirm_actions`) and the user's per-rule toggle. A disabled rule
 derives no action and is never a winner. A flag that is off also derives no
-action. Both are per frame; nothing is cached across frames.
+action. The engine holds both; a plan is a pure function of the engine's
+settings, the graph, and the media list, so nothing is cached across frames.
 
 ## Conflict resolution
 
@@ -103,7 +110,7 @@ derived from the screen.
 
 ```rust
 let engine = RuleEngine::default();
-let plan = engine.plan(&RuleContext::new(&graph, &media, RuleFlags::default()));
+let plan = engine.plan(&RuleContext::new(&graph, &media));
 for action in plan.actions() {
     println!("{} on {:?}: {}", action.kind.as_str(), action.target, action.rationale.text);
 }
@@ -116,7 +123,11 @@ asserts that a fact's `Debug` output does not contain the label or the text.
 ## Toggles and thresholds
 
 `RuleToggles` is the user's per-rule switch; `RuleFlags` holds the profile flags
-and the two thresholds. Both are plain data and can come from the profile graph.
+and the two thresholds. Both are plain data and can come from the profile
+graph. The engine owns them: [`RuleEngine::new`] takes both, and a
+[`RuleContext`] carries only the per-frame graph and media list, so there is one
+source of truth for the profile. A threshold of zero is treated as one, so an
+empty container is never dense.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |

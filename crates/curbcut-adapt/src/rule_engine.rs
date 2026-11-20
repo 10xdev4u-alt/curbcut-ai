@@ -33,7 +33,7 @@ use curbcut_core::id::{ElementId, RuleId};
 use curbcut_core::types::{
     Element, Media, MediaKind, Point, Rationale, ReadingLevel, Rect, Role, ScreenGraph,
 };
-use curbcut_understand::reading::reading_level;
+use curbcut_understand::reading::{classify_script, reading_level};
 
 /// Version of the built-in adaptation rule set.
 pub const ADAPTATION_RULE_SET_VERSION: u32 = 1;
@@ -302,33 +302,27 @@ impl Default for RuleFlags {
 }
 
 /// What the engine reads for one frame.
+///
+/// A context is the per-frame observation: the merged graph and the media
+/// regions. The profile switches live on [`RuleEngine`], so there is exactly
+/// one source of truth for them.
 #[derive(Debug, Clone, Copy)]
 pub struct RuleContext<'a> {
     /// The merged screen graph.
     pub graph: &'a ScreenGraph,
     /// Media regions the perception layer reported.
     pub media: &'a [Media],
-    /// The profile switches in force.
-    pub flags: RuleFlags,
 }
 
 impl<'a> RuleContext<'a> {
     /// Creates a context.
-    pub const fn new(graph: &'a ScreenGraph, media: &'a [Media], flags: RuleFlags) -> Self {
-        Self {
-            graph,
-            media,
-            flags,
-        }
+    pub const fn new(graph: &'a ScreenGraph, media: &'a [Media]) -> Self {
+        Self { graph, media }
     }
 
     /// Creates a context with no media.
-    pub fn from_graph(graph: &'a ScreenGraph, flags: RuleFlags) -> Self {
-        Self {
-            graph,
-            media: &[],
-            flags,
-        }
+    pub fn from_graph(graph: &'a ScreenGraph) -> Self {
+        Self { graph, media: &[] }
     }
 }
 
@@ -473,6 +467,10 @@ impl RulePlan {
 }
 
 /// Applies the enabled rules to one frame.
+///
+/// The engine owns the profile: [`RuleToggles`] chooses the rules and
+/// [`RuleFlags`] holds the switches and thresholds. A [`RuleContext`] carries
+/// only what changes per frame.
 #[derive(Debug, Clone)]
 pub struct RuleEngine {
     toggles: RuleToggles,
@@ -528,12 +526,12 @@ impl RuleEngine {
     /// Pure: the same graph and media list always produce the same facts, in the
     /// same order.
     pub fn facts(&self, context: &RuleContext<'_>) -> Vec<Fact> {
-        derive_facts(context)
+        derive_facts(context, self.flags)
     }
 
     /// Plans one frame.
     pub fn plan(&self, context: &RuleContext<'_>) -> RulePlan {
-        evaluate(context, &self.toggles)
+        evaluate(context, &self.toggles, self.flags)
     }
 }
 
@@ -586,12 +584,12 @@ fn reason_for(winner: u8, loser: u8) -> SupersedeReason {
 }
 
 /// Derives every fact from the context, in a stable order.
-fn derive_facts(context: &RuleContext<'_>) -> Vec<Fact> {
+fn derive_facts(context: &RuleContext<'_>, flags: RuleFlags) -> Vec<Fact> {
     let mut facts = Vec::new();
     facts.extend(moving_media_facts(context.media));
     facts.extend(dense_container_facts(
         context.graph,
-        context.flags.dense_menu_threshold,
+        flags.dense_menu_threshold,
     ));
     facts.extend(text_level_facts(context.graph));
     facts.extend(destructive_facts(context.graph));
@@ -617,6 +615,9 @@ fn moving_media_facts(media: &[Media]) -> Vec<Fact> {
 /// v1 does not treat an unknown role as a container, so an unmapped menu is
 /// missed rather than guessed at.
 fn dense_container_facts(graph: &ScreenGraph, threshold: usize) -> Vec<Fact> {
+    // A threshold of zero would make an empty container dense, so the floor is
+    // one interactive element.
+    let threshold = threshold.max(1);
     let centres: Vec<Point> = graph
         .elements
         .iter()
@@ -642,11 +643,13 @@ fn dense_container_facts(graph: &ScreenGraph, threshold: usize) -> Vec<Fact> {
     candidates.sort_by_key(|candidate| (candidate.rect.area(), candidate.id));
 
     // A container that fully contains a smaller qualifying container is the same
-    // surface seen twice; keep the inner one.
+    // surface seen twice; keep the inner one. Equal areas count as containment
+    // too, so two elements that describe one rectangle collapse to the smaller
+    // id.
     let mut kept: Vec<DenseCandidate> = Vec::new();
     for candidate in candidates {
         let nested = kept.iter().any(|inner| {
-            candidate.rect.area() > inner.rect.area() && contains_rect(candidate.rect, inner.rect)
+            candidate.rect.area() >= inner.rect.area() && contains_rect(candidate.rect, inner.rect)
         });
         if !nested {
             kept.push(candidate);
@@ -673,10 +676,12 @@ fn contains_rect(outer: Rect, inner: Rect) -> bool {
         .is_some_and(|overlap| overlap.area() == inner.area())
 }
 
-/// The reading band of every element that carries text.
+/// The reading band of every element that carries text in a supported script.
 ///
 /// A word is a whitespace-separated token that contains at least one letter or
-/// digit, so punctuation-only strings are not reading content.
+/// digit, so punctuation-only strings are not reading content. The Flesch
+/// scores only handle Latin, so a non-Latin or mixed text is skipped rather than
+/// mis-scored: a missed chunk is better than a wrong band.
 fn text_level_facts(graph: &ScreenGraph) -> Vec<Fact> {
     graph
         .elements
@@ -690,6 +695,9 @@ fn text_level_facts(graph: &ScreenGraph) -> Vec<Fact> {
             if words == 0 {
                 return None;
             }
+            if !classify_script(text).is_supported() {
+                return None;
+            }
             Some(Fact::TextLevel {
                 id: element.id,
                 words,
@@ -699,16 +707,20 @@ fn text_level_facts(graph: &ScreenGraph) -> Vec<Fact> {
         .collect()
 }
 
-/// Every button whose accessible name is a destructive term.
+/// Every enabled button whose accessible name is a destructive term.
+///
+/// A disabled control cannot activate, so a confirmation on it is noise.
 fn destructive_facts(graph: &ScreenGraph) -> Vec<Fact> {
     graph
         .elements
         .iter()
         .filter(|element| element.role == Role::Button)
+        .filter(|element| !element.state.is_disabled())
         .filter(|element| {
             element
                 .label
                 .as_deref()
+                .filter(|label| !label.trim().is_empty())
                 .or(element.text.as_deref())
                 .is_some_and(is_destructive)
         })
@@ -718,7 +730,11 @@ fn destructive_facts(graph: &ScreenGraph) -> Vec<Fact> {
 
 /// Whether an accessible name contains a destructive term on a word boundary.
 fn is_destructive(text: &str) -> bool {
+    // Accessible names routinely carry doubled spaces or newlines from
+    // concatenated nodes, so whitespace runs collapse to one space before the
+    // multi-word terms are matched.
     let name = text.to_lowercase();
+    let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
     DESTRUCTIVE_TERMS
         .iter()
         .any(|term| contains_phrase(&name, term))
@@ -729,8 +745,8 @@ fn contains_phrase(haystack: &str, needle: &str) -> bool {
     haystack.match_indices(needle).any(|(at, hit)| {
         let before = haystack[..at].chars().next_back();
         let after = haystack[at + hit.len()..].chars().next();
-        before.is_none_or(|ch| !ch.is_ascii_alphanumeric())
-            && after.is_none_or(|ch| !ch.is_ascii_alphanumeric())
+        before.is_none_or(|ch| !ch.is_alphanumeric())
+            && after.is_none_or(|ch| !ch.is_alphanumeric())
     })
 }
 
@@ -862,9 +878,8 @@ fn offer(
 /// holds replaces the claim, and every replaced or refused offer is recorded in
 /// `superseded`. The working set is the engine's forward-chaining memory: a
 /// conclusion an earlier rule reached constrains every rule after it.
-fn evaluate(context: &RuleContext<'_>, toggles: &RuleToggles) -> RulePlan {
-    let facts = derive_facts(context);
-    let flags = context.flags;
+fn evaluate(context: &RuleContext<'_>, toggles: &RuleToggles, flags: RuleFlags) -> RulePlan {
+    let facts = derive_facts(context, flags);
     let mut plan = RulePlan::default();
     let mut claims: Vec<Claim> = Vec::new();
 

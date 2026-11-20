@@ -66,7 +66,7 @@ fn plan_with(
     toggles: RuleToggles,
 ) -> RulePlan {
     let engine = RuleEngine::new(toggles, flags);
-    engine.plan(&RuleContext::new(graph, media, flags))
+    engine.plan(&RuleContext::new(graph, media))
 }
 
 fn kinds(plan: &RulePlan) -> Vec<PlanActionKind> {
@@ -160,7 +160,7 @@ fn facts_carry_no_text() {
     element.text = Some("Delete my account".to_string());
     let graph = graph(vec![element]);
     let engine = RuleEngine::default();
-    let facts = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
+    let facts = engine.facts(&RuleContext::from_graph(&graph));
     let rendered = format!("{facts:?}");
     assert!(
         !rendered.contains("Delete"),
@@ -177,8 +177,8 @@ fn facts_carry_no_text() {
 fn facts_are_deterministic() {
     let graph = graph(vec![button(1, 0, 0, 200, 40, "Delete")]);
     let engine = RuleEngine::default();
-    let first = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
-    let second = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
+    let first = engine.facts(&RuleContext::from_graph(&graph));
+    let second = engine.facts(&RuleContext::from_graph(&graph));
     assert_eq!(first, second);
 }
 
@@ -186,11 +186,7 @@ fn facts_are_deterministic() {
 fn a_moving_carousel_is_a_fact_and_a_static_one_is_not() {
     let engine = RuleEngine::default();
     let graph = graph(vec![element(1, 0, 0, 200, 100)]);
-    let moving = engine.facts(&RuleContext::new(
-        &graph,
-        &[carousel(0, 0, 200, 100)],
-        RuleFlags::default(),
-    ));
+    let moving = engine.facts(&RuleContext::new(&graph, &[carousel(0, 0, 200, 100)]));
     assert!(moving.contains(&Fact::MovingMedia {
         rect: Rect::new(0, 0, 200, 100),
         kind: MediaKind::Carousel,
@@ -198,11 +194,7 @@ fn a_moving_carousel_is_a_fact_and_a_static_one_is_not() {
 
     let mut static_carousel = carousel(0, 0, 200, 100);
     static_carousel.motion = false;
-    let still = engine.facts(&RuleContext::new(
-        &graph,
-        &[static_carousel],
-        RuleFlags::default(),
-    ));
+    let still = engine.facts(&RuleContext::new(&graph, &[static_carousel]));
     assert!(!still
         .iter()
         .any(|fact| matches!(fact, Fact::MovingMedia { .. })));
@@ -212,7 +204,7 @@ fn a_moving_carousel_is_a_fact_and_a_static_one_is_not() {
         rect: Rect::new(0, 0, 200, 100),
         motion: true,
     };
-    let video_facts = engine.facts(&RuleContext::new(&graph, &[video], RuleFlags::default()));
+    let video_facts = engine.facts(&RuleContext::new(&graph, &[video]));
     assert!(!video_facts
         .iter()
         .any(|fact| matches!(fact, Fact::MovingMedia { .. })));
@@ -246,7 +238,7 @@ fn a_dense_container_counts_interactive_centres() {
     elements.extend(dense_children(10));
     let graph = graph(elements);
     let engine = RuleEngine::default();
-    let facts = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
+    let facts = engine.facts(&RuleContext::from_graph(&graph));
     assert_eq!(
         facts,
         vec![Fact::DenseContainer {
@@ -288,7 +280,7 @@ fn a_nested_container_keeps_the_inner_one() {
     elements.extend(dense_children(10));
     let graph = graph(elements);
     let engine = RuleEngine::default();
-    let facts = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
+    let facts = engine.facts(&RuleContext::from_graph(&graph));
     assert_eq!(
         facts,
         vec![Fact::DenseContainer {
@@ -316,7 +308,7 @@ fn text_level_facts_carry_words_and_band_only() {
         text_element(2, 0, 200, 400, 100, EASY_TEXT),
     ]);
     let engine = RuleEngine::default();
-    let facts = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
+    let facts = engine.facts(&RuleContext::from_graph(&graph));
     assert!(facts.contains(&Fact::TextLevel {
         id: ElementId(1),
         words: 14,
@@ -333,7 +325,7 @@ fn text_level_facts_carry_words_and_band_only() {
 fn an_element_with_no_words_is_not_a_text_fact() {
     let graph = graph(vec![text_element(1, 0, 0, 400, 100, "   ")]);
     let engine = RuleEngine::default();
-    let facts = engine.facts(&RuleContext::from_graph(&graph, RuleFlags::default()));
+    let facts = engine.facts(&RuleContext::from_graph(&graph));
     assert!(!facts
         .iter()
         .any(|fact| matches!(fact, Fact::TextLevel { .. })));
@@ -467,10 +459,10 @@ fn a_disabled_rule_derives_no_action_and_never_wins() {
     let mut engine = RuleEngine::default();
     engine.disable(AdaptationRule::DestructiveConfirm);
     let destructive = graph(vec![button(1, 0, 0, 200, 40, "Delete")]);
-    let plan = engine.plan(&RuleContext::from_graph(&destructive, RuleFlags::default()));
+    let plan = engine.plan(&RuleContext::from_graph(&destructive));
     assert!(plan.is_empty());
     engine.enable(AdaptationRule::DestructiveConfirm);
-    let plan = engine.plan(&RuleContext::from_graph(&destructive, RuleFlags::default()));
+    let plan = engine.plan(&RuleContext::from_graph(&destructive));
     assert_eq!(kinds(&plan), [PlanActionKind::Confirm]);
 }
 
@@ -630,6 +622,133 @@ fn a_button_labelled_with_a_destructive_term_is_the_only_activation() {
     );
     let targets: Vec<ElementId> = plan.actions().iter().map(|action| action.target).collect();
     assert_eq!(targets, [ElementId(1), ElementId(3)]);
+}
+
+#[test]
+fn the_engine_flags_are_the_only_source_of_truth() {
+    let graph = graph(vec![element(1, 0, 0, 200, 100)]);
+    let media = [carousel(0, 0, 200, 100)];
+    let quiet = RuleEngine::default().with_flags(RuleFlags {
+        stop_motion: false,
+        ..RuleFlags::default()
+    });
+    assert!(quiet.plan(&RuleContext::new(&graph, &media)).is_empty());
+    let loud = RuleEngine::default();
+    assert_eq!(
+        kinds(&loud.plan(&RuleContext::new(&graph, &media))),
+        [PlanActionKind::Freeze]
+    );
+}
+
+#[test]
+fn facts_read_the_engine_threshold() {
+    let mut elements = vec![container(1, 0, 0, 200, 400)];
+    elements.extend(dense_children(10));
+    let graph = graph(elements);
+    let engine = RuleEngine::default().with_flags(RuleFlags {
+        dense_menu_threshold: 9,
+        ..RuleFlags::default()
+    });
+    assert!(!engine
+        .facts(&RuleContext::from_graph(&graph))
+        .iter()
+        .any(|fact| matches!(fact, Fact::DenseContainer { .. })));
+}
+
+#[test]
+fn an_empty_label_falls_back_to_the_text() {
+    for label in ["", "   "] {
+        let mut element = button(1, 0, 0, 200, 40, "ignored");
+        element.label = Some(label.to_string());
+        element.text = Some("Delete".to_string());
+        let graph = graph(vec![element]);
+        let plan = plan(&graph, &[]);
+        assert_eq!(
+            kinds(&plan),
+            [PlanActionKind::Confirm],
+            "label {label:?} must not shadow the text"
+        );
+        assert_eq!(plan.actions()[0].target, ElementId(1));
+    }
+}
+
+#[test]
+fn irregular_whitespace_still_matches_a_multi_word_term() {
+    for label in ["Sign  out", "Sign\nout", "Sign\tout", "Log  out"] {
+        let graph = graph(vec![button(1, 0, 0, 200, 40, label)]);
+        let plan = plan(&graph, &[]);
+        assert_eq!(
+            kinds(&plan),
+            [PlanActionKind::Confirm],
+            "label {label:?} should match a destructive term"
+        );
+    }
+}
+
+#[test]
+fn a_word_boundary_is_unicode() {
+    for label in ["deleteé", "resetᴀ", "delete٢"] {
+        let graph = graph(vec![button(1, 0, 0, 200, 40, label)]);
+        let plan = plan(&graph, &[]);
+        assert!(
+            plan.is_empty(),
+            "label {label:?} is one word, not a destructive term"
+        );
+    }
+}
+
+#[test]
+fn a_disabled_destructive_button_is_not_confirmed() {
+    let mut element = button(1, 0, 0, 200, 40, "Delete");
+    element.state.enabled = false;
+    let graph = graph(vec![element]);
+    let plan = plan(&graph, &[]);
+    assert!(plan.is_empty(), "a disabled control cannot activate");
+}
+
+#[test]
+fn a_non_latin_text_is_not_scored() {
+    // Cyrillic prose: the syllable heuristic only handles Latin, so scoring it
+    // would report a wrong band.
+    let cyrillic = "организация требует внимательного рассмотрения всех установленных процедур и методик работы";
+    let mixed = "-organisation и методики";
+    let graph = graph(vec![
+        text_element(1, 0, 0, 400, 100, cyrillic),
+        text_element(2, 0, 200, 400, 100, mixed),
+    ]);
+    let engine = RuleEngine::default();
+    let facts = engine.facts(&RuleContext::from_graph(&graph));
+    assert!(!facts
+        .iter()
+        .any(|fact| matches!(fact, Fact::TextLevel { .. })));
+    let plan = engine.plan(&RuleContext::from_graph(&graph));
+    assert!(!kinds(&plan).contains(&PlanActionKind::Chunk));
+}
+
+#[test]
+fn equal_area_duplicates_collapse_to_the_smaller_id() {
+    let mut elements = vec![container(1, 0, 0, 200, 400), container(2, 0, 0, 200, 400)];
+    elements.extend(dense_children(10));
+    let graph = graph(elements);
+    let engine = RuleEngine::default();
+    assert_eq!(
+        engine.facts(&RuleContext::from_graph(&graph)),
+        vec![Fact::DenseContainer {
+            id: ElementId(1),
+            interactive: 8,
+        }]
+    );
+}
+
+#[test]
+fn a_zero_dense_threshold_does_not_make_an_empty_container_dense() {
+    let graph = graph(vec![container(1, 0, 0, 200, 400)]);
+    let flags = RuleFlags {
+        dense_menu_threshold: 0,
+        ..RuleFlags::default()
+    };
+    let plan = plan_with(&graph, &[], flags, RuleToggles::new());
+    assert!(!kinds(&plan).contains(&PlanActionKind::IconGrid));
 }
 
 #[test]

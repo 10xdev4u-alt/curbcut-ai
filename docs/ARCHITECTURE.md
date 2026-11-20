@@ -494,9 +494,9 @@ Rules are data, versioned, and testable. Users can disable individual rules.
 Implemented in `crates/curbcut-adapt/src/rule_engine.rs`. See
 [`docs/RULES_ENGINE.md`](RULES_ENGINE.md).
 
-- Input: a merged `ScreenGraph`, the media regions the perception layer reported,
-  and a `RuleFlags` set. Output: a `RulePlan` of actions plus the superseded
-  offers.
+- Input: a merged `ScreenGraph` and the media regions the perception layer
+  reported. The engine is built with a `RuleToggles` set and a `RuleFlags` set.
+  Output: a `RulePlan` of actions plus the superseded offers.
 - Facts are derived before any rule runs and carry no text: `MovingMedia`,
   `DenseContainer`, `TextLevel`, and `Destructive`.
 - Rules run in catalog order (`carousel_is_distraction`, `dense_menu_to_grid`,
