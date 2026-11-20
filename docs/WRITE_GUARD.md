@@ -15,7 +15,11 @@ the write path is fenced off behind a capability token instead of a convention.
 - A token that is revoked, or that proves a different capability, is denied.
   The sink is not called, so a denied write is a no-op.
 - **Every attempt is recorded**, allowed or denied, in order. The log is the
-  audit trail a user can ask for.
+  audit trail a user can ask for. It is bounded to 4096 records; the dropped
+  count and the sequence gap show what was discarded, and the allowed and
+  denied counters stay exact.
+- A record is written **before** the sink runs, so a sink that panics cannot
+  erase the attempt it may already have carried out.
 - A session mints the token with `Session::grant(Capability::WriteA11y)` at the
   moment of consent. `Session::revoke` invalidates existing tokens.
 
@@ -53,4 +57,7 @@ sequence is a counter. The crate's no-content-logging canary enforces this.
 - an allowed write reaches the sink exactly once with the right target and action;
 - a revoked token is denied;
 - every attempt is recorded in order, allowed and denied;
+- a sink that panics cannot erase the attempt from the trail;
+- the log stays bounded and the counters stay exact;
+- a sink carrying a canary cannot push it into a record or the log;
 - record and document canaries carry no content.

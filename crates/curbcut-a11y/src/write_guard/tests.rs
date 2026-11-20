@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::panic::{self, AssertUnwindSafe};
 use std::rc::Rc;
 
 use super::*;
@@ -18,6 +19,28 @@ impl WriteSink for SharedSink {
     }
 }
 
+#[derive(Debug, Default)]
+struct CanarySink {
+    seen: Rc<RefCell<Vec<String>>>,
+}
+
+impl WriteSink for CanarySink {
+    fn write(&mut self, target: ElementId, action: WriteAction) {
+        // The canary stands in for whatever a real adapter might attach.
+        self.seen
+            .borrow_mut()
+            .push(format!("{target}:{action}:{CANARY}"));
+    }
+}
+
+struct PanickingSink;
+
+impl WriteSink for PanickingSink {
+    fn write(&mut self, _target: ElementId, _action: WriteAction) {
+        panic!("the adapter failed");
+    }
+}
+
 fn session() -> Session {
     Session::new(SessionId(1))
 }
@@ -25,6 +48,7 @@ fn session() -> Session {
 #[test]
 fn a_denied_write_is_a_noop() {
     let sink = SharedSink::default();
+    let writes = sink.writes.clone();
     let mut guard = WriteGuard::with_sink(sink);
     let mut session = session();
     let token = session.grant(Capability::Observe);
@@ -34,6 +58,10 @@ fn a_denied_write_is_a_noop() {
     assert_eq!(outcome, WriteOutcome::Denied);
     assert_eq!(guard.denied(), 1);
     assert_eq!(guard.allowed(), 0);
+    assert!(
+        writes.borrow().is_empty(),
+        "a capability-mismatch denial must not reach the sink"
+    );
 }
 
 #[test]
@@ -109,12 +137,53 @@ fn every_attempt_is_recorded_in_order() {
 }
 
 #[test]
+fn a_panicking_sink_cannot_erase_the_attempt() {
+    let mut guard = WriteGuard::with_sink(PanickingSink);
+    let mut session = session();
+    let token = session.grant(Capability::WriteA11y);
+
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| {
+        guard.request(&token, ElementId(5), WriteAction::Invoke)
+    }));
+
+    assert!(outcome.is_err(), "the sink panic propagates");
+    assert_eq!(guard.len(), 1, "the attempt is still in the audit trail");
+    assert_eq!(guard.allowed(), 1);
+    assert_eq!(guard.log()[0].outcome, WriteOutcome::Allowed);
+    assert_eq!(guard.log()[0].target, ElementId(5));
+    // The guard is still usable after the unwind.
+    assert_eq!(guard.denied(), 0);
+}
+
+#[test]
+fn the_log_is_bounded_and_the_counters_stay_exact() {
+    let mut guard = WriteGuard::new();
+    let mut session = session();
+    let token = session.grant(Capability::WriteA11y);
+    let total = MAX_RETAINED_RECORDS + 10;
+
+    for index in 0..total as u64 {
+        guard.request(&token, ElementId(index), WriteAction::SetValue);
+    }
+
+    assert_eq!(guard.len(), MAX_RETAINED_RECORDS);
+    assert_eq!(guard.allowed(), total);
+    assert_eq!(guard.denied(), 0);
+    assert_eq!(guard.dropped(), 10);
+    let first = guard.log().front().expect("a record").sequence;
+    assert_eq!(first, 11, "the ten oldest records were dropped");
+    let last = guard.log().back().expect("a record").sequence;
+    assert_eq!(last, total as u64);
+}
+
+#[test]
 fn a_guard_starts_empty_and_default_matches_new() {
     let guard = WriteGuard::new();
     assert!(guard.is_empty());
     assert_eq!(guard.len(), 0);
     assert_eq!(guard.allowed(), 0);
     assert_eq!(guard.denied(), 0);
+    assert_eq!(guard.dropped(), 0);
     let default = WriteGuard::default();
     assert_eq!(default.len(), guard.len());
 }
@@ -144,6 +213,33 @@ fn action_and_outcome_names_are_stable() {
 }
 
 #[test]
+fn a_record_cannot_carry_content_from_a_sink() {
+    let sink = CanarySink::default();
+    let seen = sink.seen.clone();
+    let mut guard = WriteGuard::with_sink(sink);
+    let mut session = session();
+    let token = session.grant(Capability::WriteA11y);
+
+    let outcome = guard.request(&token, ElementId(7), WriteAction::SetValue);
+
+    assert_eq!(outcome, WriteOutcome::Allowed);
+    let record_debug = format!("{:?}", guard.log()[0]);
+    let log_debug = format!("{:?}", guard.log());
+    assert!(
+        !record_debug.contains(CANARY) && !log_debug.contains(CANARY),
+        "the audit trail must never carry the sink's content"
+    );
+    assert_eq!(
+        seen.borrow().as_slice(),
+        ["ElementId(7):set_value:CC-CANARY-TEXT-9f86d081884c7d65"]
+    );
+    assert!(
+        seen.borrow()[0].contains(CANARY),
+        "the sink really did carry the canary"
+    );
+}
+
+#[test]
 fn records_carry_no_content() {
     let record = WriteRecord {
         sequence: 1,
@@ -158,10 +254,11 @@ fn records_carry_no_content() {
 }
 
 #[test]
-fn the_document_describes_the_guard() {
+fn the_document_describes_the_guard_and_its_bound() {
     let doc = include_str!("../../../../docs/WRITE_GUARD.md");
     assert!(doc.contains("# Write guard"));
     assert!(doc.contains("WriteA11y"));
     assert!(doc.contains("every attempt"));
+    assert!(doc.contains("4096"));
     assert!(!doc.contains(CANARY));
 }

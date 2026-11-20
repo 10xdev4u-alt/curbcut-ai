@@ -5,10 +5,19 @@
 //! recorded, allowed or denied, and a denied attempt never reaches the sink.
 //! See [`../../../docs/WRITE_GUARD.md`](../../../docs/WRITE_GUARD.md).
 
+use std::collections::VecDeque;
 use std::fmt;
 
 use curbcut_core::capability::{require, Capability, CapabilityToken};
 use curbcut_core::id::ElementId;
+
+/// How many records the guard retains.
+///
+/// The audit log is bounded so a long session cannot grow it without limit.
+/// The oldest records are dropped once the bound is reached; [`WriteGuard::dropped`]
+/// counts them and the sequence numbers of the retained records still show the
+/// gap, so a dropped record is never silent.
+pub const MAX_RETAINED_RECORDS: usize = 4096;
 
 /// A write the adapter may attempt.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -100,8 +109,11 @@ impl WriteSink for NoopSink {
 /// calls the sink only when the token proves [`Capability::WriteA11y`].
 pub struct WriteGuard {
     sink: Box<dyn WriteSink>,
-    log: Vec<WriteRecord>,
+    log: VecDeque<WriteRecord>,
     next_sequence: u64,
+    allowed: usize,
+    denied: usize,
+    dropped: u64,
 }
 
 impl WriteGuard {
@@ -114,8 +126,11 @@ impl WriteGuard {
     pub fn with_sink(sink: impl WriteSink + 'static) -> Self {
         Self {
             sink: Box::new(sink),
-            log: Vec::new(),
+            log: VecDeque::new(),
             next_sequence: 1,
+            allowed: 0,
+            denied: 0,
+            dropped: 0,
         }
     }
 
@@ -123,6 +138,10 @@ impl WriteGuard {
     ///
     /// A token that is revoked, or that proves a different capability, is
     /// denied: the sink is not called and the attempt is still recorded.
+    ///
+    /// The outcome is a property of the token check, so the record is written
+    /// before the sink runs. A sink that panics therefore cannot erase the
+    /// attempt it may already have carried out.
     pub fn request(
         &mut self,
         token: &CapabilityToken,
@@ -130,7 +149,6 @@ impl WriteGuard {
         action: WriteAction,
     ) -> WriteOutcome {
         let outcome = if require(token, Capability::WriteA11y).is_ok() {
-            self.sink.write(target, action);
             WriteOutcome::Allowed
         } else {
             WriteOutcome::Denied
@@ -141,40 +159,56 @@ impl WriteGuard {
             action,
             outcome,
         };
-        self.next_sequence += 1;
-        self.log.push(record);
+        self.next_sequence = self.next_sequence.wrapping_add(1);
+        match outcome {
+            WriteOutcome::Allowed => self.allowed += 1,
+            WriteOutcome::Denied => self.denied += 1,
+        }
+        self.push_record(record);
+        if outcome == WriteOutcome::Allowed {
+            self.sink.write(target, action);
+        }
         outcome
     }
 
-    /// Every attempt, oldest first.
-    pub fn log(&self) -> &[WriteRecord] {
+    fn push_record(&mut self, record: WriteRecord) {
+        if self.log.len() >= MAX_RETAINED_RECORDS {
+            self.log.pop_front();
+            self.dropped = self.dropped.wrapping_add(1);
+        }
+        self.log.push_back(record);
+    }
+
+    /// Every retained attempt, oldest first.
+    pub fn log(&self) -> &VecDeque<WriteRecord> {
         &self.log
     }
 
-    /// The number of attempts.
+    /// The number of retained records.
     pub fn len(&self) -> usize {
         self.log.len()
     }
 
-    /// Whether no attempt has been recorded.
+    /// Whether no attempt has been retained.
     pub fn is_empty(&self) -> bool {
         self.log.is_empty()
     }
 
-    /// The number of attempts that reached the application.
+    /// The number of attempts that reached the application, including any whose
+    /// record has been dropped.
     pub fn allowed(&self) -> usize {
-        self.log
-            .iter()
-            .filter(|record| record.outcome == WriteOutcome::Allowed)
-            .count()
+        self.allowed
     }
 
-    /// The number of attempts that were denied.
+    /// The number of attempts that were denied, including any whose record has
+    /// been dropped.
     pub fn denied(&self) -> usize {
-        self.log
-            .iter()
-            .filter(|record| record.outcome == WriteOutcome::Denied)
-            .count()
+        self.denied
+    }
+
+    /// The number of records dropped to keep the log bounded.
+    pub fn dropped(&self) -> u64 {
+        self.dropped
     }
 }
 
