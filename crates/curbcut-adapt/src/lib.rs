@@ -1,10 +1,24 @@
 //! Profiles, rules engine, layout solver, icon grid, and dimming.
 //!
+//! [`rule_engine`] is the forward-chaining rule layer: it derives content-free
+//! facts from a [`ScreenGraph`](curbcut_core::types::ScreenGraph) and the media
+//! regions the perception layer reported, evaluates the built-in rules in
+//! catalog order, and resolves a conflict by priority. Every plan action carries
+//! a rationale, and every rule has a per-rule toggle. See
+//! [`../../../docs/RULES_ENGINE.md`](../../../docs/RULES_ENGINE.md).
+//!
 //! The profile graph is implemented: [`profile::ProfileGraph`] is one
 //! versioned settings graph with a baseline, live-preview sinks, and atomic
 //! multi-setting changes, and [`settings::SettingKey`] is the closed registry
 //! of the forty settings it can express. See
 //! [`../../../docs/PROFILE_GRAPH.md`](../../../docs/PROFILE_GRAPH.md).
+//!
+//! The forward-chaining rules engine is implemented: [`rule_engine`]
+//! derives content-free facts from a merged [`ScreenGraph`] and the media
+//! list, evaluates the four built-in rules in catalog order, resolves their
+//! conflicts by priority, and records every superseded offer with its winner.
+//! Each rule has a profile flag and a per-rule toggle. See
+//! [`../../../docs/RULES_ENGINE.md`](../../../docs/RULES_ENGINE.md).
 //!
 //! The layout solvers are implemented: [`layout::place_tiles`] packs
 //! priority-ordered boxes without overlap or clipping, [`layout::reflow`]
@@ -48,6 +62,8 @@ pub const CRATE_NAME: &str = "curbcut-adapt";
 
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+pub mod rule_engine;
 
 /// The versioned profile graph.
 pub mod profile;

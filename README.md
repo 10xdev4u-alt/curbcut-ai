@@ -88,6 +88,7 @@ docs/
   ROLE_MAPPING.md          Platform role/state compatibility tables (generated)
   REDACTION.md             Redaction layer, canary fixture, no-content CI test
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
+  RULES_ENGINE.md          Forward-chaining rules: facts, priority, conflict, toggles
   CLI.md                   Headless CLI: commands, exit codes, redacted dump
   VISION.md                Vision pipeline: scheduler, stages, privacy
   MOTION_DETECTION.md      Motion classification: carousel, autoplay, countdown

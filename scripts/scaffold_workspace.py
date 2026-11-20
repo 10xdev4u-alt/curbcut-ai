@@ -43,7 +43,7 @@ CRATES = [
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
     ("curbcut-understand", "Classification, chunking, simplification, and reading level.", ["curbcut-core"]),
-    ("curbcut-adapt", "Profiles, rules engine, and layout solver.", ["curbcut-core"]),
+    ("curbcut-adapt", "Profiles, rules engine, and layout solver.", ["curbcut-core", "curbcut-understand"]),
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, and voice command grammar.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
@@ -126,7 +126,11 @@ CRATE_STATUS = {
         "[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md)."
     ),
     "curbcut-adapt": (
-        "The profile graph and layout solvers are implemented: a versioned\n"
+        "The forward-chaining rules engine is implemented: content-free facts\n"
+        "derived from the graph and the media list, a four-rule catalog evaluated\n"
+        "in catalog order, priority conflict resolution that records every\n"
+        "superseded offer with its winner, and a per-rule toggle. The profile\n"
+        "graph and layout solvers are implemented: a versioned\n"
         "settings graph with a baseline, atomic multi-setting changes,\n"
         "live-preview sinks, and a 40-key setting registry; a priority-based\n"
         "tile packer plus a no-clip reflow; an icon-grid layout with a\n"
@@ -134,8 +138,13 @@ CRATE_STATUS = {
         "except the focused control and except-regions; confirmation with\n"
         "undo for destructive actions; and a provenance panel whose entries\n"
         "link every change to its rule and to a log-safe original. The\n"
+        "forward-chaining rules engine derives content-free facts from a merged\n"
+        "graph and the media list, evaluates four built-in rules in catalog\n"
+        "order, resolves a conflict by priority, and records every superseded\n"
+        "offer with its winner; each rule has a profile flag and a toggle. The\n"
         "interruption inbox files detected interruptions without auto-dismissing\n"
         "them, batches by app and kind, and walks the list with one cursor. See\n"
+        "[`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md),\n"
         "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),\n"
         "[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),\n"
         "[`../../docs/GRID.md`](../../docs/GRID.md),\n"
@@ -143,8 +152,9 @@ CRATE_STATUS = {
         "[`../../docs/CONFIRM.md`](../../docs/CONFIRM.md),\n"
         "[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md),\n"
         "[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md),\n"
-        "[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md), and\n"
-        "[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md)."
+        "[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md),\n"
+        "[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md), and\n"
+        "[`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md)."
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
