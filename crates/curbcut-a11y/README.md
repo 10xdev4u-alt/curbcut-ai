@@ -11,9 +11,13 @@ its provenance. A disagreement becomes a content-free conflict, an
 unmatched a11y element stays semantic-only, and an unmatched vision
 detection becomes a vision-only node, and stability tracking assigns
 StableIds across frames with median scroll compensation and a
-Hungarian assignment. See
-[`../../docs/MERGE.md`](../../docs/MERGE.md) and
-[`../../docs/STABILITY.md`](../../docs/STABILITY.md).
+Hungarian assignment. The write guard makes `WriteGuard::request`
+the only path to another app: it requires a valid `WriteA11y`
+token, denies and skips the sink otherwise, and records every
+attempt. See
+[`../../docs/MERGE.md`](../../docs/MERGE.md),
+[`../../docs/STABILITY.md`](../../docs/STABILITY.md), and
+[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md).
 
 ## Build and test
 

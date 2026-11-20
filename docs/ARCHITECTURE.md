@@ -222,7 +222,20 @@ Implemented in `crates/curbcut-a11y/src/stability.rs`. See
 - `should_reanalyze(rect)` skips a region only when a live track covers it and no
   scroll motion was detected; `content_changed` compares label hashes.
 
-### 6.5 Motion classification
+### 6.5 Write guard
+
+Implemented in `crates/curbcut-a11y/src/write_guard.rs`. See
+[`docs/WRITE_GUARD.md`](WRITE_GUARD.md).
+
+- `WriteGuard::request` is the only write path. It takes a `CapabilityToken`
+  and checks it against `Capability::WriteA11y`; a revoked token, or one that
+  proves a different capability, is denied and the sink is never called.
+- Every attempt is recorded, allowed or denied, with a sequence number, the
+  target `ElementId`, the action, and the outcome. A record carries no content.
+- A session mints the token with `Session::grant`; `Session::revoke` invalidates
+  outstanding tokens.
+
+### 6.6 Motion classification
 
 Implemented in `crates/curbcut-vision/src/motion_report.rs`. See
 [`docs/MOTION_DETECTION.md`](MOTION_DETECTION.md).
@@ -239,7 +252,7 @@ Implemented in `crates/curbcut-vision/src/motion_report.rs`. See
 - `MotionConfig::clamped` bounds every ratio to `0.0..=1.0` and falls back to the
   default on `NaN`.
 
-### 6.6 Layout analysis
+### 6.7 Layout analysis
 
 Implemented in `crates/curbcut-vision/src/layout.rs`. See
 [`docs/LAYOUT_ANALYSIS.md`](LAYOUT_ANALYSIS.md).
