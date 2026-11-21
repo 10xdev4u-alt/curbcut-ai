@@ -345,8 +345,10 @@ pub struct Report {
     pub started: u64,
     /// Requests that ran to the end.
     pub completed: u64,
-    /// Requests cut short by the screen reader. An interrupted request keeps
-    /// its remaining duration and resumes, so it also counts as `completed`.
+    /// Requests cut short by the screen reader, counted once per request
+    /// however many times it is cut. A cut request keeps its remaining
+    /// duration and resumes; one replaced or truncated by the horizon is not
+    /// `completed`.
     pub interrupted: u64,
     /// Requests dropped because a newer request took the single holder. A
     /// replacement is a user action, not a screen-reader cut, so it is counted
@@ -394,6 +396,10 @@ struct Holder {
     started: bool,
     /// Whether it has already been counted in [`Report::held_requests`].
     hold_counted: bool,
+    /// Whether it has already been counted in [`Report::interrupted`]. A
+    /// request can be cut, resume, and be cut again; it is one interrupted
+    /// request, not one per cut.
+    cut_counted: bool,
 }
 
 /// Runs a coexistence simulation for `horizon` ticks.
@@ -406,12 +412,13 @@ struct Holder {
 /// The player follows [`Coexistence`]: it asks before it starts, and it stops
 /// when [`Coexistence::may_speak`] goes false. A request the screen reader
 /// cuts keeps its remaining duration as a queued utterance, so it resumes
-/// when the reader goes quiet and still completes. A request that becomes due
-/// while another utterance is held or playing takes the single holder and
-/// replaces it, which [`Report::replaced`] counts. A zero-duration request
-/// completes without a tick of sound. The report counts any tick where
-/// CurbCut and the screen reader were both audible, so a policy that failed
-/// to hold would show up as `overlaps > 0`.
+/// when the reader goes quiet; it is counted once in [`Report::interrupted`]
+/// however many times it is cut. A request that becomes due while another
+/// utterance is held or playing takes the single holder and replaces it, which
+/// [`Report::replaced`] counts. A zero-duration request completes without a
+/// tick of sound. The report counts any tick where CurbCut and the screen
+/// reader were both audible, so a policy that failed to hold would show up as
+/// `overlaps > 0`.
 pub fn simulate(
     policy: Ducking,
     reader_running: bool,
@@ -467,14 +474,19 @@ pub fn simulate(
                 remaining: request.duration,
                 started: false,
                 hold_counted: false,
+                cut_counted: false,
             });
         }
 
         // The reader cut our speech short. Keep the remainder so the
-        // utterance resumes when the reader goes quiet.
-        if let Some(holder) = playing {
+        // utterance resumes when the reader goes quiet. A request that is cut
+        // twice is still one interrupted request, so it is counted once.
+        if let Some(mut holder) = playing {
             if !coexist.may_speak() {
-                report.interrupted += 1;
+                if !holder.cut_counted {
+                    holder.cut_counted = true;
+                    report.interrupted += 1;
+                }
                 playing = None;
                 coexist.end();
                 queued = Some(holder);
@@ -491,6 +503,7 @@ pub fn simulate(
                 remaining: holder.remaining.saturating_sub(1),
                 started: true,
                 hold_counted: holder.hold_counted,
+                cut_counted: holder.cut_counted,
             });
             continue;
         }
@@ -525,6 +538,7 @@ pub fn simulate(
             remaining: holder.remaining - 1,
             started: true,
             hold_counted: holder.hold_counted,
+            cut_counted: holder.cut_counted,
         });
     }
 

@@ -263,6 +263,21 @@ fn a_request_cut_off_by_the_reader_resumes_and_completes() {
 }
 
 #[test]
+fn one_request_cut_twice_is_counted_once() {
+    // Two announcements cut the same utterance. It resumes between them and
+    // finishes, but it is one interrupted request, not two.
+    let announcements = vec![Announcement::new(5, 8), Announcement::new(9, 12)];
+    let requests = vec![UtteranceRequest::new(1, 8)];
+
+    let report = simulate(Ducking::Pause, true, &announcements, &requests, 23);
+    assert_eq!(report.requests, 1);
+    assert_eq!(report.started, 1);
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.interrupted, 1, "a second cut must not recount");
+    assert!(report.overlap_free());
+}
+
+#[test]
 fn a_request_due_while_another_plays_replaces_it() {
     // The arbiter holds one utterance. The request at tick 1 takes the holder
     // from the request that began at tick 0.

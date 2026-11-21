@@ -20,8 +20,8 @@ an announcement.**
    mute the voice by accident.
 3. **A held utterance resumes.** When the screen reader goes quiet, the held
    request is decided again and plays. An interruption costs the wait, not the
-   content: a cut utterance keeps its remaining duration and completes after
-   the wait.
+   content: a cut utterance keeps its remaining duration and plays the rest
+   after the wait. It is counted once, however many times it is cut.
 4. **The holder is exclusive.** A request that arrives while another utterance
    is held or playing takes the single holder and replaces it. A replacement
    is a user action, not a screen-reader cut, so it is counted in
@@ -73,8 +73,10 @@ platform adapter: no macOS, Windows, or Linux speech source is exercised here.
 
 Counter semantics:
 
-- `interrupted` counts requests the screen reader cut. A cut request resumes
-  with its remaining duration, so it is also counted in `completed`.
+- `interrupted` counts requests the screen reader cut, once per request
+  however many times it is cut. A cut request resumes with its remaining
+  duration; one replaced or truncated by the horizon is not counted in
+  `completed`.
 - `replaced` counts requests dropped because a newer request took the holder.
 - A request the horizon truncates is neither completed nor interrupted.
 - A zero-duration request completes on the tick it is taken, with no tick of
