@@ -134,6 +134,7 @@ One PR per issue, in merge order. Each PR lists its branch, the issues it closes
 | PR-126 | feat: Vision detector and OCR traits with motion-aware scheduler | `feat/vision-detector-and-ocr-traits-with-motion` | CC-126 | `269460e`, `bb426d0` | pass | 3 | merged |
 | PR-127 | feat: Headless CLI: status, redacted dump, bench, panic | `feat/headless-cli-status-redacted-dump-bench-panic` | CC-127 | `578820c`, `8b34738` | pass | 1 | merged |
 | PR-128 | feat: Telemetry schema and opt-in export | `feat/telemetry-schema-and-opt-in-export` | CC-128 | `5255ad3`, `6002196` | pass | 3 | merged |
+| PR-129 | fix: Coexistence simulator follow-ups from the CC-080 review | `fix/coexistence-simulator-follow-ups-from-the-cc` | CC-129 | `dd3e420` | pass | 2 | merged |
 
 ## PR-001 — feat: Rust workspace and Tauri 2 app stub
 
@@ -2764,4 +2765,25 @@ One PR per issue, in merge order. Each PR lists its branch, the issues it closes
 | database-reviewer | COMMENT: confirm the no-content-logging assertion |
 | code-reviewer | APPROVE |
 | security-reviewer | APPROVE |
+
+## PR-129 — fix: Coexistence simulator follow-ups from the CC-080 review
+
+- **Branch:** `fix/coexistence-simulator-follow-ups-from-the-cc`
+- **Closes:** CC-129
+- **Commits:** `dd3e420`
+- **CI:** pass
+- **State:** merged
+
+**Files changed**
+
+- `crates/curbcut-a11y/src/adapter.rs`
+- `crates/curbcut-tts/src/synth.rs`
+- `crates/curbcut-core/tests/coexistence-simulator-follow-ups-from-the-cc.rs`
+
+**Review thread**
+
+| Reviewer | Verdict / comment |
+| --- | --- |
+| design-reviewer | COMMENT: verify keyboard path manually |
+| code-reviewer | APPROVE |
 

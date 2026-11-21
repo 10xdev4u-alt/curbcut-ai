@@ -1537,7 +1537,7 @@ Run an automated audit (axe + platform APIs) and a manual pass with VoiceOver, N
 - No screen content or raw text appears in logs, dumps, or crash reports.
 
 
-## E09 — Speech & Voice (5 issues)
+## E09 — Speech & Voice (6 issues)
 
 | ID | Title | Type | Priority | Size | Labels | Depends on |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1546,6 +1546,7 @@ Run an automated audit (axe + platform APIs) and a manual pass with VoiceOver, N
 | CC-078 | Read selection and read-from-here | feat | P1 | M | tts, input | - |
 | CC-079 | Voice control with local ASR | feat | P2 | L | tts, input, models | - |
 | CC-080 | Audio focus cooperation with screen readers | feat | P0 | M | tts, a11y | - |
+| CC-129 | Coexistence simulator follow-ups from the CC-080 review | fix | P1 | M | tts, a11y | - |
 
 ### CC-076 — TTS abstraction with Piper and system fallbacks
 
@@ -1632,6 +1633,27 @@ Duck or pause our speech when a screen reader is active, and never talk over a s
 - No overlap with VoiceOver/NVDA/Orca.
 - Ducking is configurable.
 - A 1-hour coexistence test passes.
+- Unit tests cover the new logic and edge cases.
+- Docs updated (user, admin, or developer as appropriate).
+- CI green on macOS arm64/x64, Windows x64, and Linux x64.
+- No screen content or raw text appears in logs, dumps, or crash reports.
+
+### CC-129 — Coexistence simulator follow-ups from the CC-080 review
+
+**Type:** `fix`  |  **Priority:** P1  |  **Size:** M
+
+**Labels:** `tts`, `a11y`
+
+Follow-up to CC-080. CodeRabbit reviewed PR #179 (merged as f1e3744) and raised four code findings and three documentation findings. The simulation discards the remaining duration of an utterance the screen reader cuts, drops requests that become due while another utterance is playing, and reports a spoken tick for a zero-duration request. The docs also map both announcement start and end to ScreenReader::Speaking, credit AXAnnouncement with a speech window it does not report, and scope the 1-hour measurement claim to adapters that do not exist yet.
+
+**Acceptance criteria**
+
+- simulate retains an interrupted utterance's remaining duration and completes it after the reader goes quiet; the interruption test asserts completion.
+- A request due while another utterance is playing replaces the in-flight utterance at its scheduled tick.
+- A zero-duration request completes without a spoken tick on both the fresh and pending start paths.
+- docs/ADAPTERS.md maps announcement start to Speaking and end to Listening, and Off only when the reader stops running.
+- docs/COEXISTENCE.md no longer presents AXAnnouncement as a speech-window source and scopes the measurement claim to the deterministic simulation.
+- The workspace green set passes, including curbcut-tts.
 - Unit tests cover the new logic and edge cases.
 - Docs updated (user, admin, or developer as appropriate).
 - CI green on macOS arm64/x64, Windows x64, and Linux x64.

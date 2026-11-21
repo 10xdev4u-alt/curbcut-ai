@@ -14,7 +14,7 @@ Fifteen epics carry the program from an empty repository to a shipped, audited 1
 | E06 | Understanding & Language | 11 | 11 | Rules engine, jargon, numbers, simplification, meaning preservation, summarization, chunking, icon semantics, sensitive-content guard, cache. |
 | E07 | Adaptation Engine | 13 | 13 | Profiles, rules engine, dimming, icon grid, reflow, ruler, stop-motion, inbox, one-step mode, confirm/undo, layout solver, plan cache, per-app memory, provenance. |
 | E08 | Overlay Rendering & Interaction | 10 | 10 | Design system, in-place renderer, simplified view, hit-testing, click-through, keyboard, switch access, large targets, animation policy, action consent, a11y audit. |
-| E09 | Speech & Voice | 5 | 5 | TTS abstraction, hover-to-read, read selection, read-from-here, voice control, audio focus, settings, overlay TTS, offline fallback. |
+| E09 | Speech & Voice | 6 | 6 | TTS abstraction, hover-to-read, read selection, read-from-here, voice control, audio focus, settings, overlay TTS, offline fallback. |
 | E10 | Input & Navigation | 4 | 4 | Global shortcuts, hover tracking, click routing, keyboard model, switch access, voice grammar, large targets, focus handoff. |
 | E11 | Data & Personalization | 6 | 6 | Profile editor, learned simplifications, app layout memory, memory aids, backup/restore, optional sync, multi-user, import/export, local stats, telemetry schema. |
 | E12 | Privacy & Security | 11 | 11 | Kill-switch, zeroization, no-content logging, encryption at rest, keychain, model pinning, penetration test, privacy audit, WCAG/COGA mapping, incident response, SBOM, license compliance. |

@@ -737,4 +737,8 @@ ISSUES = [
       ['telemetry', 'privacy'],
       'Define the counts-only telemetry schema, the allowlisted metric keys, and the opt-in exporter. Disabled by default; no content, no labels, no session identifiers.',
       ['Metric keys outside the allowlist are rejected.', 'Export is None while disabled.', 'Snapshot serializes keys and numbers only.']),
+    I('CC-129', 'E09', 'Coexistence simulator follow-ups from the CC-080 review', 'fix', 'P1', 'M',
+      ['tts', 'a11y'],
+      'Follow-up to CC-080. CodeRabbit reviewed PR #179 (merged as f1e3744) and raised four code findings and three documentation findings. The simulation discards the remaining duration of an utterance the screen reader cuts, drops requests that become due while another utterance is playing, and reports a spoken tick for a zero-duration request. The docs also map both announcement start and end to ScreenReader::Speaking, credit AXAnnouncement with a speech window it does not report, and scope the 1-hour measurement claim to adapters that do not exist yet.',
+      ["simulate retains an interrupted utterance's remaining duration and completes it after the reader goes quiet; the interruption test asserts completion.", 'A request due while another utterance is playing replaces the in-flight utterance at its scheduled tick.', 'A zero-duration request completes without a spoken tick on both the fresh and pending start paths.', 'docs/ADAPTERS.md maps announcement start to Speaking and end to Listening, and Off only when the reader stops running.', 'docs/COEXISTENCE.md no longer presents AXAnnouncement as a speech-window source and scopes the measurement claim to the deterministic simulation.', 'The workspace green set passes, including curbcut-tts.']),
 ]

@@ -9,15 +9,15 @@ Counts below are computed from the source data, not hand-written.
 | Metric | Count |
 | --- | --- |
 | Epics | 15 |
-| Issues | 128 |
-| Pull requests | 128 |
-| Commits | 337 |
+| Issues | 129 |
+| Pull requests | 129 |
+| Commits | 338 |
 | Root commits | 111 |
-| PR commits | 226 |
-| Review threads | 255 |
-| Approvals | 159 |
-| Reviewer comments | 96 |
-| Files touched (with duplicates) | 327 |
+| PR commits | 227 |
+| Review threads | 257 |
+| Approvals | 160 |
+| Reviewer comments | 97 |
+| Files touched (with duplicates) | 330 |
 
 ## Issues by epic
 
@@ -31,7 +31,7 @@ Counts below are computed from the source data, not hand-written.
 | E06 | Understanding & Language | 11 | 11 | 4 | 7 | 0 | 0 |
 | E07 | Adaptation Engine | 13 | 13 | 7 | 6 | 0 | 0 |
 | E08 | Overlay Rendering & Interaction | 10 | 10 | 6 | 3 | 1 | 0 |
-| E09 | Speech & Voice | 5 | 5 | 3 | 1 | 1 | 0 |
+| E09 | Speech & Voice | 6 | 6 | 3 | 2 | 1 | 0 |
 | E10 | Input & Navigation | 4 | 4 | 3 | 0 | 1 | 0 |
 | E11 | Data & Personalization | 6 | 6 | 0 | 4 | 2 | 0 |
 | E12 | Privacy & Security | 11 | 11 | 5 | 6 | 0 | 0 |
@@ -46,6 +46,7 @@ Counts below are computed from the source data, not hand-written.
 | chore | 11 |
 | docs | 6 |
 | feat | 104 |
+| fix | 1 |
 | test | 7 |
 
 ## Issues by priority
@@ -53,7 +54,7 @@ Counts below are computed from the source data, not hand-written.
 | Priority | Count |
 | --- | --- |
 | P0 | 63 |
-| P1 | 49 |
+| P1 | 50 |
 | P2 | 14 |
 | P3 | 2 |
 
@@ -62,14 +63,14 @@ Counts below are computed from the source data, not hand-written.
 | Size | Count |
 | --- | --- |
 | L | 49 |
-| M | 71 |
+| M | 72 |
 | S | 8 |
 
 ## Top labels
 
 | Label | Count |
 | --- | --- |
-| a11y | 17 |
+| a11y | 18 |
 | render | 16 |
 | adapt | 16 |
 | security | 15 |
@@ -83,8 +84,8 @@ Counts below are computed from the source data, not hand-written.
 | release | 9 |
 | store | 8 |
 | capture | 8 |
+| tts | 7 |
 | safety | 6 |
-| tts | 6 |
 | legal | 5 |
 | community | 5 |
 | frontend | 5 |
@@ -94,6 +95,6 @@ Counts below are computed from the source data, not hand-written.
 
 | Verdict | Count |
 | --- | --- |
-| APPROVE | 159 |
-| COMMENT | 96 |
+| APPROVE | 160 |
+| COMMENT | 97 |
 | REQUEST_CHANGES | 0 |
