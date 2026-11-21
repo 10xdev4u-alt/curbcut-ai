@@ -39,7 +39,7 @@ Frames are captured locally, processed in memory, never written to disk in raw f
 | Guarantee | How it is enforced |
 | --- | --- |
 | No screen content in logs | A CI test greps logs, dumps, and crash reports for fixture strings. |
-| Offline build makes no network calls | A socket-guard test plus a compiled offline feature. |
+| Offline build makes no network calls | A CI socket guard (`scripts/socket_guard.py`) over the `net_probe` example, plus the opt-in `net` feature. |
 | No action without consent | Capability token + action log; a test asserts denied writes are no-ops. |
 | Frames do not persist | Zeroize-on-drop with guard-byte tests. |
 | Models are untampered | Hash pinning + signature verification; fail closed. |

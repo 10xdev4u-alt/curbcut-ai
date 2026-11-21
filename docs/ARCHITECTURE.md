@@ -888,7 +888,7 @@ Implemented in `crates/curbcut-input/src/consent.rs`. See
 - No raw text in logs. Log hashes and counts.
 - Cache encryption at rest with a key in the OS keychain (macOS Keychain, Windows DPAPI, Linux libsecret).
 - Memory-zeroing for frame buffers and text caches on drop.
-- Network access is compiled in only for updates and optional sync; a runtime kill-switch disables it.
+- Network access is compiled in only for updates and optional sync; a runtime kill-switch disables it. The `net` cargo feature is the compiled gate and is opt-in (`default = []`), so a plain build has no optional transport module at all and `net::transport_available()` reports which build is running. `net::KillSwitch` is the runtime gate: it starts engaged, so a fresh switch denies every channel even with an online `net::NetworkPolicy`, and `engage()` denies everything again. Only `net::update::dial` exists in every build, it takes the feature it dials and refuses anything but `UpdateCheck`, and it still consults the switch. The `socket-guard` CI job runs `scripts/socket_guard.py` over the `net_probe` example in both builds and fails on any non-Unix `connect(2)`. See [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md).
 
 ### 11.3 Telemetry
 
