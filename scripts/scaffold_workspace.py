@@ -79,13 +79,13 @@ def crate_toml(
     ]
     for dep in deps:
         lines.append('%s = { path = "../%s" }' % (dep, dep))
-    if features:
+    if features or default_features is not None:
         lines += ["", "[features]"]
-        if default_features:
+        if default_features is not None:
             lines.append(
                 "default = [%s]" % ", ".join('"%s"' % feature for feature in default_features)
             )
-        for feature in features:
+        for feature in features or []:
             lines.append("%s = []" % feature)
     return "\n".join(lines) + "\n"
 
@@ -122,13 +122,16 @@ CRATE_STATUS = {
     "curbcut-core": (
         "Capability tokens, the typed command registry, versioned config, the\n"
         "event bus, strongly typed ids, the redaction backstop, and the shared\n"
-        "value types are implemented. The network policy is implemented: the\n"
-        "`net` cargo feature is the compiled gate and a\n"
-        "`--no-default-features` build has no optional transport module at all,\n"
-        "`net::transport_available` reports which build is running,\n"
+        "value types are implemented. The network policy is implemented and\n"
+        "opt-in: `net` is the compiled gate (`default = []`), so a plain build\n"
+        "has no optional transport module at all, and\n"
+        "`net::transport_available` reports which build is running.\n"
         "`net::KillSwitch` is the runtime gate and starts engaged, and\n"
         "`net::NetworkPolicy` defaults to offline. Only `net::update::dial`\n"
-        "exists without the feature, and it still consults the switch. See\n"
+        "exists without the feature, it takes the feature it dials and refuses\n"
+        "anything but `UpdateCheck`, and it still consults the switch. The\n"
+        "`socket-guard` CI job runs `scripts/socket_guard.py` over the\n"
+        "`net_probe` example in both builds. See\n"
         "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md)."
     ),
     "curbcut-a11y": (
@@ -340,7 +343,7 @@ def main() -> int:
     crates = ROOT / "crates"
     crates.mkdir(exist_ok=True)
     features = {"curbcut-app": ["tauri"], "curbcut-core": ["net"]}
-    default_features = {"curbcut-core": ["net"]}
+    default_features = {"curbcut-core": []}
     for name, desc, deps in CRATES:
         d = crates / name
         (d / "src").mkdir(parents=True, exist_ok=True)
@@ -349,7 +352,7 @@ def main() -> int:
                 name,
                 desc,
                 deps,
-                features.get(name, []),
+                features.get(name),
                 default_features.get(name),
             ),
             encoding="utf-8",

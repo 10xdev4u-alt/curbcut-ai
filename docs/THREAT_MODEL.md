@@ -35,7 +35,7 @@
 - **Mitigations:**
   - No network-capable code in the capture/vision crates (enforced by a build-time dependency allow-list).
   - Runtime kill-switch: a config flag and a compiled `offline` feature that removes the HTTP client.
-  - CI test that runs the app with a socket guard and asserts zero outbound connections during normal use.
+  - CI socket guard: `scripts/socket_guard.py` runs the `net_probe` example under `strace` and fails on any non-Unix `connect(2)`.
   - Models pinned by hash and signed; no remote model download at runtime.
   - Minimal permissions: no microphone unless voice control is on; no camera ever.
 

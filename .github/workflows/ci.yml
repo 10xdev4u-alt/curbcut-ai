@@ -26,6 +26,7 @@ jobs:
               - 'crates/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - 'scripts/socket_guard.py'
             ui:
               - 'apps/ui/**'
               - 'pnpm-lock.yaml'
@@ -53,27 +54,37 @@ jobs:
           shared-key: ${{ matrix.target }}
       - name: Format
         run: cargo fmt --all -- --check
-      - name: Clippy
+      - name: Clippy without the net feature
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Test
+      - name: Test without the net feature
         run: cargo test --workspace
+      - name: Clippy with the net feature
+        run: cargo clippy -p curbcut-core --features net --all-targets -- -D warnings
+      - name: Test with the net feature
+        run: cargo test -p curbcut-core --features net
 
-  offline:
+  socket-guard:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: offline-no-default-features
-      - name: Clippy without the net feature
-        run: cargo clippy -p curbcut-core --no-default-features --all-targets -- -D warnings
-      - name: Test without the net feature
-        run: cargo test -p curbcut-core --no-default-features
+          shared-key: socket-guard
+      - name: Install strace
+        run: sudo apt-get update -qq && sudo apt-get install -y strace
+      - name: Prove the guard observes a connect
+        run: python3 scripts/socket_guard.py --self-test
+      - name: Build the probe without the net feature
+        run: cargo build -p curbcut-core --example net_probe
+      - name: Guard the offline probe
+        run: python3 scripts/socket_guard.py ./target/debug/examples/net_probe
+      - name: Build the probe with the net feature
+        run: cargo build -p curbcut-core --features net --example net_probe
+      - name: Guard the net-feature probe
+        run: python3 scripts/socket_guard.py ./target/debug/examples/net_probe
 
   ui:
     needs: changes

@@ -5,8 +5,9 @@
 //! that, and either one is enough to stop a connection:
 //!
 //! - **The compiled gate.** The `net` cargo feature is what puts the optional
-//!   transport in the binary at all. `--no-default-features` builds without it,
-//!   and [`transport_available`] reports which build this is.
+//!   transport in the binary at all. It is opt-in (`default = []`), so a build
+//!   that does not enable it has no optional transport, and
+//!   [`transport_available`] reports which build this is.
 //! - **The runtime gate.** [`KillSwitch`] holds a [`NetworkPolicy`] and an
 //!   engaged flag. It starts engaged, so a fresh switch denies everything even
 //!   with an online policy; [`KillSwitch::release`] hands the decision to the
@@ -321,15 +322,27 @@ pub mod transport {
 /// The update channel, present in every build.
 ///
 /// This is the one path a `--no-default-features` build keeps. It still
-/// consults the switch, so an engaged switch blocks updates too.
+/// consults the switch, so an engaged switch blocks updates too, and it accepts
+/// only [`NetworkFeature::UpdateCheck`]: a caller cannot route a denied
+/// optional channel through the update path.
 pub mod update {
     use std::net::{TcpStream, ToSocketAddrs};
 
     use super::{KillSwitch, NetworkError, NetworkFeature};
 
     /// Opens a connection for the update check.
-    pub fn dial<A: ToSocketAddrs>(switch: &KillSwitch, addr: A) -> Result<TcpStream, NetworkError> {
-        if !switch.allows(NetworkFeature::UpdateCheck) {
+    ///
+    /// Returns [`NetworkError::Blocked`] for any other feature, before the
+    /// switch is consulted, so the channel is classified at the boundary.
+    pub fn dial<A: ToSocketAddrs>(
+        switch: &KillSwitch,
+        feature: NetworkFeature,
+        addr: A,
+    ) -> Result<TcpStream, NetworkError> {
+        if feature != NetworkFeature::UpdateCheck {
+            return Err(NetworkError::Blocked);
+        }
+        if !switch.allows(feature) {
             return Err(NetworkError::Blocked);
         }
         TcpStream::connect(addr).map_err(NetworkError::ConnectFailed)

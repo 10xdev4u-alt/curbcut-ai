@@ -1,7 +1,7 @@
 //! Event bus, config, errors, capability tokens, orchestration.
 //!
-//! [`net`] is the network policy: a compiled `net` feature that gates whether
-//! an optional transport exists at all, and a runtime [`KillSwitch`] that gates
+//! [`net`] is the network policy: an opt-in `net` feature that gates whether an
+//! optional transport exists at all, and a runtime [`KillSwitch`] that gates
 //! every dial. Either gate alone stops a connection, and the default is to
 //! stop. See [`../../../docs/NETWORK_POLICY.md`](../../../docs/NETWORK_POLICY.md).
 //!

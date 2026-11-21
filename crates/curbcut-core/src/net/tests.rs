@@ -119,11 +119,15 @@ fn the_update_channel_is_the_one_path_every_build_keeps() {
     let mut switch = KillSwitch::new(NetworkPolicy::updates_only());
     switch.release();
 
-    update::dial(&switch, addr).expect("an updates-only policy allows the update check");
+    update::dial(&switch, NetworkFeature::UpdateCheck, addr)
+        .expect("an updates-only policy allows the update check");
 
     switch.engage();
     assert!(
-        matches!(update::dial(&switch, addr), Err(NetworkError::Blocked)),
+        matches!(
+            update::dial(&switch, NetworkFeature::UpdateCheck, addr),
+            Err(NetworkError::Blocked)
+        ),
         "an engaged switch blocks updates too"
     );
 }
@@ -134,9 +138,59 @@ fn an_offline_policy_blocks_the_update_channel() {
     let mut switch = KillSwitch::new(NetworkPolicy::offline());
     switch.release();
     assert!(matches!(
-        update::dial(&switch, addr),
+        update::dial(&switch, NetworkFeature::UpdateCheck, addr),
         Err(NetworkError::Blocked)
     ));
+}
+
+#[test]
+fn the_update_path_refuses_a_non_update_feature() {
+    let (_listener, addr) = loopback();
+    let mut switch = KillSwitch::new(NetworkPolicy::online());
+    switch.release();
+    for feature in [
+        NetworkFeature::ModelDownload,
+        NetworkFeature::Sync,
+        NetworkFeature::Telemetry,
+        NetworkFeature::LicenseCheck,
+    ] {
+        assert!(
+            matches!(
+                update::dial(&switch, feature, addr),
+                Err(NetworkError::Blocked)
+            ),
+            "{feature} must not ride the update path"
+        );
+    }
+}
+
+#[test]
+fn a_blocked_dial_opens_no_socket() {
+    let (listener, addr) = loopback();
+    listener
+        .set_nonblocking(true)
+        .expect("a nonblocking listener");
+    let mut switch = KillSwitch::new(NetworkPolicy::offline());
+    switch.release();
+    assert!(matches!(
+        update::dial(&switch, NetworkFeature::UpdateCheck, addr),
+        Err(NetworkError::Blocked)
+    ));
+    assert!(
+        matches!(listener.accept(), Err(error) if error.kind() == std::io::ErrorKind::WouldBlock),
+        "a blocked dial must not open a socket"
+    );
+}
+
+#[test]
+fn a_policy_round_trips_through_its_mode() {
+    for mode in NetworkMode::ALL {
+        let policy = NetworkPolicy::from_mode(mode);
+        assert_eq!(policy.mode(), mode);
+        for feature in NetworkFeature::ALL {
+            assert_eq!(policy.allows(feature), mode.allows(feature));
+        }
+    }
 }
 
 #[cfg(feature = "net")]
