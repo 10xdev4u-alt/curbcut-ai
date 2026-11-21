@@ -55,7 +55,13 @@ CRATES = [
 ]
 
 
-def crate_toml(name: str, description: str, deps: list[str], features: list[str] | None = None) -> str:
+def crate_toml(
+    name: str,
+    description: str,
+    deps: list[str],
+    features: list[str] | None = None,
+    default_features: list[str] | None = None,
+) -> str:
     lines = [
         "[package]",
         'name = "%s"' % name,
@@ -75,6 +81,10 @@ def crate_toml(name: str, description: str, deps: list[str], features: list[str]
         lines.append('%s = { path = "../%s" }' % (dep, dep))
     if features:
         lines += ["", "[features]"]
+        if default_features:
+            lines.append(
+                "default = [%s]" % ", ".join('"%s"' % feature for feature in default_features)
+            )
         for feature in features:
             lines.append("%s = []" % feature)
     return "\n".join(lines) + "\n"
@@ -109,6 +119,18 @@ mod tests {
 
 
 CRATE_STATUS = {
+    "curbcut-core": (
+        "Capability tokens, the typed command registry, versioned config, the\n"
+        "event bus, strongly typed ids, the redaction backstop, and the shared\n"
+        "value types are implemented. The network policy is implemented: the\n"
+        "`net` cargo feature is the compiled gate and a\n"
+        "`--no-default-features` build has no optional transport module at all,\n"
+        "`net::transport_available` reports which build is running,\n"
+        "`net::KillSwitch` is the runtime gate and starts engaged, and\n"
+        "`net::NetworkPolicy` defaults to offline. Only `net::update::dial`\n"
+        "exists without the feature, and it still consults the switch. See\n"
+        "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md)."
+    ),
     "curbcut-a11y": (
         "The platform role and state mapping is implemented, and the a11y +\n"
         "vision merge: candidates are matched by IoU and role compatibility,\n"
@@ -317,12 +339,20 @@ def main() -> int:
     (ROOT / "Cargo.toml").write_text(WORKSPACE_TOML, encoding="utf-8")
     crates = ROOT / "crates"
     crates.mkdir(exist_ok=True)
-    features = {"curbcut-app": ["tauri"]}
+    features = {"curbcut-app": ["tauri"], "curbcut-core": ["net"]}
+    default_features = {"curbcut-core": ["net"]}
     for name, desc, deps in CRATES:
         d = crates / name
         (d / "src").mkdir(parents=True, exist_ok=True)
         (d / "Cargo.toml").write_text(
-            crate_toml(name, desc, deps, features.get(name, [])), encoding="utf-8"
+            crate_toml(
+                name,
+                desc,
+                deps,
+                features.get(name, []),
+                default_features.get(name),
+            ),
+            encoding="utf-8",
         )
         lib = d / "src" / "lib.rs"
         extra = (

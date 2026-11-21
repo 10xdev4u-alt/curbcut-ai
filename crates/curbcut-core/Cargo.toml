@@ -11,3 +11,7 @@ publish = false
 workspace = true
 
 [dependencies]
+
+[features]
+default = ["net"]
+net = []

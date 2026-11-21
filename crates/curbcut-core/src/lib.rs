@@ -1,6 +1,11 @@
 //! Event bus, config, errors, capability tokens, orchestration.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! [`net`] is the network policy: a compiled `net` feature that gates whether
+//! an optional transport exists at all, and a runtime [`KillSwitch`] that gates
+//! every dial. Either gate alone stops a connection, and the default is to
+//! stop. See [`../../../docs/NETWORK_POLICY.md`](../../../docs/NETWORK_POLICY.md).
+//!
+//! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -18,6 +23,7 @@ pub mod config;
 pub mod error;
 pub mod event;
 pub mod id;
+pub mod net;
 pub mod redact;
 pub(crate) mod toml;
 pub mod types;
