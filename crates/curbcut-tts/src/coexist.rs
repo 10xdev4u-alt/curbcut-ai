@@ -362,6 +362,19 @@ impl Report {
     }
 }
 
+/// Records one tick of audible CurbCut speech.
+///
+/// A duck level of `0.0` is not audible, so it counts as neither spoken nor
+/// ducked: `spoken_ticks` and `ducked_ticks` follow [`Coexistence::level`].
+fn record_audible(report: &mut Report, level: f32) {
+    if level > 0.0 {
+        report.spoken_ticks += 1;
+        if level < 1.0 {
+            report.ducked_ticks += 1;
+        }
+    }
+}
+
 /// Runs a coexistence simulation for `horizon` ticks.
 ///
 /// `announcements` must be sorted by `start` and `requests` by `at`. The screen
@@ -420,10 +433,7 @@ pub fn simulate(
         }
 
         if playing {
-            report.spoken_ticks += 1;
-            if coexist.level() < 1.0 {
-                report.ducked_ticks += 1;
-            }
+            record_audible(&mut report, coexist.level());
             if reader.is_speaking() {
                 report.overlaps += 1;
             }
@@ -437,10 +447,7 @@ pub fn simulate(
                 playing = true;
                 playing_until = tick.saturating_add(waiting.duration);
                 report.started += 1;
-                report.spoken_ticks += 1;
-                if decision.level < 1.0 {
-                    report.ducked_ticks += 1;
-                }
+                record_audible(&mut report, decision.level);
             } else {
                 report.held_ticks += 1;
             }
@@ -455,20 +462,13 @@ pub fn simulate(
                 playing = true;
                 playing_until = tick.saturating_add(waiting.duration);
                 report.started += 1;
-                report.spoken_ticks += 1;
-                if decision.level < 1.0 {
-                    report.ducked_ticks += 1;
-                }
+                record_audible(&mut report, decision.level);
             } else {
                 pending = Some(waiting);
                 report.held_requests += 1;
                 report.held_ticks += 1;
             }
         }
-    }
-
-    if playing {
-        report.interrupted += 1;
     }
 
     report

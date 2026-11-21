@@ -63,6 +63,11 @@ The acceptance criterion is measured, not asserted:
   none.
 - `Duck` produces `ducked_ticks > 0`.
 
+`interrupted` counts only requests the screen reader cut short; a request the
+horizon truncates is neither completed nor interrupted. `spoken_ticks` and
+`ducked_ticks` follow `level()`, so a `duck(0.0)` request is not counted as
+audible.
+
 The unit test `an_hour_with_a_screen_reader_never_overlaps` drives it.
 
 ## Platform notes

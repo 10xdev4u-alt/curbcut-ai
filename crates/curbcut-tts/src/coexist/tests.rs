@@ -268,3 +268,37 @@ fn without_a_screen_reader_nothing_is_held_or_ducked() {
     assert_eq!(report.completed, 16);
     assert!(report.overlap_free());
 }
+
+#[test]
+fn a_request_cut_off_by_the_horizon_is_not_an_interruption() {
+    // No screen reader is running, so nothing cut this request short: the
+    // horizon did. `interrupted` is documented as a screen-reader cut.
+    let report = simulate(
+        Ducking::Pause,
+        false,
+        &[],
+        &[UtteranceRequest::new(0, 100)],
+        50,
+    );
+    assert_eq!(report.started, 1);
+    assert_eq!(report.completed, 0);
+    assert_eq!(report.interrupted, 0);
+    assert_eq!(report.spoken_ticks, 50);
+}
+
+#[test]
+fn a_zero_duck_level_is_not_counted_as_audible() {
+    // `duck(0.0)` is inaudible while the reader is quiet, so the report must
+    // not claim CurbCut was audible.
+    let report = simulate(
+        Ducking::duck(0.0),
+        true,
+        &[],
+        &[UtteranceRequest::new(0, 10)],
+        20,
+    );
+    assert_eq!(report.started, 1);
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.spoken_ticks, 0);
+    assert_eq!(report.ducked_ticks, 0);
+}
