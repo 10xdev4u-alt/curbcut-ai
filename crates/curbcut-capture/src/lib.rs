@@ -1,6 +1,8 @@
 //! Screen capture adapters and the zeroizing frame ring buffer.
 //!
-//! Skeleton crate. The public API is added incrementally; see
+//! [`ring`] holds the only place pixels exist, and scrubs every buffer on
+//! release. [`protected`] refuses to analyse DRM surfaces, secure desktops, and
+//! uncapturable windows, and explains the accessibility-only fallback. See
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
 #![forbid(unsafe_code)]
@@ -12,6 +14,7 @@ pub const CRATE_NAME: &str = "curbcut-capture";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod protected;
 pub mod ring;
 
 #[cfg(test)]

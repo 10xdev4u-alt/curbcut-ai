@@ -4,9 +4,12 @@ Screen capture adapters and the zeroizing frame ring buffer.
 
 ## Status
 
-Skeleton. The API is added incrementally; see
-[`../../backlog/EPICS.md`](../../backlog/EPICS.md) and
-[`../../backlog/ISSUES.md`](../../backlog/ISSUES.md).
+The zeroizing frame ring buffer is implemented: a fixed-capacity
+ring with a byte budget, best-effort `mlock`, and a guard byte on
+release. Protected-content detection refuses a DRM surface, a
+secure desktop, an uncapturable window, or a black frame, and
+returns the accessibility-only fallback message. See
+[`../../docs/PROTECTED_CONTENT.md`](../../docs/PROTECTED_CONTENT.md).
 
 ## Build and test
 
