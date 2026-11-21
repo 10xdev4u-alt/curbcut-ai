@@ -22,7 +22,8 @@ fn a_granted_prompt_authorizes_the_action_once() {
         .grant(prompt.token(), ConsentScope::Once)
         .expect("granted");
     assert!(receipt.is_granted());
-    assert_eq!(receipt.scope(), ConsentScope::Once);
+    assert_eq!(receipt.scope(), Some(ConsentScope::Once));
+    assert_eq!(receipt.sequence(), 1);
     assert!(gate.is_granted(ActionClass::Submit));
 
     let proof = gate
@@ -30,7 +31,8 @@ fn a_granted_prompt_authorizes_the_action_once() {
         .expect("authorized");
     assert_eq!(proof.action(), ActionClass::Submit);
     assert_eq!(proof.target_role(), TargetRole::Button);
-    assert_eq!(proof.sequence(), receipt.sequence);
+    assert_eq!(proof.sequence(), receipt.sequence());
+    assert!(proof.is_valid(&gate));
 
     assert!(
         gate.authorize(ActionClass::Submit, TargetRole::Button)
@@ -53,7 +55,16 @@ fn a_session_receipt_survives_until_clear() {
             .is_ok());
     }
     assert!(gate.is_granted(ActionClass::Scroll));
+
+    let proof = gate
+        .authorize(ActionClass::Scroll, TargetRole::Generic)
+        .expect("authorized");
+    assert!(proof.is_valid(&gate));
     gate.clear();
+    assert!(
+        !proof.is_valid(&gate),
+        "clearing the gate withdraws an outstanding proof"
+    );
     assert!(
         gate.authorize(ActionClass::Scroll, TargetRole::Generic)
             .is_err(),
@@ -68,6 +79,7 @@ fn a_denied_prompt_never_authorizes() {
     let receipt = gate.deny(prompt.token()).expect("denied");
     assert!(!receipt.is_granted());
     assert_eq!(receipt.outcome(), ConsentOutcome::Denied);
+    assert_eq!(receipt.scope(), None, "a refusal chooses no scope");
     assert!(!gate.is_granted(ActionClass::Dismiss));
     assert!(gate
         .authorize(ActionClass::Dismiss, TargetRole::MenuItem)
@@ -92,16 +104,38 @@ fn consent_is_scoped_to_its_action_class() {
 }
 
 #[test]
+fn consent_is_scoped_to_its_target_role() {
+    let mut gate = ConsentGate::new();
+    let prompt = gate.prompt(ActionClass::Submit, TargetRole::Button);
+    gate.grant(prompt.token(), ConsentScope::Session)
+        .expect("granted");
+
+    assert_eq!(
+        gate.authorize(ActionClass::Submit, TargetRole::Link)
+            .expect_err("a receipt for one role must not cover another"),
+        ConsentError::NotGranted
+    );
+    let proof = gate
+        .authorize(ActionClass::Submit, TargetRole::Button)
+        .expect("the matching role authorizes");
+    assert_eq!(proof.target_role(), TargetRole::Button);
+}
+
+#[test]
 fn a_stale_token_is_rejected() {
     let mut gate = ConsentGate::new();
     let prompt = gate.prompt(ActionClass::Invoke, TargetRole::Button);
     let token = prompt.token();
     gate.deny(token).expect("first use");
-    assert!(
-        gate.grant(token, ConsentScope::Once).is_none(),
-        "token reused"
+    assert_eq!(
+        gate.grant(token, ConsentScope::Once)
+            .expect_err("token reused"),
+        ConsentError::UnknownToken
     );
-    assert!(gate.deny(token).is_none());
+    assert_eq!(
+        gate.deny(token).expect_err("token reused"),
+        ConsentError::UnknownToken
+    );
 }
 
 #[test]
@@ -119,10 +153,12 @@ fn the_log_records_action_and_role_only() {
     assert_eq!(records[0].action, ActionClass::Submit);
     assert_eq!(records[0].target_role, TargetRole::Button);
     assert_eq!(records[0].outcome, ConsentOutcome::Granted);
+    assert_eq!(records[0].scope, Some(ConsentScope::Once));
     assert_eq!(records[1].sequence, 2);
     assert_eq!(records[1].action, ActionClass::Dismiss);
     assert_eq!(records[1].target_role, TargetRole::MenuItem);
     assert_eq!(records[1].outcome, ConsentOutcome::Denied);
+    assert_eq!(records[1].scope, None);
 
     let dbg = format!("{:?}", gate.log());
     assert!(dbg.contains("MenuItem"));
@@ -144,13 +180,39 @@ fn the_log_is_bounded() {
 }
 
 #[test]
+fn pending_prompts_are_bounded_and_evictions_are_counted() {
+    let mut gate = ConsentGate::new();
+    for _ in 0..(MAX_PENDING_PROMPTS + 5) {
+        gate.prompt(ActionClass::Scroll, TargetRole::Generic);
+    }
+    assert_eq!(gate.pending(), MAX_PENDING_PROMPTS);
+    assert_eq!(gate.evicted(), 5);
+}
+
+#[test]
+fn receipts_are_bounded_and_evictions_are_counted() {
+    let mut gate = ConsentGate::new();
+    for _ in 0..(MAX_RECEIPTS + 5) {
+        let prompt = gate.prompt(ActionClass::Scroll, TargetRole::Generic);
+        gate.grant(prompt.token(), ConsentScope::Session)
+            .expect("granted");
+    }
+    assert_eq!(gate.evicted(), 5);
+    assert!(gate.is_granted(ActionClass::Scroll));
+}
+
+#[test]
 fn clear_keeps_the_log_and_drops_pending_prompts() {
     let mut gate = ConsentGate::new();
     let pending = gate.prompt(ActionClass::System, TargetRole::Generic);
     assert_eq!(gate.pending(), 1);
     gate.clear();
     assert_eq!(gate.pending(), 0);
-    assert!(gate.grant(pending.token(), ConsentScope::Once).is_none());
+    assert_eq!(
+        gate.grant(pending.token(), ConsentScope::Once)
+            .expect_err("the prompt is gone"),
+        ConsentError::UnknownToken
+    );
     assert!(gate.log().is_empty(), "no decision was made");
 }
 
@@ -188,5 +250,6 @@ fn the_document_describes_the_flow() {
     assert!(doc.contains("# Action consent flow"));
     assert!(doc.contains("NotGranted"));
     assert!(doc.contains("target role"));
+    assert!(doc.contains("is_valid"));
     assert!(!doc.contains(CANARY));
 }

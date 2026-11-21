@@ -5,14 +5,18 @@
 //! consent text states the consequence before the user chooses. See
 //! [`../../../docs/CONSENT.md`](../../../docs/CONSENT.md).
 //!
-//! Four rules hold:
+//! Five rules hold:
 //!
 //! - **No action without consent.** [`ConsentGate::authorize`] returns
-//!   [`ConsentError::NotGranted`] unless a receipt for that action class exists.
+//!   [`ConsentError::NotGranted`] unless a granted receipt exists for that
+//!   action class *and* target role.
 //! - **The consequence comes first.** [`ConsentPrompt::consequence`] is a fixed
 //!   sentence per action class; it never quotes the target's label.
 //! - **A receipt is scoped.** [`ConsentScope::Once`] is consumed by the action
 //!   it authorized; [`ConsentScope::Session`] lasts until the gate is cleared.
+//! - **A proof is single-use and revocable.** [`ConsentProof`] is neither
+//!   `Clone` nor `Copy`, and [`ConsentProof::is_valid`] fails once the gate's
+//!   epoch moves, so [`ConsentGate::clear`] withdraws every outstanding proof.
 //! - **The log records action and role only.** [`ConsentRecord`] carries a
 //!   sequence number, an action class, a target role, and an outcome — never a
 //!   label, a value, or screen text.
@@ -22,6 +26,21 @@ use std::fmt;
 
 /// How many consent records the gate retains.
 pub const MAX_RECORDS: usize = 4096;
+
+/// How many unanswered prompts the gate retains.
+///
+/// Live state is bounded for the same reason the log is: a long session must
+/// not grow it without limit. The oldest prompt is evicted once the bound is
+/// reached and [`ConsentGate::evicted`] counts it, so an eviction is never
+/// silent.
+pub const MAX_PENDING_PROMPTS: usize = 64;
+
+/// How many receipts the gate retains.
+///
+/// A receipt is live consent, so evicting the oldest one revokes it: the next
+/// [`ConsentGate::authorize`] returns [`ConsentError::NotGranted`] and the
+/// overlay asks again. Evictions are counted and never silent.
+pub const MAX_RECEIPTS: usize = 256;
 
 /// A class of action the user can consent to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -262,7 +281,7 @@ pub struct ConsentReceipt {
     action: ActionClass,
     target_role: TargetRole,
     outcome: ConsentOutcome,
-    scope: ConsentScope,
+    scope: Option<ConsentScope>,
     sequence: u64,
 }
 
@@ -282,9 +301,20 @@ impl ConsentReceipt {
         self.outcome
     }
 
-    /// The scope the user chose.
-    pub fn scope(&self) -> ConsentScope {
+    /// The scope the user chose, or `None` for a refusal.
+    ///
+    /// A denial has no chosen scope, so it reports `None` rather than a
+    /// sentinel that telemetry would count as a real decision.
+    pub fn scope(&self) -> Option<ConsentScope> {
         self.scope
+    }
+
+    /// The sequence number of this decision.
+    ///
+    /// It matches the [`ConsentRecord::sequence`] in the gate's log and the
+    /// [`ConsentProof::sequence`] an authorization cites.
+    pub fn sequence(&self) -> u64 {
+        self.sequence
     }
 
     /// Whether this receipt can authorize an action.
@@ -294,11 +324,16 @@ impl ConsentReceipt {
 }
 
 /// Proof that one action is allowed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// Not `Clone` and not `Copy`: a proof is one authorization, so it cannot be
+/// duplicated into a second context. It is bound to the gate's epoch, so
+/// [`ConsentGate::clear`] withdraws it. The write path takes it by value.
+#[derive(Debug, PartialEq, Eq)]
 pub struct ConsentProof {
     action: ActionClass,
     target_role: TargetRole,
     sequence: u64,
+    epoch: u64,
 }
 
 impl ConsentProof {
@@ -316,6 +351,14 @@ impl ConsentProof {
     pub fn sequence(&self) -> u64 {
         self.sequence
     }
+
+    /// Whether the proof is still valid: the gate's epoch must not have moved.
+    ///
+    /// A proof issued before a [`ConsentGate::clear`] is no longer valid, so a
+    /// withdrawn consent cannot be spent at the write path.
+    pub fn is_valid(&self, gate: &ConsentGate) -> bool {
+        self.epoch == gate.epoch
+    }
 }
 
 /// One consent decision.
@@ -329,8 +372,8 @@ pub struct ConsentRecord {
     pub target_role: TargetRole,
     /// What the user decided.
     pub outcome: ConsentOutcome,
-    /// The scope the user chose.
-    pub scope: ConsentScope,
+    /// The scope the user chose, or `None` for a refusal.
+    pub scope: Option<ConsentScope>,
 }
 
 /// Gates every action behind a consent the user gave in this session.
@@ -338,10 +381,12 @@ pub struct ConsentRecord {
 pub struct ConsentGate {
     next_token: u64,
     next_sequence: u64,
+    epoch: u64,
     pending: Vec<ConsentPrompt>,
     receipts: Vec<ConsentReceipt>,
     log: VecDeque<ConsentRecord>,
     dropped: u64,
+    evicted: u64,
 }
 
 impl Default for ConsentGate {
@@ -349,10 +394,12 @@ impl Default for ConsentGate {
         Self {
             next_token: 0,
             next_sequence: 1,
+            epoch: 0,
             pending: Vec::new(),
             receipts: Vec::new(),
             log: VecDeque::new(),
             dropped: 0,
+            evicted: 0,
         }
     }
 }
@@ -366,35 +413,50 @@ impl ConsentGate {
     /// Asks for consent for one action.
     ///
     /// The prompt carries the consequence sentence; the caller shows it and then
-    /// calls [`ConsentGate::grant`] or [`ConsentGate::deny`].
+    /// calls [`ConsentGate::grant`] or [`ConsentGate::deny`]. Once
+    /// [`MAX_PENDING_PROMPTS`] are unanswered the oldest is evicted and counted.
     pub fn prompt(&mut self, action: ActionClass, target_role: TargetRole) -> ConsentPrompt {
         let token = ConsentToken::new(self.next_token);
         self.next_token = self.next_token.wrapping_add(1);
         let prompt = ConsentPrompt::new(token, action, target_role);
+        if self.pending.len() >= MAX_PENDING_PROMPTS {
+            self.pending.remove(0);
+            self.evicted = self.evicted.wrapping_add(1);
+        }
         self.pending.push(prompt.clone());
         prompt
     }
 
     /// Grants a pending prompt.
-    pub fn grant(&mut self, token: ConsentToken, scope: ConsentScope) -> Option<ConsentReceipt> {
-        self.resolve(token, ConsentOutcome::Granted, scope)
+    ///
+    /// A token that matches no pending prompt returns
+    /// [`ConsentError::UnknownToken`], so a prompt cannot be answered twice.
+    pub fn grant(
+        &mut self,
+        token: ConsentToken,
+        scope: ConsentScope,
+    ) -> Result<ConsentReceipt, ConsentError> {
+        self.resolve(token, ConsentOutcome::Granted, Some(scope))
     }
 
     /// Refuses a pending prompt.
-    pub fn deny(&mut self, token: ConsentToken) -> Option<ConsentReceipt> {
-        self.resolve(token, ConsentOutcome::Denied, ConsentScope::Once)
+    ///
+    /// A refusal has no chosen scope, so its receipt reports `None`.
+    pub fn deny(&mut self, token: ConsentToken) -> Result<ConsentReceipt, ConsentError> {
+        self.resolve(token, ConsentOutcome::Denied, None)
     }
 
     fn resolve(
         &mut self,
         token: ConsentToken,
         outcome: ConsentOutcome,
-        scope: ConsentScope,
-    ) -> Option<ConsentReceipt> {
+        scope: Option<ConsentScope>,
+    ) -> Result<ConsentReceipt, ConsentError> {
         let index = self
             .pending
             .iter()
-            .position(|prompt| prompt.token == token)?;
+            .position(|prompt| prompt.token == token)
+            .ok_or(ConsentError::UnknownToken)?;
         let prompt = self.pending.remove(index);
         let sequence = self.next_sequence;
         self.next_sequence = self.next_sequence.wrapping_add(1);
@@ -413,9 +475,13 @@ impl ConsentGate {
             sequence,
         };
         if outcome == ConsentOutcome::Granted {
+            if self.receipts.len() >= MAX_RECEIPTS {
+                self.receipts.remove(0);
+                self.evicted = self.evicted.wrapping_add(1);
+            }
             self.receipts.push(receipt.clone());
         }
-        Some(receipt)
+        Ok(receipt)
     }
 
     fn push_record(&mut self, record: ConsentRecord) {
@@ -429,8 +495,9 @@ impl ConsentGate {
     /// Authorizes one action.
     ///
     /// Returns [`ConsentError::NotGranted`] when no granted receipt exists for
-    /// the action class. A [`ConsentScope::Once`] receipt is consumed; a
-    /// [`ConsentScope::Session`] receipt stays available.
+    /// the action class *and* target role, so a receipt for one control cannot
+    /// authorize a different one. A [`ConsentScope::Once`] receipt is consumed;
+    /// a [`ConsentScope::Session`] receipt stays available.
     pub fn authorize(
         &mut self,
         action: ActionClass,
@@ -439,16 +506,21 @@ impl ConsentGate {
         let index = self
             .receipts
             .iter()
-            .position(|receipt| receipt.action == action && receipt.is_granted())
+            .position(|receipt| {
+                receipt.action == action
+                    && receipt.target_role == target_role
+                    && receipt.is_granted()
+            })
             .ok_or(ConsentError::NotGranted)?;
         let receipt = self.receipts.remove(index);
-        if receipt.scope == ConsentScope::Session {
+        if receipt.scope == Some(ConsentScope::Session) {
             self.receipts.push(receipt.clone());
         }
         Ok(ConsentProof {
             action,
             target_role,
             sequence: receipt.sequence,
+            epoch: self.epoch,
         })
     }
 
@@ -460,9 +532,13 @@ impl ConsentGate {
     }
 
     /// Drops every receipt and pending prompt. The log is kept.
+    ///
+    /// The epoch moves, so every outstanding [`ConsentProof`] becomes invalid:
+    /// a withdrawn consent cannot be spent after a clear.
     pub fn clear(&mut self) {
         self.pending.clear();
         self.receipts.clear();
+        self.epoch = self.epoch.wrapping_add(1);
     }
 
     /// Every retained decision, oldest first.
@@ -473,6 +549,15 @@ impl ConsentGate {
     /// The number of decisions dropped to keep the log bounded.
     pub fn dropped(&self) -> u64 {
         self.dropped
+    }
+
+    /// The number of live entries evicted to keep the gate bounded.
+    ///
+    /// An evicted prompt can no longer be answered; an evicted receipt no
+    /// longer authorizes. Both are counted here so a bounded gate is never
+    /// silent about what it discarded.
+    pub fn evicted(&self) -> u64 {
+        self.evicted
     }
 
     /// The number of pending prompts.
