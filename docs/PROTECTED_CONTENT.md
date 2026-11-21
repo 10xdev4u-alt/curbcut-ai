@@ -23,7 +23,8 @@ mode.
 Precedence, highest first:
 
 1. **`SecureDesktop`** — the adapter reported a secure desktop. The policy
-   refuses before inspecting any pixel, so a secure screen is never captured.
+   refuses before inspecting any pixel, so a secure screen is never analysed;
+   the adapter must not capture while a secure desktop is active.
 2. **`UncapturableWindow`** — the window reports it cannot be captured.
 3. **`DrmWindow`** — the adapter detected a DRM surface.
 4. **`BlackFrame`** — the frame is uniformly black, which is how a protected
@@ -42,10 +43,19 @@ reaches `black_fraction` (default 0.98).
 
 A black frame is refused only after `required_black_frames` (default 2)
 consecutive black frames, so a single dark frame — a loading screen, a fade —
-is not called protected. A non-black frame clears the streak.
+is not called protected. A non-black frame clears the streak, and so does any
+refusal that happens before the pixels are read: a secure desktop, an
+uncapturable window, or a DRM surface breaks the run, so a dark frame right
+after unlocking is not mistaken for a protected surface.
 
 `ProtectionConfig::clamped` bounds every ratio to `0.0..=1.0`, falls back to the
-default on `NaN`, and replaces a zero sample stride or frame requirement.
+default on `NaN` or on a degenerate zero fraction, and replaces a zero or
+oversized sample stride or frame requirement. `black_fraction` clamps at its own
+boundary, so an unclamped configuration cannot wrap the sampling offset.
+
+A buffer shorter than one pixel is not a frame. `black_fraction` scores it 0.0,
+and `CapturePolicy::observe` refuses it as a `BlackFrame` rather than clearing
+it, so a capture failure cannot be analysed.
 
 ## Accessibility-only mode
 

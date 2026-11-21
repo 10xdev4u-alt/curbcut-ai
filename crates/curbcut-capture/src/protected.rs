@@ -159,9 +159,11 @@ impl Default for ProtectionConfig {
 
 impl ProtectionConfig {
     /// Clamps every field to a usable range and falls back to the default on
-    /// `NaN`.
+    /// `NaN` or on a degenerate value.
     pub fn clamped(mut self) -> Self {
-        if !self.black_fraction.is_finite() {
+        // A fraction of zero would make every frame black, so it is not a
+        // usable value.
+        if !self.black_fraction.is_finite() || self.black_fraction <= 0.0 {
             self.black_fraction = DEFAULT_BLACK_FRACTION;
         }
         self.black_fraction = self.black_fraction.clamp(0.0, 1.0);
@@ -186,8 +188,11 @@ fn luminance(rgba: [u8; 4]) -> u8 {
 /// [`ProtectionConfig::black_luminance`].
 ///
 /// `data` is RGBA, four bytes per pixel. A slice shorter than one pixel scores
-/// 0.0, so a truncated buffer is never called a black frame.
+/// 0.0, so a truncated buffer is never called a black frame. The configuration
+/// is clamped at this boundary, so a stride that would overflow the offset
+/// arithmetic is replaced by the default instead of wrapping.
 pub fn black_fraction(data: &[u8], config: &ProtectionConfig) -> f32 {
+    let config = config.clamped();
     let step = config.sample_step * 4;
     if step == 0 || data.len() < 4 {
         return 0.0;
@@ -284,15 +289,28 @@ impl CapturePolicy {
     }
 
     /// Checks one frame.
+    ///
+    /// A refusal that happens before the pixels are read does not inspect a
+    /// frame, so it breaks the black-frame streak: "consecutive" means
+    /// consecutive frames that reached the black-frame test. A buffer shorter
+    /// than one pixel is not a frame and is refused rather than cleared, so a
+    /// capture failure cannot be analysed.
     pub fn observe(&mut self, frame: &[u8]) -> CaptureVerdict {
         if self.secure_desktop {
+            self.black_streak = 0;
             return CaptureVerdict::Refuse(ProtectedReason::SecureDesktop);
         }
         if self.uncapturable {
+            self.black_streak = 0;
             return CaptureVerdict::Refuse(ProtectedReason::UncapturableWindow);
         }
         if self.drm {
+            self.black_streak = 0;
             return CaptureVerdict::Refuse(ProtectedReason::DrmWindow);
+        }
+        if frame.len() < 4 {
+            self.black_streak = 0;
+            return CaptureVerdict::Refuse(ProtectedReason::BlackFrame);
         }
         if is_black_frame(frame, &self.config) {
             self.black_streak = self.black_streak.saturating_add(1);

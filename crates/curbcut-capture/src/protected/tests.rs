@@ -71,6 +71,21 @@ fn a_truncated_buffer_is_never_a_black_frame() {
 }
 
 #[test]
+fn a_short_buffer_is_refused_by_the_policy() {
+    let mut policy = CapturePolicy::new(config());
+    assert_eq!(
+        policy.observe(&[]),
+        CaptureVerdict::Refuse(ProtectedReason::BlackFrame),
+        "an empty buffer is not a frame and must not be cleared"
+    );
+    assert_eq!(
+        policy.observe(&[0, 0, 0]),
+        CaptureVerdict::Refuse(ProtectedReason::BlackFrame)
+    );
+    assert_eq!(policy.black_streak(), 0);
+}
+
+#[test]
 fn one_dark_frame_is_not_a_refusal() {
     let mut policy = CapturePolicy::new(config());
     assert_eq!(
@@ -112,6 +127,44 @@ fn a_secure_desktop_is_refused_before_any_pixel_is_read() {
         CaptureVerdict::Refuse(ProtectedReason::SecureDesktop)
     );
     assert_eq!(policy.black_streak(), 0, "no frame was inspected");
+}
+
+#[test]
+fn a_signal_gap_breaks_the_streak() {
+    let mut policy = CapturePolicy::new(config());
+    assert_eq!(policy.observe(&black_frame(32)), CaptureVerdict::Proceed);
+    assert_eq!(policy.black_streak(), 1);
+
+    // A secure desktop refuses without inspecting a frame, so the streak from
+    // before it cannot count as consecutive with a frame after it.
+    policy.set_secure_desktop(true);
+    assert_eq!(
+        policy.observe(&frame(&[(255, 255, 255); 32])),
+        CaptureVerdict::Refuse(ProtectedReason::SecureDesktop)
+    );
+    assert_eq!(policy.black_streak(), 0);
+    policy.set_secure_desktop(false);
+
+    assert_eq!(
+        policy.observe(&black_frame(32)),
+        CaptureVerdict::Proceed,
+        "one dark frame after unlocking is not protected"
+    );
+    assert_eq!(policy.black_streak(), 1);
+}
+
+#[test]
+fn a_drm_gap_breaks_the_streak() {
+    let mut policy = CapturePolicy::new(config());
+    assert_eq!(policy.observe(&black_frame(32)), CaptureVerdict::Proceed);
+    policy.set_drm(true);
+    assert_eq!(
+        policy.observe(&frame(&[(255, 255, 255); 32])),
+        CaptureVerdict::Refuse(ProtectedReason::DrmWindow)
+    );
+    assert_eq!(policy.black_streak(), 0);
+    policy.set_drm(false);
+    assert_eq!(policy.observe(&black_frame(32)), CaptureVerdict::Proceed);
 }
 
 #[test]
@@ -216,6 +269,33 @@ fn the_config_is_clamped() {
     .clamped();
     assert_eq!(high.black_fraction, 1.0);
     assert_eq!(high.sample_step, DEFAULT_SAMPLE_STEP);
+}
+
+#[test]
+fn a_zero_black_fraction_falls_back_to_the_default() {
+    let cfg = ProtectionConfig {
+        black_fraction: 0.0,
+        ..config()
+    }
+    .clamped();
+    assert_eq!(cfg.black_fraction, DEFAULT_BLACK_FRACTION);
+    assert!(!is_black_frame(&frame(&[(255, 255, 255); 32]), &cfg));
+}
+
+#[test]
+fn a_huge_sample_stride_is_clamped_at_the_boundary() {
+    for stride in [usize::MAX, 1 << 62, MAX_SAMPLE_STEP + 1] {
+        let cfg = ProtectionConfig {
+            sample_step: stride,
+            ..config()
+        };
+        assert_eq!(
+            black_fraction(&black_frame(2), &cfg),
+            1.0,
+            "stride {stride} must not wrap the offset arithmetic"
+        );
+        assert!(is_black_frame(&black_frame(2), &cfg));
+    }
 }
 
 #[test]
