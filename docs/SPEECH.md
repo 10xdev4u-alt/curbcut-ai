@@ -60,6 +60,13 @@ user's consent for one voice; `mark_downloaded` records that it is on disk.
 returns to `Idle` and from `Requested` records `Abandoned`. Only one speaker
 holds focus at a time.
 
+`AudioFocus` decides *whether* we hold the single speaker. It does not know
+about the screen reader. `Coexistence` (see
+[`docs/COEXISTENCE.md`](COEXISTENCE.md)) decides whether the screen reader
+outranks us: while the screen reader announces, every request is held whatever
+the policy, and a held request resumes when the reader goes quiet. They compose
+in that order.
+
 ## Privacy
 
 Speech is read aloud from text the user is already looking at. The abstraction

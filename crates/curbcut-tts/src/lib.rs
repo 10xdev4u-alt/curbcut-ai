@@ -14,6 +14,10 @@
 //! push-to-talk machine. See
 //! [`../../../docs/VOICE_COMMANDS.md`](../../../docs/VOICE_COMMANDS.md).
 //!
+//! [`coexist`] is the arbiter with a screen reader: it holds or ducks our
+//! speech so an announcement is never talked over. See
+//! [`../../../docs/COEXISTENCE.md`](../../../docs/COEXISTENCE.md).
+//!
 //! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -31,6 +35,8 @@ pub mod engine;
 
 /// Audio focus.
 pub mod focus;
+
+pub mod coexist;
 
 /// Voice command grammar, help, and push-to-talk.
 pub mod command;

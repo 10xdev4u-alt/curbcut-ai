@@ -42,7 +42,7 @@
 
 - **Piper:** sidecar binary or `libpiper` bindings; output to `AVAudioEngine`.
 - **Fallback:** `AVSpeechSynthesizer` (system voices, offline) — better than espeak on macOS and no download.
-- **Audio focus:** `AVAudioSession` category `.playback` with `.duckOthers`; pause on screen reader `AXAnnouncement` if detected.
+- **Audio focus:** `AVAudioSession` category `.playback` with `.duckOthers`; feed `AXAnnouncement` start/end to `coexist::Coexistence::observe` as `ScreenReader::Speaking`, and read `level()` so an announcement is never talked over. See [`COEXISTENCE.md`](COEXISTENCE.md).
 
 ### 1.5 Packaging
 
@@ -92,7 +92,7 @@
 
 - **Piper:** sidecar or bindings; output to WASAPI.
 - **Fallback:** `SAPI` (`ISpVoice`) — offline, built in, robotic but instant.
-- **Audio focus:** WASAPI session-level ducking; pause when a screen reader is active.
+- **Audio focus:** WASAPI session-level ducking; report Narrator announcement windows to `coexist::Coexistence::observe` and read `level()`. See [`COEXISTENCE.md`](COEXISTENCE.md).
 
 ### 2.5 Packaging
 
@@ -140,7 +140,7 @@
 
 - **Piper:** sidecar; output to PulseAudio/PipeWire.
 - **Fallback:** `espeak-ng` via `speech-dispatcher` or direct.
-- **Audio focus:** PulseAudio stream routing + ducking; detect screen reader streams by name.
+- **Audio focus:** PulseAudio stream routing + ducking; report AT-SPI `announcement` events to `coexist::Coexistence::observe` and read `level()`. See [`COEXISTENCE.md`](COEXISTENCE.md).
 
 ### 3.5 Packaging
 
