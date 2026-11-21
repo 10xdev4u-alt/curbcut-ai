@@ -979,6 +979,14 @@ Implemented in `crates/curbcut-tts`. See [`docs/SPEECH.md`](SPEECH.md).
   on disk; `DownloadPolicy::Forbidden` is the default.
 - `AudioFocus` is a state machine (`Idle`, `Requested`, `Granted`, `Abandoned`)
   with one holder at a time; a grant without a request is ignored.
+- `coexist::Coexistence` is the screen-reader arbiter, a single holder like
+  `AudioFocus`. `ScreenReader` is `Off`, `Listening`, or `Speaking`;
+  `Ducking` is `Pause` (the default) or `Duck { level }` clamped to
+  `0.0..=1.0` (a `NaN` is full level). `level` is `0.0` while the screen reader
+  speaks under every policy, a request in that window is held rather than
+  dropped, and `observe` resumes a held request when the reader goes quiet.
+  `simulate` runs a one-hour schedule and counts every overlap. See
+  [`docs/COEXISTENCE.md`](COEXISTENCE.md).
 - `Utterance` implements `Debug` with the text redacted and `describe` reports a
   length and a hash. No speech text is logged.
 - `command::CommandGrammar` matches a normalized utterance against a versioned

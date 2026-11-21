@@ -293,9 +293,15 @@ CRATE_STATUS = {
         "opt-in and `AudioFocus` is a single-holder state machine. The voice\n"
         "command grammar matches the longest catalog phrase on a word boundary,\n"
         "renders the \"what can I say?\" panel, and `PushToTalk` is a hold-or-\n"
-        "toggle microphone state machine. See\n"
-        "[`../../docs/SPEECH.md`](../../docs/SPEECH.md) and\n"
-        "[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md)."
+        "toggle microphone state machine. `Coexistence` is the arbiter with a\n"
+        "screen reader: `ScreenReader` reports off/listening/speaking,\n"
+        "`Ducking` is pause (the default) or a clamped duck level, and the\n"
+        "arbiter never sounds over an announcement, holds rather than drops a\n"
+        "request, and resumes it when the reader goes quiet. `simulate` runs a\n"
+        "one-hour schedule and counts every overlap. See\n"
+        "[`../../docs/SPEECH.md`](../../docs/SPEECH.md),\n"
+        "[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md), and\n"
+        "[`../../docs/COEXISTENCE.md`](../../docs/COEXISTENCE.md)."
     ),
     "curbcut-telemetry": (
         "The counts-only telemetry schema is implemented: `MetricKey` is a\n"
