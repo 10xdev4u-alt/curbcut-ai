@@ -845,6 +845,26 @@ Implemented in `crates/curbcut-input/src/switch_access.rs`. See
 - `set_dwell_ms` and `set_mode` change the threshold or mode and clear pending
   state, so a mode change cannot leave a half-elapsed dwell behind.
 
+### 10.8 Action consent
+
+Implemented in `crates/curbcut-input/src/consent.rs`. See
+[`docs/CONSENT.md`](CONSENT.md).
+
+- `ConsentGate::authorize` returns `ConsentError::NotGranted` unless a granted
+  receipt exists for the action class *and* target role, so no action happens
+  without consent.
+- `ConsentPrompt::consequence` states what the application will do, per
+  `ActionClass`, before the user chooses; it never quotes the target's label.
+- A receipt is scoped: `ConsentScope::Once` is consumed by the action it
+  authorized, `ConsentScope::Session` lasts until `clear`.
+- `ConsentProof` is neither `Clone` nor `Copy` and is bound to the gate's epoch,
+  so `ConsentProof::is_valid` fails after `clear` and a withdrawn consent cannot
+  be spent.
+- `ConsentRecord` logs the sequence, action class, target role, outcome, and
+  scope (`None` for a refusal). A record carries no label, value, or screen
+  text; the log, pending prompts, and receipts are bounded, and `dropped` /
+  `evicted` count what was discarded.
+
 ---
 
 ## 11. Storage and privacy

@@ -105,6 +105,7 @@ docs/
   CLICKS.md                Click routing: consume or hand off, focus, no double-click
   FOCUS_ORDER.md           Keyboard focus order: tab cycle, no traps, shortcuts
   SWITCH_ACCESS.md         Switch access: auto scan, step scan, dwell clicking
+  CONSENT.md               Action consent: consequence first, scoped receipt, role-only log
   PROVENANCE.md            Provenance panel: rule links, originals, log-safe hashes
   STOP_MOTION.md           Stop-motion mode: freeze carousels, autoplay, countdowns
   ONE_STEP.md              One-step mode: one visible step, progress, Your answers

@@ -22,6 +22,11 @@
 //! scan advances the highlight and a press selects, step scan dwells on a
 //! highlighted control so a tap steps and a hold selects. See
 //! [`../../../docs/SWITCH_ACCESS.md`](../../../docs/SWITCH_ACCESS.md).
+//!
+//! [`consent::ConsentGate`] gates every action behind a consent the user gave in
+//! this session: the prompt states the consequence, a receipt is scoped to one
+//! action or to the session, and the log records action class and target role
+//! only. See [`../../../docs/CONSENT.md`](../../../docs/CONSENT.md).
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -37,6 +42,8 @@ pub mod shortcuts;
 pub mod hover;
 
 pub mod click;
+
+pub mod consent;
 
 pub mod focus_order;
 
