@@ -220,6 +220,7 @@ fn an_hour_with_a_screen_reader_never_overlaps() {
         assert_eq!(report.started, 16, "{policy} dropped a request");
         assert_eq!(report.completed, 16, "{policy} left a request unfinished");
         assert_eq!(report.interrupted, 0, "{policy} cut an utterance");
+        assert_eq!(report.replaced, 0, "{policy} replaced an utterance");
         assert!(
             report.overlap_free(),
             "{policy} overlapped the screen reader"
@@ -245,14 +246,81 @@ fn pause_holds_and_duck_lowers_over_the_hour() {
 }
 
 #[test]
-fn a_request_that_starts_before_an_announcement_is_interrupted() {
+fn a_request_cut_off_by_the_reader_resumes_and_completes() {
+    // The utterance plays ten ticks, is cut by the announcement at tick 50,
+    // and resumes at tick 60 with the twenty ticks it had left.
     let announcements = vec![Announcement::new(50, 60)];
     let requests = vec![UtteranceRequest::new(40, 30)];
 
     let report = simulate(Ducking::Pause, true, &announcements, &requests, 100);
     assert_eq!(report.started, 1);
     assert_eq!(report.interrupted, 1);
-    assert_eq!(report.spoken_ticks, 10);
+    assert_eq!(report.completed, 1, "the remainder must finish");
+    assert_eq!(report.spoken_ticks, 30);
+    assert_eq!(report.held_requests, 1);
+    assert_eq!(report.held_ticks, 10);
+    assert!(report.overlap_free());
+}
+
+#[test]
+fn one_request_cut_twice_is_counted_once() {
+    // Two announcements cut the same utterance. It resumes between them and
+    // finishes, but it is one interrupted request, not two.
+    let announcements = vec![Announcement::new(5, 8), Announcement::new(9, 12)];
+    let requests = vec![UtteranceRequest::new(1, 8)];
+
+    let report = simulate(Ducking::Pause, true, &announcements, &requests, 23);
+    assert_eq!(report.requests, 1);
+    assert_eq!(report.started, 1);
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.interrupted, 1, "a second cut must not recount");
+    assert!(report.overlap_free());
+}
+
+#[test]
+fn a_request_due_while_another_plays_replaces_it() {
+    // The arbiter holds one utterance. The request at tick 1 takes the holder
+    // from the request that began at tick 0.
+    let requests = vec![UtteranceRequest::new(0, 10), UtteranceRequest::new(1, 1)];
+
+    let report = simulate(Ducking::Pause, false, &[], &requests, 20);
+    assert_eq!(report.requests, 2);
+    assert_eq!(report.started, 2);
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.replaced, 1);
+    assert_eq!(report.interrupted, 0, "a replacement is not a reader cut");
+    assert_eq!(report.spoken_ticks, 2);
+    assert!(report.overlap_free());
+}
+
+#[test]
+fn a_zero_duration_request_completes_without_a_spoken_tick() {
+    let report = simulate(
+        Ducking::Pause,
+        false,
+        &[],
+        &[UtteranceRequest::new(0, 0)],
+        2,
+    );
+    assert_eq!(report.started, 1);
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.spoken_ticks, 0);
+    assert_eq!(report.ducked_ticks, 0);
+}
+
+#[test]
+fn a_zero_duration_request_resumes_after_a_hold_without_a_spoken_tick() {
+    // It is requested inside an announcement, held, then completes when the
+    // reader goes quiet without ever sounding.
+    let announcements = vec![Announcement::new(0, 5)];
+    let requests = vec![UtteranceRequest::new(1, 0)];
+
+    let report = simulate(Ducking::Pause, true, &announcements, &requests, 10);
+    assert_eq!(report.started, 1);
+    assert_eq!(report.completed, 1);
+    assert_eq!(report.spoken_ticks, 0);
+    assert_eq!(report.held_requests, 1);
+    assert_eq!(report.held_ticks, 4);
     assert!(report.overlap_free());
 }
 

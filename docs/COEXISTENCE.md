@@ -20,7 +20,12 @@ an announcement.**
    mute the voice by accident.
 3. **A held utterance resumes.** When the screen reader goes quiet, the held
    request is decided again and plays. An interruption costs the wait, not the
-   content.
+   content: a cut utterance keeps its remaining duration and plays the rest
+   after the wait. It is counted once, however many times it is cut.
+4. **The holder is exclusive.** A request that arrives while another utterance
+   is held or playing takes the single holder and replaces it. A replacement
+   is a user action, not a screen-reader cut, so it is counted in
+   `Report::replaced`.
 
 ## States
 
@@ -63,17 +68,32 @@ The acceptance criterion is measured, not asserted:
   none.
 - `Duck` produces `ducked_ticks > 0`.
 
-`interrupted` counts only requests the screen reader cut short; a request the
-horizon truncates is neither completed nor interrupted. `spoken_ticks` and
-`ducked_ticks` follow `level()`, so a `duck(0.0)` request is not counted as
-audible.
+The schedule is synthetic. It validates the arbiter and the player, not a
+platform adapter: no macOS, Windows, or Linux speech source is exercised here.
+
+Counter semantics:
+
+- `interrupted` counts requests the screen reader cut, once per request
+  however many times it is cut. A cut request resumes with its remaining
+  duration; one replaced or truncated by the horizon is not counted in
+  `completed`.
+- `replaced` counts requests dropped because a newer request took the holder.
+- A request the horizon truncates is neither completed nor interrupted.
+- A zero-duration request completes on the tick it is taken, with no tick of
+  sound.
+- `spoken_ticks` and `ducked_ticks` follow `level()`, so a `duck(0.0)` request
+  is not counted as audible.
 
 The unit test `an_hour_with_a_screen_reader_never_overlaps` drives it.
 
 ## Platform notes
 
-- **macOS:** `AVSpeechSynthesizer` posts `AVSpeechSynthesizerDelegate` events;
-  `AXAnnouncement` notifications mark the announcement window. Use
+- **macOS:** `AVSpeechSynthesizer` posts `AVSpeechSynthesizerDelegate` events.
+  `AXAnnouncement` (`announcementRequested`) only *requests* an announcement; it
+  does not report when speech starts or ends, so it cannot mark the
+  `Speaking` window on its own. Until a verified speech-start and speech-end
+  source is documented, the macOS adapter must not map `AXAnnouncement` to
+  `ScreenReader::Speaking`, or a held request could stay held forever. Use
   `AVAudioSession` `.duckOthers` for the ducking path.
 - **Windows:** `UIA` raises `UTAutomation` / `announcement` events; `Narrator`
   state comes from the `UTAutomation` client.
@@ -85,6 +105,7 @@ CurbCut speaks normally; a missing adapter must not silence the voice.
 ## What we do not claim
 
 We do not claim to detect every screen reader on every platform. Where no
-adapter reports announcements, we fall back to full level. The measured result
-is for the adapters we implement, and the limitation is recorded in
+adapter reports announcements, we fall back to full level. The 1-hour result
+above is for the deterministic arbiter and player simulation, not for any
+platform adapter; the limitation is recorded in
 [`docs/A11Y_MAPPING.md`](A11Y_MAPPING.md).

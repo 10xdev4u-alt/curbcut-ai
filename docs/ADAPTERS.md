@@ -42,7 +42,7 @@
 
 - **Piper:** sidecar binary or `libpiper` bindings; output to `AVAudioEngine`.
 - **Fallback:** `AVSpeechSynthesizer` (system voices, offline) — better than espeak on macOS and no download.
-- **Audio focus:** `AVAudioSession` category `.playback` with `.duckOthers`; feed `AXAnnouncement` start/end to `coexist::Coexistence::observe` as `ScreenReader::Speaking`, and read `level()` so an announcement is never talked over. See [`COEXISTENCE.md`](COEXISTENCE.md).
+- **Audio focus:** `AVAudioSession` category `.playback` with `.duckOthers`; feed a verified announcement start to `coexist::Coexistence::observe` as `ScreenReader::Speaking`, its end back to `ScreenReader::Listening`, and `ScreenReader::Off` only when the screen reader stops running. Read `level()` so an announcement is never talked over. `AXAnnouncement` only requests an announcement and does not report speech start or end, so it is not a speech-window source. See [`COEXISTENCE.md`](COEXISTENCE.md).
 
 ### 1.5 Packaging
 

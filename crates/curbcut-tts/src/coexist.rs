@@ -14,7 +14,9 @@
 //!   the user chose. The default is [`Ducking::Pause`].
 //! - **A held request is not dropped.** It is re-decided on the next tick, so
 //!   an utterance survives an interruption and plays when the reader goes
-//!   quiet.
+//!   quiet. The single holder is exclusive: a request that arrives while
+//!   another is in flight replaces it, and the replaced utterance is counted
+//!   in [`Report::replaced`].
 //!
 //! [`simulate`] runs the same rules over a schedule for a whole hour, so the
 //! no-overlap promise is measured rather than asserted.
@@ -343,8 +345,15 @@ pub struct Report {
     pub started: u64,
     /// Requests that ran to the end.
     pub completed: u64,
-    /// Requests cut short by the screen reader.
+    /// Requests cut short by the screen reader, counted once per request
+    /// however many times it is cut. A cut request keeps its remaining
+    /// duration and resumes; one replaced or truncated by the horizon is not
+    /// `completed`.
     pub interrupted: u64,
+    /// Requests dropped because a newer request took the single holder. A
+    /// replacement is a user action, not a screen-reader cut, so it is counted
+    /// here rather than in `interrupted`.
+    pub replaced: u64,
     /// Requests deferred at least once.
     pub held_requests: u64,
     /// Ticks a request was waiting.
@@ -375,6 +384,24 @@ fn record_audible(report: &mut Report, level: f32) {
     }
 }
 
+/// One utterance the simulation holds.
+///
+/// The arbiter is a single holder, so at most one of these is queued and one
+/// is playing at a time.
+#[derive(Debug, Clone, Copy)]
+struct Holder {
+    /// Ticks of the utterance still to play.
+    remaining: Tick,
+    /// Whether it has already sounded at least one tick.
+    started: bool,
+    /// Whether it has already been counted in [`Report::held_requests`].
+    hold_counted: bool,
+    /// Whether it has already been counted in [`Report::interrupted`]. A
+    /// request can be cut, resume, and be cut again; it is one interrupted
+    /// request, not one per cut.
+    cut_counted: bool,
+}
+
 /// Runs a coexistence simulation for `horizon` ticks.
 ///
 /// `announcements` must be sorted by `start` and `requests` by `at`. The screen
@@ -383,10 +410,15 @@ fn record_audible(report: &mut Report, level: f32) {
 /// announcement inside an active period is [`ScreenReader::Speaking`].
 ///
 /// The player follows [`Coexistence`]: it asks before it starts, and it stops
-/// when [`Coexistence::may_speak`] goes false. A held request is re-decided on
-/// the next tick, so it survives an interruption. The report counts any tick
-/// where CurbCut and the screen reader were both audible, so a policy that
-/// failed to hold would show up as `overlaps > 0`.
+/// when [`Coexistence::may_speak`] goes false. A request the screen reader
+/// cuts keeps its remaining duration as a queued utterance, so it resumes
+/// when the reader goes quiet; it is counted once in [`Report::interrupted`]
+/// however many times it is cut. A request that becomes due while another
+/// utterance is held or playing takes the single holder and replaces it, which
+/// [`Report::replaced`] counts. A zero-duration request completes without a
+/// tick of sound. The report counts any tick where CurbCut and the screen
+/// reader were both audible, so a policy that failed to hold would show up as
+/// `overlaps > 0`.
 pub fn simulate(
     policy: Ducking,
     reader_running: bool,
@@ -403,9 +435,8 @@ pub fn simulate(
 
     let mut announcement = 0usize;
     let mut next_request = 0usize;
-    let mut pending: Option<UtteranceRequest> = None;
-    let mut playing = false;
-    let mut playing_until = 0;
+    let mut queued: Option<Holder> = None;
+    let mut playing: Option<Holder> = None;
 
     for tick in 0..horizon {
         while announcement < announcements.len() && announcements[announcement].end <= tick {
@@ -420,55 +451,95 @@ pub fn simulate(
         };
         coexist.observe(reader);
 
-        if playing && playing_until <= tick {
-            playing = false;
-            coexist.end();
-            report.completed += 1;
+        // An utterance that has played its whole duration completes.
+        if let Some(holder) = playing {
+            if holder.remaining == 0 {
+                playing = None;
+                coexist.end();
+                report.completed += 1;
+            }
         }
 
-        if playing && !coexist.may_speak() {
-            playing = false;
+        // A request that comes due takes the single holder. Whatever was
+        // queued or in flight is dropped, and the replacement is counted.
+        if next_request < requests.len() && requests[next_request].at <= tick {
+            let request = requests[next_request];
+            next_request += 1;
+            if queued.is_some() || playing.is_some() {
+                report.replaced += 1;
+            }
+            playing = None;
             coexist.end();
-            report.interrupted += 1;
+            queued = Some(Holder {
+                remaining: request.duration,
+                started: false,
+                hold_counted: false,
+                cut_counted: false,
+            });
         }
 
-        if playing {
+        // The reader cut our speech short. Keep the remainder so the
+        // utterance resumes when the reader goes quiet. A request that is cut
+        // twice is still one interrupted request, so it is counted once.
+        if let Some(mut holder) = playing {
+            if !coexist.may_speak() {
+                if !holder.cut_counted {
+                    holder.cut_counted = true;
+                    report.interrupted += 1;
+                }
+                playing = None;
+                coexist.end();
+                queued = Some(holder);
+            }
+        }
+
+        // Keep sounding.
+        if let Some(holder) = playing {
             record_audible(&mut report, coexist.level());
             if reader.is_speaking() {
                 report.overlaps += 1;
             }
+            playing = Some(Holder {
+                remaining: holder.remaining.saturating_sub(1),
+                started: true,
+                hold_counted: holder.hold_counted,
+                cut_counted: holder.cut_counted,
+            });
             continue;
         }
 
-        if let Some(waiting) = pending {
-            let decision = coexist.request();
-            if decision.allowed {
-                pending = None;
-                playing = true;
-                playing_until = tick.saturating_add(waiting.duration);
-                report.started += 1;
-                record_audible(&mut report, decision.level);
-            } else {
-                report.held_ticks += 1;
-            }
+        // Start or resume the queued utterance.
+        let Some(mut holder) = queued else {
             continue;
-        }
-
-        if next_request < requests.len() && requests[next_request].at <= tick {
-            let waiting = requests[next_request];
-            next_request += 1;
-            let decision = coexist.request();
-            if decision.allowed {
-                playing = true;
-                playing_until = tick.saturating_add(waiting.duration);
-                report.started += 1;
-                record_audible(&mut report, decision.level);
-            } else {
-                pending = Some(waiting);
+        };
+        let decision = coexist.request();
+        if !decision.allowed {
+            if !holder.hold_counted {
+                holder.hold_counted = true;
                 report.held_requests += 1;
-                report.held_ticks += 1;
             }
+            report.held_ticks += 1;
+            queued = Some(holder);
+            continue;
         }
+        queued = None;
+        if !holder.started {
+            holder.started = true;
+            report.started += 1;
+        }
+        if holder.remaining == 0 {
+            // Nothing to play; the request is already complete.
+            coexist.end();
+            report.completed += 1;
+            continue;
+        }
+        record_audible(&mut report, decision.level);
+        playing = Some(Holder {
+            remaining: holder.remaining - 1,
+            started: true,
+            hold_counted: holder.hold_counted,
+            cut_counted: holder.cut_counted,
+        });
     }
 
     report
