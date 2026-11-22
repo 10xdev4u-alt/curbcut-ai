@@ -47,7 +47,7 @@ CRATES = [
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, voice command grammar, and reading position.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
-    ("curbcut-store", "Storage schema, migrations, repositories, key handling, the plan cache, and the sealed understanding cache.", ["curbcut-core"]),
+    ("curbcut-store", "Storage schema, migrations, repositories, key handling, the plan cache, the sealed understanding cache, and per-app layout memory.", ["curbcut-core"]),
     ("curbcut-telemetry", "Opt-in, counts-only telemetry and redaction.", ["curbcut-core"]),
     ("curbcut-cli", "Headless control, benchmark, and redacted debug dump.", ["curbcut-core"]),
     ("curbcut-app", "Tauri app shell and frontend bridge (stub until the toolchain lands).", ["curbcut-core"]),
@@ -259,9 +259,13 @@ CRATE_STATUS = {
         "one remembered choice per app. The bounded LRU lives in `lru` and is\n"
         "shared with `understanding_cache`, which caches encoded understanding\n"
         "results keyed by content hash, model version, and profile, and stores\n"
-        "every value as ciphertext from a caller-supplied `Cipher`. See\n"
-        "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md) and\n"
-        "[`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md)."
+        "every value as ciphertext from a caller-supplied `Cipher`. Per-user,\n"
+        "per-app, per-window layout memory remembers a content-free choice,\n"
+        "keeps it across an app update, resets per app, per user, or globally,\n"
+        "and migrates a schema-v1 snapshot by filling the absent font scale. See\n"
+        "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md),\n"
+        "[`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md),\n"
+        "and [`../../docs/LAYOUT_MEMORY.md`](../../docs/LAYOUT_MEMORY.md)."
     ),
     "curbcut-input": (
         "The global shortcut catalog is implemented: `ShortcutAction` lists\n"

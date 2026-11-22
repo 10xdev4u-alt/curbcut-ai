@@ -1,6 +1,6 @@
 # curbcut-store
 
-Storage schema, migrations, repositories, key handling, the plan cache, and the sealed understanding cache.
+Storage schema, migrations, repositories, key handling, the plan cache, the sealed understanding cache, and per-app layout memory.
 
 ## Status
 
@@ -9,9 +9,13 @@ keyed by app, window, and content hash, and opt-in per-app memory for
 one remembered choice per app. The bounded LRU lives in `lru` and is
 shared with `understanding_cache`, which caches encoded understanding
 results keyed by content hash, model version, and profile, and stores
-every value as ciphertext from a caller-supplied `Cipher`. See
-[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md) and
-[`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md).
+every value as ciphertext from a caller-supplied `Cipher`. Per-user,
+per-app, per-window layout memory remembers a content-free choice,
+keeps it across an app update, resets per app, per user, or globally,
+and migrates a schema-v1 snapshot by filling the absent font scale. See
+[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md),
+[`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md),
+and [`../../docs/LAYOUT_MEMORY.md`](../../docs/LAYOUT_MEMORY.md).
 
 ## Build and test
 
