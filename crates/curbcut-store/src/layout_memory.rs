@@ -35,7 +35,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use curbcut_core::id::{AppId, ProfileId, WindowId};
+use curbcut_core::id::{AppId, UserId, WindowId};
 
 /// The current schema version.
 pub const CURRENT_VERSION: u32 = 2;
@@ -108,8 +108,8 @@ impl LayoutChoiceV1 {
 /// The key: a user, an app, and a window.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LayoutKey {
-    /// The user, represented by their profile.
-    pub user: ProfileId,
+    /// The local user.
+    pub user: UserId,
     /// The application.
     pub app: AppId,
     /// The window.
@@ -118,7 +118,7 @@ pub struct LayoutKey {
 
 impl LayoutKey {
     /// Creates a key.
-    pub fn new(user: ProfileId, app: AppId, window: WindowId) -> Self {
+    pub fn new(user: UserId, app: AppId, window: WindowId) -> Self {
         Self { user, app, window }
     }
 }
@@ -307,14 +307,14 @@ impl LayoutMemory {
     /// Drops every layout for one user and one app, across windows.
     ///
     /// Returns how many were dropped.
-    pub fn reset_app(&mut self, user: &ProfileId, app: &AppId) -> usize {
+    pub fn reset_app(&mut self, user: &UserId, app: &AppId) -> usize {
         self.retain(|key| &key.user != user || &key.app != app)
     }
 
     /// Drops every layout for one user, across apps and windows.
     ///
     /// Returns how many were dropped.
-    pub fn reset_user(&mut self, user: &ProfileId) -> usize {
+    pub fn reset_user(&mut self, user: &UserId) -> usize {
         self.retain(|key| &key.user != user)
     }
 
@@ -335,8 +335,12 @@ impl LayoutMemory {
     /// layout for the app is kept. The count is returned so a caller can log a
     /// number without logging a key.
     pub fn note_app_update(&mut self, app: &AppId) -> usize {
-        let generation = self.generations.entry(app.clone()).or_insert(0);
-        *generation += 1;
+        match self.generations.get_mut(app) {
+            Some(generation) => *generation += 1,
+            None => {
+                self.generations.insert(app.clone(), 1);
+            }
+        }
         self.snapshot
             .entries
             .keys()
@@ -371,11 +375,11 @@ impl LayoutMemory {
     }
 
     /// The distinct users with a remembered layout, in id order.
-    pub fn users(&self) -> Vec<ProfileId> {
+    pub fn users(&self) -> Vec<UserId> {
         self.snapshot
             .entries
             .keys()
-            .map(|key| key.user.clone())
+            .map(|key| key.user)
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect()

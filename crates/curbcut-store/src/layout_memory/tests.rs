@@ -3,8 +3,8 @@
 use super::*;
 
 /// A user id.
-fn user_of(slug: &str) -> ProfileId {
-    ProfileId::custom(slug)
+fn user_of(id: u64) -> UserId {
+    UserId(id)
 }
 
 /// An app id.
@@ -13,7 +13,7 @@ fn app_of(slug: &str) -> AppId {
 }
 
 /// A layout key.
-fn key_of(user: &str, app: &str, window: u64) -> LayoutKey {
+fn key_of(user: u64, app: &str, window: u64) -> LayoutKey {
     LayoutKey::new(user_of(user), app_of(app), WindowId(window))
 }
 
@@ -57,7 +57,7 @@ fn a_choice_round_trips_and_a_missing_key_is_none() {
     assert!(memory.is_empty());
     assert_eq!(memory.len(), 0);
 
-    let key = key_of("alice", "Safari", 1);
+    let key = key_of(1, "Safari", 1);
     assert!(memory.recall(&key).is_none());
     assert!(memory.remember(key.clone(), choice_at(8)).is_none());
     assert_eq!(memory.recall(&key), Some(choice_at(8)));
@@ -68,7 +68,7 @@ fn a_choice_round_trips_and_a_missing_key_is_none() {
 #[test]
 fn remembering_an_existing_key_replaces_it() {
     let mut memory = LayoutMemory::new();
-    let key = key_of("alice", "Safari", 1);
+    let key = key_of(1, "Safari", 1);
     memory.remember(key.clone(), choice_at(8));
     let replaced = memory.remember(key.clone(), choice_at(10));
     assert_eq!(replaced, Some(choice_at(8)));
@@ -79,8 +79,8 @@ fn remembering_an_existing_key_replaces_it() {
 #[test]
 fn forget_drops_one_key_only() {
     let mut memory = LayoutMemory::new();
-    let first = key_of("alice", "Safari", 1);
-    let second = key_of("alice", "Safari", 2);
+    let first = key_of(1, "Safari", 1);
+    let second = key_of(1, "Safari", 2);
     memory.remember(first.clone(), choice_at(8));
     memory.remember(second.clone(), choice_at(9));
     assert!(memory.forget(&first));
@@ -92,8 +92,8 @@ fn forget_drops_one_key_only() {
 #[test]
 fn memory_is_per_user() {
     let mut memory = LayoutMemory::new();
-    let alice = key_of("alice", "Safari", 1);
-    let bob = key_of("bob", "Safari", 1);
+    let alice = key_of(1, "Safari", 1);
+    let bob = key_of(2, "Safari", 1);
     memory.remember(alice.clone(), choice_at(8));
     memory.remember(bob.clone(), choice_at(14));
     assert_eq!(memory.recall(&alice), Some(choice_at(8)));
@@ -104,9 +104,9 @@ fn memory_is_per_user() {
 #[test]
 fn memory_is_per_window_and_per_app() {
     let mut memory = LayoutMemory::new();
-    let window_one = key_of("alice", "Safari", 1);
-    let window_two = key_of("alice", "Safari", 2);
-    let other_app = key_of("alice", "Notes", 1);
+    let window_one = key_of(1, "Safari", 1);
+    let window_two = key_of(1, "Safari", 2);
+    let other_app = key_of(1, "Notes", 1);
     memory.remember(window_one.clone(), choice_at(8));
     memory.remember(window_two.clone(), choice_at(10));
     memory.remember(other_app.clone(), choice_at(12));
@@ -119,47 +119,47 @@ fn memory_is_per_window_and_per_app() {
 #[test]
 fn reset_app_drops_one_user_and_app_across_windows() {
     let mut memory = LayoutMemory::new();
-    let alice_safari_one = key_of("alice", "Safari", 1);
-    let alice_safari_two = key_of("alice", "Safari", 2);
-    let alice_notes = key_of("alice", "Notes", 1);
-    let bob_safari = key_of("bob", "Safari", 1);
+    let alice_safari_one = key_of(1, "Safari", 1);
+    let alice_safari_two = key_of(1, "Safari", 2);
+    let alice_notes = key_of(1, "Notes", 1);
+    let bob_safari = key_of(2, "Safari", 1);
     memory.remember(alice_safari_one.clone(), choice_at(8));
     memory.remember(alice_safari_two.clone(), choice_at(9));
     memory.remember(alice_notes.clone(), choice_at(10));
     memory.remember(bob_safari.clone(), choice_at(11));
 
-    let dropped = memory.reset_app(&user_of("alice"), &app_of("Safari"));
+    let dropped = memory.reset_app(&user_of(1), &app_of("Safari"));
     assert_eq!(dropped, 2);
     assert_eq!(memory.len(), 2);
     assert_eq!(memory.recall(&alice_safari_one), None);
     assert_eq!(memory.recall(&alice_safari_two), None);
     assert_eq!(memory.recall(&alice_notes), Some(choice_at(10)));
     assert_eq!(memory.recall(&bob_safari), Some(choice_at(11)));
-    assert_eq!(memory.reset_app(&user_of("alice"), &app_of("Safari")), 0);
+    assert_eq!(memory.reset_app(&user_of(1), &app_of("Safari")), 0);
 }
 
 #[test]
 fn reset_user_drops_every_app_for_that_user() {
     let mut memory = LayoutMemory::new();
-    let alice_safari = key_of("alice", "Safari", 1);
-    let alice_notes = key_of("alice", "Notes", 1);
-    let bob_safari = key_of("bob", "Safari", 1);
+    let alice_safari = key_of(1, "Safari", 1);
+    let alice_notes = key_of(1, "Notes", 1);
+    let bob_safari = key_of(2, "Safari", 1);
     memory.remember(alice_safari.clone(), choice_at(8));
     memory.remember(alice_notes.clone(), choice_at(9));
     memory.remember(bob_safari.clone(), choice_at(10));
 
-    assert_eq!(memory.reset_user(&user_of("alice")), 2);
+    assert_eq!(memory.reset_user(&user_of(1)), 2);
     assert_eq!(memory.recall(&alice_safari), None);
     assert_eq!(memory.recall(&alice_notes), None);
     assert_eq!(memory.recall(&bob_safari), Some(choice_at(10)));
-    assert_eq!(memory.reset_user(&user_of("alice")), 0);
+    assert_eq!(memory.reset_user(&user_of(1)), 0);
 }
 
 #[test]
 fn reset_all_drops_every_layout_and_update() {
     let mut memory = LayoutMemory::new();
-    memory.remember(key_of("alice", "Safari", 1), choice_at(8));
-    memory.remember(key_of("bob", "Notes", 2), choice_at(9));
+    memory.remember(key_of(1, "Safari", 1), choice_at(8));
+    memory.remember(key_of(2, "Notes", 2), choice_at(9));
     memory.note_app_update(&app_of("Safari"));
     assert_eq!(memory.reset_all(), 2);
     assert!(memory.is_empty());
@@ -170,9 +170,9 @@ fn reset_all_drops_every_layout_and_update() {
 #[test]
 fn an_app_update_keeps_every_layout() {
     let mut memory = LayoutMemory::new();
-    let first = key_of("alice", "Safari", 1);
-    let second = key_of("alice", "Safari", 2);
-    let other = key_of("alice", "Notes", 1);
+    let first = key_of(1, "Safari", 1);
+    let second = key_of(1, "Safari", 2);
+    let other = key_of(1, "Notes", 1);
     memory.remember(first.clone(), choice_at(8));
     memory.remember(second.clone(), choice_at(9));
     memory.remember(other.clone(), choice_at(10));
@@ -195,15 +195,12 @@ fn an_app_update_keeps_every_layout() {
 #[test]
 fn a_v1_snapshot_upgrades_with_the_default_font_scale() {
     let mut entries = BTreeMap::new();
-    entries.insert(key_of("alice", "Safari", 1), LayoutChoiceV1::new(8, true));
+    entries.insert(key_of(1, "Safari", 1), LayoutChoiceV1::new(8, true));
     let snapshot = LayoutSnapshotV1::new(entries);
     let migrated = snapshot.migrate();
     assert_eq!(migrated.version(), CURRENT_VERSION);
     assert_eq!(migrated.entries().len(), 1);
-    let choice = migrated
-        .entries()
-        .get(&key_of("alice", "Safari", 1))
-        .copied();
+    let choice = migrated.entries().get(&key_of(1, "Safari", 1)).copied();
     assert_eq!(choice, Some(LayoutChoice::new(8, true, DEFAULT_FONT_SCALE)));
 
     let memory = LayoutMemory::from_v1(LayoutSnapshotV1::new(
@@ -220,7 +217,7 @@ fn a_v1_snapshot_upgrades_with_the_default_font_scale() {
     ));
     assert_eq!(memory.len(), 1);
     assert_eq!(
-        memory.recall(&key_of("alice", "Safari", 1)),
+        memory.recall(&key_of(1, "Safari", 1)),
         Some(LayoutChoice::new(8, true, DEFAULT_FONT_SCALE))
     );
 }
@@ -258,6 +255,21 @@ fn migrate_accepts_the_current_version_and_refuses_the_others() {
 }
 
 #[test]
+fn loading_a_current_snapshot_keeps_its_entries() {
+    let key = key_of(1, "Safari", 1);
+    let mut entries = BTreeMap::new();
+    entries.insert(key.clone(), choice_at(8));
+    let snapshot = LayoutSnapshot {
+        version: CURRENT_VERSION,
+        entries,
+    };
+    let memory = LayoutMemory::from_snapshot(snapshot).unwrap();
+    assert_eq!(memory.len(), 1);
+    assert_eq!(memory.recall(&key), Some(choice_at(8)));
+    assert_eq!(memory.snapshot().version(), CURRENT_VERSION);
+}
+
+#[test]
 fn loading_a_future_snapshot_is_refused() {
     let future = LayoutSnapshot {
         version: CURRENT_VERSION + 3,
@@ -270,11 +282,11 @@ fn loading_a_future_snapshot_is_refused() {
 #[test]
 fn apps_and_users_are_distinct_and_ordered() {
     let mut memory = LayoutMemory::new();
-    memory.remember(key_of("bob", "Safari", 1), choice_at(8));
-    memory.remember(key_of("alice", "Notes", 1), choice_at(9));
-    memory.remember(key_of("alice", "Safari", 2), choice_at(10));
+    memory.remember(key_of(2, "Safari", 1), choice_at(8));
+    memory.remember(key_of(1, "Notes", 1), choice_at(9));
+    memory.remember(key_of(1, "Safari", 2), choice_at(10));
     assert_eq!(memory.apps(), vec![app_of("Notes"), app_of("Safari")]);
-    assert_eq!(memory.users(), vec![user_of("alice"), user_of("bob")]);
+    assert_eq!(memory.users(), vec![user_of(1), user_of(2)]);
 }
 
 #[test]
