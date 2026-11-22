@@ -22,9 +22,9 @@
 //!   [`Summary::metrics`]; nothing refuses to produce a summary because of
 //!   them.
 //!
-//! This module is **extractive**. An abstractive step is a model call
-//! (`CC-045`) and is deliberately absent: the summary is a selection of the
-//! document's own sentences, so it cannot invent a fact that is not there.
+//! This module is **extractive**. An abstractive step is a model call and is
+//! deliberately absent: the summary is a selection of the document's own
+//! sentences, so it cannot invent a fact that is not there.
 //!
 //! The module keeps only the selected sentences and the source's length. It
 //! does not retain the whole document, and it never logs a sentence.
@@ -172,7 +172,7 @@ pub struct SummaryMetrics {
     pub candidates: usize,
     /// Key points emitted.
     pub selected: usize,
-    /// Words in the source.
+    /// Words in the source's sentence chunks.
     pub source_words: usize,
     /// Words in the summary.
     pub summary_words: usize,
@@ -270,7 +270,7 @@ impl Summary {
 
     /// The slice of `source` each point cites, skipping a point whose range does
     /// not fit.
-    pub fn cited_sentences<'a>(&'a self, source: &'a str) -> Vec<&'a str> {
+    pub fn cited_sentences<'a>(&self, source: &'a str) -> Vec<&'a str> {
         self.points
             .iter()
             .filter_map(|point| point.cited(source))

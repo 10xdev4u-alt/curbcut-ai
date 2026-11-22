@@ -8,9 +8,10 @@ list of key points, each cited back to its place in the source. `CC-047`.
 The summarizer is **extractive**. It selects sentences from the document and
 never writes a new one, so a summary cannot state a fact that the document does
 not contain. An abstractive step — paraphrasing, merging, or generating — is a
-model call and belongs to `CC-045`. That split is deliberate: extractive output
-is deterministic, offline, and auditable, and it is the only kind that can be
-checked against the source without a model in the loop.
+model call and is deliberately absent from this module; this is the extractive
+half of `CC-047`. That split is deliberate: extractive output is deterministic,
+offline, and auditable, and it is the only kind that can be checked against the
+source without a model in the loop.
 
 ## Rules
 
@@ -41,9 +42,10 @@ non-alphanumeric runs, lower-cased.
 
 The score of a candidate is the **mean term frequency** of its words: the sum of
 each word's count over the whole document's sentences, divided by the sentence's
-word count. A frequent word repeated in one sentence does not inflate the score,
-because the denominator is the sentence length. A sentence with no words is not
-a candidate at all, rather than a zero-score one.
+word count. A longer sentence must carry more total weight to score the same,
+and a frequent word repeated inside one sentence still raises that sentence's
+score. A sentence with no words is not a candidate at all, rather than a
+zero-score one.
 
 Ties break on the earlier `start`, so the result is deterministic for equal
 scores.
@@ -63,6 +65,8 @@ and the metrics.
 
 `SummaryMetrics` reports `source_sentences`, `candidates`, `selected`,
 `source_words`, `summary_words`, `rouge_1_recall`, and `rouge_l_recall`.
+`source_words` counts words in the source's sentence chunks; headings, list
+items, and tables are not counted.
 
 ## ROUGE
 
@@ -77,8 +81,9 @@ expected to be much shorter than the document.
   count, computed with two rows, so the cost is `O(candidate * reference)` time
   and `O(reference)` memory. `0.0` when the reference has no words.
 
-Because the summary is a selection of source sentences, ROUGE-L recall is
-normally high; it is a coverage check, not a quality score.
+Because every selected sentence is an exact, in-order subsequence of the
+source, ROUGE-L recall equals the fraction of source words the summary selects.
+It is a coverage check, not a quality score.
 
 ## Edge cases
 

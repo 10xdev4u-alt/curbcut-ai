@@ -214,6 +214,7 @@ fn a_source_with_no_sentence_chunk_yields_an_empty_summary() {
 #[test]
 fn the_summary_never_invents_text() {
     let summary = summarize(FOUR, &SummaryOptions::new(3, 4, 60));
+    assert_eq!(summary.len(), 3);
     for point in summary.points() {
         assert!(FOUR.contains(point.text()));
         assert!(!point.text().is_empty());
