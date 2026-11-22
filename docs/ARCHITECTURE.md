@@ -996,5 +996,10 @@ Implemented in `crates/curbcut-tts`. See [`docs/SPEECH.md`](SPEECH.md).
 - `command::CommandGrammar::help` renders the "what can I say?" panel.
 - `command::PushToTalk` is a hold-or-toggle microphone state machine; `press`,
   `release`, and `toggle` change the state, and `transitions` counts changes.
+- `read::ReadingCursor` reads the current selection or reads from the pointer
+  one sentence at a time. `select` limits the read to the selection, `stop`
+  keeps the position, `resume` continues from it, and a stop from any other
+  state is a no-op. The cursor stores offsets only. See
+  [`docs/READING_POSITION.md`](READING_POSITION.md).
 - Platform adapters for Piper, AVSpeechSynthesizer, SAPI, and espeak-ng are not
   implemented; the abstraction and the local fallback are.

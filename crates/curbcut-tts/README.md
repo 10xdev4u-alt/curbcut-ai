@@ -1,6 +1,6 @@
 # curbcut-tts
 
-TTS abstraction, audio focus, and voice command grammar.
+TTS abstraction, audio focus, voice command grammar, and reading position.
 
 ## Status
 
@@ -16,10 +16,14 @@ screen reader: `ScreenReader` reports off/listening/speaking,
 `Ducking` is pause (the default) or a clamped duck level, and the
 arbiter never sounds over an announcement, holds rather than drops a
 request, and resumes it when the reader goes quiet. `simulate` runs a
-one-hour schedule and counts every overlap. See
+one-hour schedule and counts every overlap. `ReadingCursor` reads the
+current selection or reads from the pointer one sentence at a time,
+keeps the position across a stop and resume, and stores offsets only.
+See
 [`../../docs/SPEECH.md`](../../docs/SPEECH.md),
-[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md), and
-[`../../docs/COEXISTENCE.md`](../../docs/COEXISTENCE.md).
+[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md),
+[`../../docs/COEXISTENCE.md`](../../docs/COEXISTENCE.md), and
+[`../../docs/READING_POSITION.md`](../../docs/READING_POSITION.md).
 
 ## Build and test
 

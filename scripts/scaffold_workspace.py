@@ -45,7 +45,7 @@ CRATES = [
     ("curbcut-understand", "Classification, chunking, simplification, and reading level.", ["curbcut-core"]),
     ("curbcut-adapt", "Profiles, rules engine, and layout solver.", ["curbcut-core", "curbcut-understand"]),
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
-    ("curbcut-tts", "TTS abstraction, audio focus, and voice command grammar.", ["curbcut-core"]),
+    ("curbcut-tts", "TTS abstraction, audio focus, voice command grammar, and reading position.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
     ("curbcut-store", "Storage schema, migrations, repositories, key handling, and the plan cache.", ["curbcut-core"]),
     ("curbcut-telemetry", "Opt-in, counts-only telemetry and redaction.", ["curbcut-core"]),
@@ -298,10 +298,14 @@ CRATE_STATUS = {
         "`Ducking` is pause (the default) or a clamped duck level, and the\n"
         "arbiter never sounds over an announcement, holds rather than drops a\n"
         "request, and resumes it when the reader goes quiet. `simulate` runs a\n"
-        "one-hour schedule and counts every overlap. See\n"
+        "one-hour schedule and counts every overlap. `ReadingCursor` reads the\n"
+        "current selection or reads from the pointer one sentence at a time,\n"
+        "keeps the position across a stop and resume, and stores offsets only.\n"
+        "See\n"
         "[`../../docs/SPEECH.md`](../../docs/SPEECH.md),\n"
-        "[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md), and\n"
-        "[`../../docs/COEXISTENCE.md`](../../docs/COEXISTENCE.md)."
+        "[`../../docs/VOICE_COMMANDS.md`](../../docs/VOICE_COMMANDS.md),\n"
+        "[`../../docs/COEXISTENCE.md`](../../docs/COEXISTENCE.md), and\n"
+        "[`../../docs/READING_POSITION.md`](../../docs/READING_POSITION.md)."
     ),
     "curbcut-telemetry": (
         "The counts-only telemetry schema is implemented: `MetricKey` is a\n"

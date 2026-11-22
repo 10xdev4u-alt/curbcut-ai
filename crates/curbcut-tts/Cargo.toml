@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "TTS abstraction, audio focus, and voice command grammar."
+description = "TTS abstraction, audio focus, voice command grammar, and reading position."
 publish = false
 
 [lints]

@@ -18,6 +18,11 @@
 //! speech so an announcement is never talked over. See
 //! [`../../../docs/COEXISTENCE.md`](../../../docs/COEXISTENCE.md).
 //!
+//! [`read`] reads the current selection or reads from the pointer, one sentence
+//! at a time, and keeps the position across a stop and resume. Only offsets and
+//! counts leave the cursor. See
+//! [`../../../docs/READING_POSITION.md`](../../../docs/READING_POSITION.md).
+//!
 //! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -40,6 +45,9 @@ pub mod coexist;
 
 /// Voice command grammar, help, and push-to-talk.
 pub mod command;
+
+/// Read selection and read-from-here.
+pub mod read;
 
 /// Voices and the download policy.
 pub mod voice;
