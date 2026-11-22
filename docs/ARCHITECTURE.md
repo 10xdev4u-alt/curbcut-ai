@@ -625,8 +625,9 @@ Implemented in `crates/curbcut-store/src/understanding_cache.rs`. See
 - `store` seals the payload with a `Cipher` before it reaches the LRU, so the
   cache holds ciphertext and `sealed` hands out ciphertext for writing to disk.
   The crate ships no `Cipher`; the key lives in the OS keychain (`CC-093`).
-- A hit whose sealed bytes will not open returns `Err(CipherError::Corrupt)` and
-  drops the entry. `invalidate_content`, `invalidate_model`, and
+- A hit whose sealed bytes will not open returns the `CipherError`. `Corrupt`
+  drops the entry; `NoKey` keeps it, because the bytes are intact and will
+  open once the key returns. `invalidate_content`, `invalidate_model`, and
   `invalidate_profile` drop by key part; `clear` drops everything.
 - The key holds a hash and two identifiers, never text. A payload is derived
   text and must never be logged.

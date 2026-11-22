@@ -194,17 +194,20 @@ impl<C: Cipher> UnderstandingCache<C> {
 
     /// Opens the payload for a key and marks it most recently used.
     ///
-    /// `Ok(None)` is a miss. `Err` is a hit whose sealed bytes would not open;
-    /// the entry is dropped, so the caller recomputes rather than reading the
-    /// same corrupt bytes again.
+    /// `Ok(None)` is a miss. `Err` is a hit whose sealed bytes would not open.
+    /// `CipherError::Corrupt` drops the entry, so the caller recomputes rather
+    /// than reading the same corrupt bytes again. `CipherError::NoKey` keeps
+    /// it: the bytes are intact and will open once the key returns.
     pub fn load(&mut self, key: &UnderstandingKey) -> Result<Option<Vec<u8>>, CipherError> {
         let Some(sealed) = self.inner.get(key) else {
             return Ok(None);
         };
         let opened = self.cipher.open(sealed);
-        if opened.is_err() {
-            // A payload that will not open can never be read, so keeping it
-            // only costs capacity. Drop it and let the caller recompute.
+        if matches!(&opened, Err(CipherError::Corrupt)) {
+            // Corrupt bytes can never be read, so keeping the entry only
+            // costs capacity. A `NoKey` error is different: the sealed bytes
+            // are intact and will open once the key returns, so the entry
+            // stays and the caller can retry.
             self.inner.remove(key);
         }
         opened.map(Some)

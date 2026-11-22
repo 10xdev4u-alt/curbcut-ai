@@ -1,5 +1,8 @@
 //! Tests for the sealed understanding-result cache.
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use super::*;
 
 /// A deterministic, reversible probe cipher.
@@ -39,6 +42,28 @@ impl Cipher for NeverOpens {
 
     fn open(&self, _: &[u8]) -> Result<Vec<u8>, CipherError> {
         Err(CipherError::Corrupt)
+    }
+}
+
+/// A cipher whose key is present at first and then goes away.
+#[derive(Debug, Clone)]
+struct FlakyKey {
+    available: Rc<Cell<bool>>,
+}
+
+impl Cipher for FlakyKey {
+    fn seal(&self, plaintext: &[u8]) -> Result<Vec<u8>, CipherError> {
+        if !self.available.get() {
+            return Err(CipherError::NoKey);
+        }
+        Ok(plaintext.to_vec())
+    }
+
+    fn open(&self, sealed: &[u8]) -> Result<Vec<u8>, CipherError> {
+        if !self.available.get() {
+            return Err(CipherError::NoKey);
+        }
+        Ok(sealed.to_vec())
     }
 }
 
@@ -215,6 +240,32 @@ fn a_payload_that_will_not_open_is_dropped() {
     assert!(
         cache.is_empty(),
         "a payload that will not open is dropped, not kept"
+    );
+}
+
+#[test]
+fn a_missing_key_does_not_drop_a_valid_entry() {
+    let available = Rc::new(Cell::new(true));
+    let mut cache = UnderstandingCache::new(
+        4,
+        FlakyKey {
+            available: available.clone(),
+        },
+    );
+    cache.store(key(1, "m1", "read"), b"payload").unwrap();
+
+    available.set(false);
+    assert_eq!(cache.load(&key(1, "m1", "read")), Err(CipherError::NoKey));
+    assert_eq!(
+        cache.len(),
+        1,
+        "the sealed bytes are still readable once the key returns"
+    );
+
+    available.set(true);
+    assert_eq!(
+        cache.load(&key(1, "m1", "read")).unwrap().as_deref(),
+        Some(&b"payload"[..])
     );
 }
 

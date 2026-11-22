@@ -58,9 +58,15 @@ cache, and nothing in this crate pretends otherwise.
 ### Corrupt entries
 
 `load` returns `Ok(None)` for a miss. A hit whose sealed bytes will not open
-returns `Err(CipherError::Corrupt)` and **drops the entry**: a payload that
-cannot be opened can never be read, so keeping it only costs capacity. The
-caller recomputes.
+returns an error, and the error decides what happens to the entry:
+
+- `CipherError::Corrupt` **drops the entry.** Corrupt bytes can never be read,
+  so keeping them only costs capacity. The caller recomputes.
+- `CipherError::NoKey` **keeps the entry.** The bytes are intact; only the key
+  is unavailable. Dropping them would throw away a valid result because the
+  keychain was momentarily locked, so the caller gets the error and can retry
+  once the key returns.
+- `CipherError::SealFailed` cannot come from `open`, so it is not a case here.
 
 ## Invalidation
 
