@@ -934,6 +934,28 @@ Implemented in `crates/curbcut-telemetry`. See [`docs/TELEMETRY.md`](TELEMETRY.m
 - No timestamp, no session id, no network call. `Debug` prints key names and
   numbers only.
 
+### 11.4 Right to explanation
+
+Implemented in `crates/curbcut-adapt/src/report.rs`. See
+[`docs/RIGHT_TO_EXPLANATION.md`](RIGHT_TO_EXPLANATION.md).
+
+- `Report::from_sources` pairs the action log with the provenance panel by
+  action id, in the order each recorded them. An action present in only one of
+  them is still reported with the missing half blank, so no action is dropped.
+  The first rationale for a rule wins.
+- Every entry renders what happened, why, and the original value. An entry with
+  no rationale renders "no reason was recorded" and is named by
+  `missing_rationale`, so `is_explained` is a checkable claim.
+- `grade_level` runs Flesch-Kincaid over the report body (header and entries,
+  excluding the footer that quotes the grade) and `is_readable_at` compares it
+  with a target, so "readable at a grade-6 level" is measured.
+- The export is redacted of other apps' content: content-derived originals are
+  rendered as a length and an identity hash, a setting value is shown because it
+  is user-chosen, and an action id is a fixed action name.
+- `to_plain_text` is the user export and `to_markdown` the same content with
+  light markup. The module has no clock and no I/O; the caller supplies
+  `generated_at_ms`.
+
 ---
 
 ## 12. Model serving

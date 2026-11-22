@@ -1,6 +1,6 @@
 # curbcut-adapt
 
-Profiles, rules engine, layout solver, and typography.
+Profiles, rules engine, layout solver, typography, and the explanation report.
 
 ## Status
 
@@ -21,7 +21,11 @@ graph and the media list, evaluates four built-in rules in catalog
 order, resolves a conflict by priority, and records every superseded
 offer with its winner; each rule has a profile flag and a toggle. The
 interruption inbox files detected interruptions without auto-dismissing
-them, batches by app and kind, and walks the list with one cursor. See
+them, batches by app and kind, and walks the list with one cursor. The
+right-to-explanation report pairs the action log with the provenance
+panel by action id, flags every action with no rationale, measures its
+own Flesch-Kincaid grade, and renders content only as a length and a
+hash. See
 [`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md),
 [`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),
 [`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),
@@ -32,7 +36,8 @@ them, batches by app and kind, and walks the list with one cursor. See
 [`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md),
 [`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md),
 [`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md),
-[`../../docs/TYPOGRAPHY.md`](../../docs/TYPOGRAPHY.md), and
+[`../../docs/TYPOGRAPHY.md`](../../docs/TYPOGRAPHY.md),
+[`../../docs/RIGHT_TO_EXPLANATION.md`](../../docs/RIGHT_TO_EXPLANATION.md), and
 [`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md).
 
 ## Build and test
