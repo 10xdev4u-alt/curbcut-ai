@@ -49,9 +49,9 @@ The export is redacted of other apps' content:
 - An action id is a fixed action name, never a label from the screen.
 - Rule prose is rule prose, never screen content.
 
-`OriginalValue::describe` remains the log-safe renderer: it prints only the
-value's type. `OriginalValue::render` is the user-facing one, and the report uses
-it.
+`OriginalValue::describe` remains the log-safe renderer: it prints a type name
+or a length, never a value. `OriginalValue::render` is the user-facing one, and
+the report uses it.
 
 ## Exports
 

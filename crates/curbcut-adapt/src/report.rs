@@ -101,16 +101,6 @@ impl ReportEntry {
             .is_some_and(|text| !text.trim().is_empty())
     }
 
-    /// The plain-language verb for the outcome.
-    pub fn what_happened(&self) -> &'static str {
-        match self.outcome {
-            Some(Outcome::Applied) => "CurbCut applied",
-            Some(Outcome::Dismissed) => "You dismissed",
-            Some(Outcome::Undone) => "CurbCut applied, then undid",
-            None => "The outcome of",
-        }
-    }
-
     /// The one-sentence summary.
     pub fn sentence(&self) -> String {
         match self.outcome {
@@ -127,23 +117,37 @@ impl ReportEntry {
     }
 
     /// The full plain-language explanation: what, why, and the original.
+    ///
+    /// The reason and the original are each closed with one terminal mark, so
+    /// a reason that already ends in `!` or `?`, or a profile name that ends in
+    /// `.`, does not produce `?.` or `..`.
     pub fn explanation(&self) -> String {
-        let mut reason = match self.reason() {
+        let reason = match self.reason() {
             Some(text) if !text.trim().is_empty() => text.trim().to_string(),
             _ => "no reason was recorded".to_string(),
         };
-        if !reason.ends_with('.') {
-            reason.push('.');
-        }
-        let original = self.original.render();
+        let reason = terminate(reason);
+        let original = terminate(self.original.render());
         let when = self
             .changed_at_ms
             .map_or_else(|| "time not recorded".to_string(), |ms| format!("{ms} ms"));
         format!(
-            "{} Why: {reason} Original: {original}. When: {when}.",
+            "{} Why: {reason} Original: {original} When: {when}.",
             self.sentence()
         )
     }
+}
+
+/// Trims a fragment and closes it with one terminal mark.
+///
+/// A fragment that already ends in `.`, `!`, or `?` is left alone, so the
+/// report never renders `?.` or `..`.
+fn terminate(mut text: String) -> String {
+    text = text.trim().to_string();
+    if !text.ends_with('.') && !text.ends_with('!') && !text.ends_with('?') {
+        text.push('.');
+    }
+    text
 }
 
 /// One action's outcome, as the log recorded it.

@@ -237,58 +237,6 @@ fn the_first_rationale_for_a_rule_wins() {
 }
 
 #[test]
-fn what_happened_names_each_outcome() {
-    assert_eq!(
-        ReportEntry::new(
-            action("dim"),
-            rule("bright"),
-            Some(Outcome::Applied),
-            OriginalValue::None,
-            None,
-            None
-        )
-        .what_happened(),
-        "CurbCut applied"
-    );
-    assert_eq!(
-        ReportEntry::new(
-            action("dim"),
-            rule("bright"),
-            Some(Outcome::Dismissed),
-            OriginalValue::None,
-            None,
-            None
-        )
-        .what_happened(),
-        "You dismissed"
-    );
-    assert_eq!(
-        ReportEntry::new(
-            action("dim"),
-            rule("bright"),
-            Some(Outcome::Undone),
-            OriginalValue::None,
-            None,
-            None
-        )
-        .what_happened(),
-        "CurbCut applied, then undid"
-    );
-    assert_eq!(
-        ReportEntry::new(
-            action("dim"),
-            rule("bright"),
-            None,
-            OriginalValue::None,
-            None,
-            None
-        )
-        .what_happened(),
-        "The outcome of"
-    );
-}
-
-#[test]
 fn the_sentence_matches_the_outcome() {
     let entry = |outcome: Option<Outcome>| {
         ReportEntry::new(
@@ -316,6 +264,72 @@ fn the_sentence_matches_the_outcome() {
         entry(None).sentence(),
         "The outcome of the dim action was not recorded."
     );
+}
+
+#[test]
+fn a_reason_ending_in_a_terminal_mark_is_not_doubled() {
+    for reason in ["Too bright!", "Was it too bright?", "It was."] {
+        let entry = ReportEntry::new(
+            action("dim"),
+            rule("bright"),
+            Some(Outcome::Applied),
+            OriginalValue::None,
+            None,
+            Some(reason.to_string()),
+        );
+        let text = entry.explanation();
+        assert!(text.contains(&format!("Why: {reason} Original:")), "{text}");
+        assert!(!text.contains("?."), "{text}");
+        assert!(!text.contains("!."), "{text}");
+        assert!(!text.contains(".."), "{text}");
+    }
+}
+
+#[test]
+fn a_value_ending_in_a_period_is_not_doubled() {
+    let entry = ReportEntry::new(
+        action("dim"),
+        rule("bright"),
+        Some(Outcome::Applied),
+        OriginalValue::setting(SettingValue::Text("Reading.".to_string())),
+        None,
+        None,
+    );
+    let text = entry.explanation();
+    assert!(text.contains("Original: Reading. When:"), "{text}");
+    assert!(!text.contains(".."), "{text}");
+}
+
+#[test]
+fn a_plain_report_reads_at_grade_six() {
+    let log = log(&[
+        ("dim", "bright", Outcome::Applied),
+        ("read", "long", Outcome::Dismissed),
+    ]);
+    let panel = panel(&[
+        (
+            "dim",
+            "bright",
+            OriginalValue::setting(SettingValue::Float(0.2)),
+            10,
+        ),
+        ("read", "long", OriginalValue::content("a long article"), 20),
+    ]);
+    let rationales = rationales(&[
+        (
+            "bright",
+            "The screen was brighter than your profile allows.",
+        ),
+        ("long", "The selection was long."),
+    ]);
+    let report = Report::from_sources(&log, &panel, &rationales, 30);
+
+    let level = report.grade_level().expect("latin text is supported");
+    assert!(
+        report.is_readable_at(6.0),
+        "grade {level} is above the grade-6 target"
+    );
+    assert!(report.to_plain_text().contains(&format!("{level:.1}")));
 }
 
 #[test]
