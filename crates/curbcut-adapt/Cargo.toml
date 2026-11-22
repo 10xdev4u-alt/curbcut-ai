@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Profiles, rules engine, and layout solver."
+description = "Profiles, rules engine, layout solver, and typography."
 publish = false
 
 [lints]

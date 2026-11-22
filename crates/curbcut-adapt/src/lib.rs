@@ -27,6 +27,10 @@
 //! [`../../../docs/LAYOUT.md`](../../../docs/LAYOUT.md) and
 //! [`../../../docs/GRID.md`](../../../docs/GRID.md).
 //!
+//! [`typography`] adds the style around a reflow: font fallback, the line box,
+//! alignment as an indent, and WCAG AA contrast. See
+//! [`../../../docs/TYPOGRAPHY.md`](../../../docs/TYPOGRAPHY.md).
+//!
 //! [`dim::dim_plan`] computes the scrim rectangles that cover a screen except
 //! the focused control and the except-regions. See
 //! [`../../../docs/DIMMING.md`](../../../docs/DIMMING.md).
@@ -76,6 +80,9 @@ pub mod layout;
 
 /// Icon-grid layout, label policy, and search.
 pub mod grid;
+
+/// Font fallback, text style, and contrast.
+pub mod typography;
 
 /// The interruption inbox.
 pub mod inbox;

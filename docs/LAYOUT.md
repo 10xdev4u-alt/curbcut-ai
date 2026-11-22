@@ -61,6 +61,10 @@ Line widths are `u64`. A line of very wide words cannot saturate and hide an
 overflow, and a measure of zero puts every word on its own overflowing line
 rather than panicking.
 
+The style around a reflow — font fallback, line box, alignment, and WCAG AA
+contrast — lives in `crates/curbcut-adapt/src/typography.rs`. See
+[`TYPOGRAPHY.md`](TYPOGRAPHY.md).
+
 ## Performance
 
 `ten_thousand_random_layouts_do_not_overlap_or_clip` runs 10,000 deterministic
