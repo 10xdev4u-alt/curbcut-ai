@@ -12,6 +12,11 @@
 //! [`understanding_cache::Cipher`]. See
 //! [`../../../docs/UNDERSTANDING_CACHE.md`](../../../docs/UNDERSTANDING_CACHE.md).
 //!
+//! [`layout_memory::LayoutMemory`] remembers the simplification a user chose
+//! for one app and window, keyed by user, app, and window, with a versioned
+//! snapshot, per-app and global reset, and layouts that survive an app update.
+//! See [`../../../docs/LAYOUT_MEMORY.md`](../../../docs/LAYOUT_MEMORY.md).
+//!
 //! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -29,6 +34,9 @@ pub mod lru;
 
 /// Bounded plan cache and opt-in per-app memory.
 pub mod plan_cache;
+
+/// Per-user, per-app, per-window layout memory.
+pub mod layout_memory;
 
 /// Sealed understanding-result cache.
 pub mod understanding_cache;

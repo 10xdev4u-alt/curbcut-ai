@@ -976,6 +976,22 @@ Implemented in `crates/curbcut-adapt/src/report.rs`. See
   light markup. The module has no clock and no I/O; the caller supplies
   `generated_at_ms`.
 
+### 11.5 Layout memory
+
+Implemented in `crates/curbcut-store/src/layout_memory.rs`. See
+[`docs/LAYOUT_MEMORY.md`](LAYOUT_MEMORY.md).
+
+- `LayoutMemory` keys a content-free `LayoutChoice` (reading level,
+  simplification flag, font scale) by user, app, and window. The app version is
+  not in the key, so `note_app_update` records an update and keeps every layout.
+- `reset_app(user, app)`, `reset_user(user)`, and `reset_all()` drop one app for
+  one user, one user across apps, and everything, respectively, and each
+  returns the number dropped.
+- `LayoutSnapshotV1` migrates to the current schema by filling the `font_scale`
+  v1 did not store with `DEFAULT_FONT_SCALE`; `LayoutSnapshot::migrate` refuses
+  a snapshot newer than this build.
+- The choice is numbers and a boolean; `Debug` prints slugs and counts only.
+
 ---
 
 ## 12. Model serving

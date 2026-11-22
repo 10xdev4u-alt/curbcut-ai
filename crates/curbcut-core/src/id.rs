@@ -33,6 +33,7 @@ id_newtype!(DisplayId, "A connected display.");
 id_newtype!(WindowId, "A top-level window.");
 id_newtype!(StableId, "An element id that survives across frames.");
 id_newtype!(SessionId, "A user session.");
+id_newtype!(UserId, "A local user.");
 id_newtype!(ChunkId, "A chunk of reading content.");
 id_newtype!(TraceId, "A distributed trace identifier.");
 
