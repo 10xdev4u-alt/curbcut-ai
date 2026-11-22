@@ -610,7 +610,28 @@ Implemented in `crates/curbcut-store/src/plan_cache.rs`. See
 - Pure data structures: no I/O, no clock, and no reachable panics. The caller
   owns the privacy boundary for `V`; both containers derive `Debug`.
 
-### 8.7 Stop-motion mode
+### 8.7 Understanding cache
+
+Implemented in `crates/curbcut-store/src/understanding_cache.rs`. See
+[`docs/UNDERSTANDING_CACHE.md`](UNDERSTANDING_CACHE.md).
+
+- `UnderstandingCache<C>` caches encoded understanding results under an
+  `UnderstandingKey`: a `ContentHash`, a `ModelVersion`, and a `ProfileId`. A
+  hit is a function of the key alone, so it is deterministic; a scroll that does
+  not change the input reuses the result, and a model update or a profile switch
+  misses.
+- Capacity is a number of entries and eviction is recency only. The bounded LRU
+  is `crates/curbcut-store/src/lru.rs`, shared with the plan cache.
+- `store` seals the payload with a `Cipher` before it reaches the LRU, so the
+  cache holds ciphertext and `sealed` hands out ciphertext for writing to disk.
+  The crate ships no `Cipher`; the key lives in the OS keychain (`CC-093`).
+- A hit whose sealed bytes will not open returns `Err(CipherError::Corrupt)` and
+  drops the entry. `invalidate_content`, `invalidate_model`, and
+  `invalidate_profile` drop by key part; `clear` drops everything.
+- The key holds a hash and two identifiers, never text. A payload is derived
+  text and must never be logged.
+
+### 8.8 Stop-motion mode
 
 Implemented in `crates/curbcut-adapt/src/stop_motion.rs`. See
 [`docs/STOP_MOTION.md`](STOP_MOTION.md).
@@ -625,7 +646,7 @@ Implemented in `crates/curbcut-adapt/src/stop_motion.rs`. See
 - `StopMotionSession` pairs the config with the plan and an enabled flag;
   `should_cover` is false while disabled, and disabling lifts every snapshot.
 
-### 8.8 One-step mode
+### 8.9 One-step mode
 
 Implemented in `crates/curbcut-adapt/src/one_step.rs`. See
 [`docs/ONE_STEP.md`](ONE_STEP.md).
@@ -645,7 +666,7 @@ Implemented in `crates/curbcut-adapt/src/one_step.rs`. See
 - `Debug` for `Answers` and `Answer` prints `<redacted>` and a count, never a
   value.
 
-### 8.9 Interruption inbox
+### 8.10 Interruption inbox
 
 Implemented in `crates/curbcut-adapt/src/inbox.rs`. See
 [`docs/INTERRUPTION_INBOX.md`](INTERRUPTION_INBOX.md).
@@ -887,6 +908,7 @@ Implemented in `crates/curbcut-input/src/consent.rs`. See
 - No raw pixels in logs, crash reports, or analytics.
 - No raw text in logs. Log hashes and counts.
 - Cache encryption at rest with a key in the OS keychain (macOS Keychain, Windows DPAPI, Linux libsecret).
+- The understanding-result cache is sealed through a `Cipher` boundary and stores ciphertext only; the crate ships no cipher, so a shipping profile needs the keychain implementation (`CC-093`). See [`docs/UNDERSTANDING_CACHE.md`](UNDERSTANDING_CACHE.md).
 - Memory-zeroing for frame buffers and text caches on drop.
 - Network access is compiled in only for updates and optional sync; a runtime kill-switch disables it. The `net` cargo feature is the compiled gate and is opt-in (`default = []`), so a plain build has no optional transport module at all and `net::transport_available()` reports which build is running. `net::KillSwitch` is the runtime gate: it starts engaged, so a fresh switch denies every channel even with an online `net::NetworkPolicy`, and `engage()` denies everything again. Only `net::update::dial` exists in every build, it takes the feature it dials and refuses anything but `UpdateCheck`, and it still consults the switch. The `socket-guard` CI job runs `scripts/socket_guard.py` over the `net_probe` example in both builds and fails on any non-Unix `connect(2)`. See [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md).
 

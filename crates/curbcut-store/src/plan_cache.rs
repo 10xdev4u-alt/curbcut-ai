@@ -4,16 +4,16 @@
 //! a bounded least-recently-used eviction policy. `AppMemory` remembers one
 //! user choice per app, but only for apps the user has opted into.
 //!
-//! The cache key contains a [`ContentHash`], never content. A scroll that does
-//! not change the content reuses the plan, because the plan describes the
-//! window's content rather than the viewport; a content change produces a new
-//! hash and therefore a new entry. That reuse is only correct when the cached
-//! value is content-relative. `OverlayPlan` tile rects are screen-space, so a
-//! consumer caching one must translate the rects by the scroll delta (see
-//! `docs/ARCHITECTURE.md` §6.4) or include the viewport in the key.
-//! [`PlanCache::invalidate_app`] and [`PlanCache::invalidate_window`] drop
-//! everything for an app or window, for the cases where the caller knows the
-//! context is gone.
+//! The cache key contains a [`crate::plan_cache::ContentHash`], never content. A
+//! scroll that does not change the content reuses the plan, because the plan
+//! describes the window's content rather than the viewport; a content change
+//! produces a new hash and therefore a new entry. That reuse is only correct
+//! when the cached value is content-relative. `OverlayPlan` tile rects are
+//! screen-space, so a consumer caching one must translate the rects by the
+//! scroll delta (see `docs/ARCHITECTURE.md` §6.4) or include the viewport in
+//! the key. [`crate::plan_cache::PlanCache::invalidate_app`] and
+//! [`crate::plan_cache::PlanCache::invalidate_window`] drop everything for an
+//! app or window, for the cases where the caller knows the context is gone.
 //!
 //! Both types are pure data structures: no I/O, no clock, and no reachable
 //! panics.
@@ -23,9 +23,11 @@
 //! holds a hash, but `Debug` prints `V`, so a `V` containing content would leak
 //! if the cache is debug-logged.
 
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 
 use curbcut_core::id::{AppId, WindowId};
+
+use crate::lru::LruCache;
 
 /// A hash of a window's content, never the content itself.
 ///
@@ -71,8 +73,7 @@ impl PlanKey {
 /// A bounded LRU cache of overlay plans.
 #[derive(Debug, Clone)]
 pub struct PlanCache<V> {
-    capacity: usize,
-    entries: VecDeque<(PlanKey, V)>,
+    inner: LruCache<PlanKey, V>,
 }
 
 impl<V> PlanCache<V> {
@@ -81,90 +82,61 @@ impl<V> PlanCache<V> {
     /// A capacity of zero caches nothing.
     pub fn new(capacity: usize) -> Self {
         Self {
-            capacity,
-            entries: VecDeque::new(),
+            inner: LruCache::new(capacity),
         }
     }
 
     /// The maximum number of entries.
     pub fn capacity(&self) -> usize {
-        self.capacity
+        self.inner.capacity()
     }
 
     /// The number of entries.
     pub fn len(&self) -> usize {
-        self.entries.len()
+        self.inner.len()
     }
 
     /// Whether the cache is empty.
     pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.inner.is_empty()
     }
 
     /// Returns the plan for a key and marks it most recently used.
     pub fn get(&mut self, key: &PlanKey) -> Option<&V> {
-        let index = self
-            .entries
-            .iter()
-            .position(|(candidate, _)| candidate == key)?;
-        // The index came from `position`, so the entry is present. The `if let`
-        // keeps the "no panics" claim literal.
-        if let Some(entry) = self.entries.remove(index) {
-            self.entries.push_front(entry);
-        }
-        self.entries.front().map(|(_, value)| value)
+        self.inner.get(key)
     }
 
     /// Stores a plan, evicting the least recently used entry if the cache is
     /// full. Storing an existing key replaces it and marks it most recently
     /// used, without growing the cache.
     pub fn put(&mut self, key: PlanKey, value: V) {
-        if self.capacity == 0 {
-            return;
-        }
-        if let Some(index) = self
-            .entries
-            .iter()
-            .position(|(candidate, _)| candidate == &key)
-        {
-            self.entries.remove(index);
-        }
-        while self.entries.len() >= self.capacity {
-            self.entries.pop_back();
-        }
-        self.entries.push_front((key, value));
+        self.inner.put(key, value);
     }
 
     /// Drops every entry for an app. Returns how many were dropped.
     pub fn invalidate_app(&mut self, app: &AppId) -> usize {
-        let before = self.entries.len();
-        self.entries.retain(|(key, _)| &key.app != app);
-        before - self.entries.len()
+        self.inner.retain(|key| &key.app != app)
     }
 
     /// Drops every entry for a window. Returns how many were dropped.
     pub fn invalidate_window(&mut self, app: &AppId, window: WindowId) -> usize {
-        let before = self.entries.len();
-        self.entries
-            .retain(|(key, _)| &key.app != app || key.window != window);
-        before - self.entries.len()
+        self.inner
+            .retain(|key| &key.app != app || key.window != window)
     }
 
     /// Drops every entry for a content hash. Returns how many were dropped.
     pub fn invalidate_content(&mut self, content: ContentHash) -> usize {
-        let before = self.entries.len();
-        self.entries.retain(|(key, _)| key.content != content);
-        before - self.entries.len()
+        self.inner.retain(|key| key.content != content)
     }
 
     /// Drops every entry.
     pub fn clear(&mut self) {
-        self.entries.clear();
+        self.inner.clear();
     }
 
     /// The keys, most recently used first.
     pub fn keys(&self) -> impl Iterator<Item = &PlanKey> {
-        self.entries.iter().map(|(key, _)| key)
+        self.inner.keys()
     }
 }
 
