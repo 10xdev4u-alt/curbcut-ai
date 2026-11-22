@@ -183,8 +183,9 @@ impl<C: Cipher> UnderstandingCache<C> {
     /// Seals and stores a payload.
     ///
     /// Storing an existing key replaces it and marks it most recently used,
-    /// without growing the cache. A capacity of zero stores nothing and still
-    /// seals, so a caller cannot infer the capacity from the cipher's workload.
+    /// without growing the cache. A capacity of zero stores nothing; the
+    /// payload is still sealed, so `store` reports a broken cipher rather than
+    /// silently succeeding.
     pub fn store(&mut self, key: UnderstandingKey, payload: &[u8]) -> Result<(), CipherError> {
         let sealed = self.cipher.seal(payload)?;
         self.inner.put(key, sealed);
