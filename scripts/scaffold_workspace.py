@@ -43,7 +43,7 @@ CRATES = [
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
     ("curbcut-understand", "Classification, chunking, simplification, and reading level.", ["curbcut-core"]),
-    ("curbcut-adapt", "Profiles, rules engine, layout solver, and typography.", ["curbcut-core", "curbcut-understand"]),
+    ("curbcut-adapt", "Profiles, rules engine, layout solver, typography, and the explanation report.", ["curbcut-core", "curbcut-understand"]),
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, voice command grammar, and reading position.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
@@ -168,7 +168,11 @@ CRATE_STATUS = {
         "order, resolves a conflict by priority, and records every superseded\n"
         "offer with its winner; each rule has a profile flag and a toggle. The\n"
         "interruption inbox files detected interruptions without auto-dismissing\n"
-        "them, batches by app and kind, and walks the list with one cursor. See\n"
+        "them, batches by app and kind, and walks the list with one cursor. The\n"
+        "right-to-explanation report pairs the action log with the provenance\n"
+        "panel by action id, flags every action with no rationale, measures its\n"
+        "own Flesch-Kincaid grade, and renders content only as a length and a\n"
+        "hash. See\n"
         "[`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md),\n"
         "[`../../docs/PROFILE_GRAPH.md`](../../docs/PROFILE_GRAPH.md),\n"
         "[`../../docs/LAYOUT.md`](../../docs/LAYOUT.md),\n"
@@ -179,7 +183,8 @@ CRATE_STATUS = {
         "[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md),\n"
         "[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md),\n"
         "[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md),\n"
-        "[`../../docs/TYPOGRAPHY.md`](../../docs/TYPOGRAPHY.md), and\n"
+        "[`../../docs/TYPOGRAPHY.md`](../../docs/TYPOGRAPHY.md),\n"
+        "[`../../docs/RIGHT_TO_EXPLANATION.md`](../../docs/RIGHT_TO_EXPLANATION.md), and\n"
         "[`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md)."
     ),
     "curbcut-capture": (

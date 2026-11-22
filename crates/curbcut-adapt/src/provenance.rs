@@ -85,6 +85,35 @@ impl OriginalValue {
             Self::None => "none".to_string(),
         }
     }
+
+    /// A plain-language rendering for the right-to-explanation report.
+    ///
+    /// Unlike [`OriginalValue::describe`], this shows the value, because the
+    /// report is for the user and a setting value is user-chosen. Content is
+    /// still shown only as its length and identity hash: the text itself was
+    /// never retained, so there is nothing here that could be another app's
+    /// content. See
+    /// [`crate::report`](crate::report) and
+    /// [`../../../docs/RIGHT_TO_EXPLANATION.md`](../../../docs/RIGHT_TO_EXPLANATION.md).
+    pub fn render(&self) -> String {
+        match self {
+            Self::Setting(value) => render_setting(value),
+            Self::Content { len, hash } => format!("content, {len} bytes (identity {hash})"),
+            Self::None => "nothing was kept".to_string(),
+        }
+    }
+}
+
+/// Renders a setting value for a user-facing report.
+fn render_setting(value: &SettingValue) -> String {
+    match value {
+        SettingValue::Bool(value) => if *value { "on" } else { "off" }.to_string(),
+        SettingValue::Int(value) => value.to_string(),
+        SettingValue::Float(value) => format!("{value:.3}"),
+        SettingValue::Text(value) => value.clone(),
+        SettingValue::TextList(values) => values.join(", "),
+        SettingValue::KeyList(values) => values.join(", "),
+    }
 }
 
 /// One row in the provenance panel.

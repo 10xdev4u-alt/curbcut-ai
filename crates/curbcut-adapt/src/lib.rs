@@ -31,6 +31,10 @@
 //! alignment as an indent, and WCAG AA contrast. See
 //! [`../../../docs/TYPOGRAPHY.md`](../../../docs/TYPOGRAPHY.md).
 //!
+//! [`report`] turns the action log and the provenance panel into a
+//! plain-language, grade-measured export that carries no other app's content.
+//! See [`../../../docs/RIGHT_TO_EXPLANATION.md`](../../../docs/RIGHT_TO_EXPLANATION.md).
+//!
 //! [`dim::dim_plan`] computes the scrim rectangles that cover a screen except
 //! the focused control and the except-regions. See
 //! [`../../../docs/DIMMING.md`](../../../docs/DIMMING.md).
@@ -95,6 +99,9 @@ pub mod confirm;
 
 /// Provenance panel data model.
 pub mod provenance;
+
+/// Right-to-explanation report.
+pub mod report;
 
 /// Stop-motion mode.
 pub mod stop_motion;
