@@ -43,7 +43,7 @@ CRATES = [
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
     ("curbcut-understand", "Classification, chunking, simplification, and reading level.", ["curbcut-core"]),
-    ("curbcut-adapt", "Profiles, rules engine, and layout solver.", ["curbcut-core", "curbcut-understand"]),
+    ("curbcut-adapt", "Profiles, rules engine, layout solver, and typography.", ["curbcut-core", "curbcut-understand"]),
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, voice command grammar, and reading position.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
@@ -178,7 +178,8 @@ CRATE_STATUS = {
         "[`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md),\n"
         "[`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md),\n"
         "[`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md),\n"
-        "[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md), and\n"
+        "[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md),\n"
+        "[`../../docs/TYPOGRAPHY.md`](../../docs/TYPOGRAPHY.md), and\n"
         "[`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md)."
     ),
     "curbcut-capture": (

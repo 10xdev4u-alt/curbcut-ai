@@ -1,6 +1,6 @@
 # curbcut-adapt
 
-Profiles, rules engine, and layout solver.
+Profiles, rules engine, layout solver, and typography.
 
 ## Status
 
@@ -31,7 +31,8 @@ them, batches by app and kind, and walks the list with one cursor. See
 [`../../docs/PROVENANCE.md`](../../docs/PROVENANCE.md),
 [`../../docs/STOP_MOTION.md`](../../docs/STOP_MOTION.md),
 [`../../docs/ONE_STEP.md`](../../docs/ONE_STEP.md),
-[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md), and
+[`../../docs/INTERRUPTION_INBOX.md`](../../docs/INTERRUPTION_INBOX.md),
+[`../../docs/TYPOGRAPHY.md`](../../docs/TYPOGRAPHY.md), and
 [`../../docs/RULES_ENGINE.md`](../../docs/RULES_ENGINE.md).
 
 ## Build and test

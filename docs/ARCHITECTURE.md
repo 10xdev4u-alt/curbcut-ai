@@ -550,6 +550,11 @@ Implemented in `crates/curbcut-adapt/src/layout.rs`. See
   viewport height shrinks toward its minimum, then is dropped.
 - `reflow` breaks measured words into lines. A word is never split, so a word
   wider than the measure is reported as an overflowing line rather than clipped.
+- `typography` adds the style around a reflow: `FontStack::resolve` picks the
+  first family the platform has, `TextStyle::line_box` raises a short line
+  height to the font size, alignment is applied afterwards as an indent inside
+  the measure, and `contrast_ratio` / `meets_aa` report WCAG AA. See
+  [`docs/TYPOGRAPHY.md`](TYPOGRAPHY.md).
 - Pure and deterministic: no I/O, no clock, no panics. 10,000 fuzz cases assert
   the invariants; p95 solve time is printed by the test.
 - Animate only when `prefers-reduced-motion` is false.
