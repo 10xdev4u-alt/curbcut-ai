@@ -63,6 +63,21 @@ fn a_reversed_selection_is_empty_and_refused() {
 }
 
 #[test]
+fn a_reversed_span_is_clamped_to_empty_at_its_start() {
+    let span = TextSpan::new(10, 3);
+    assert!(span.is_empty());
+    assert_eq!(span.start(), 10);
+    assert_eq!(span.end(), 10);
+    assert_eq!(span.len(), 0);
+    assert!(!span.contains(9));
+    assert!(!span.contains(10));
+
+    let mut cursor = ReadingCursor::new(20);
+    assert_eq!(cursor.select(span), Err(ReadError::EmptySelection));
+    assert_eq!(cursor.state(), ReadState::Idle);
+}
+
+#[test]
 fn a_selection_past_the_end_is_refused() {
     let mut cursor = ReadingCursor::new(20);
     assert_eq!(
@@ -114,11 +129,11 @@ fn sentences_are_read_in_order() {
     cursor.from_here(0).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "One two.");
+    assert_eq!(&text[first.start()..first.end()], "One two.");
     let second = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[second.start..second.end], " Three four!");
+    assert_eq!(&text[second.start()..second.end()], " Three four!");
     let third = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[third.start..third.end], " Five six?");
+    assert_eq!(&text[third.start()..third.end()], " Five six?");
     assert!(cursor.next_sentence(text).is_none());
     assert_eq!(cursor.state(), ReadState::Done);
 }
@@ -130,7 +145,7 @@ fn a_selection_stops_at_its_end() {
     cursor.select(TextSpan::new(0, 8)).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "Read me.");
+    assert_eq!(&text[first.start()..first.end()], "Read me.");
     assert!(cursor.next_sentence(text).is_none());
     assert_eq!(cursor.state(), ReadState::Done);
     assert_eq!(cursor.position(), 8);
@@ -143,7 +158,7 @@ fn a_selection_limit_clamps_the_last_sentence() {
     cursor.select(TextSpan::new(0, 10)).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "One two th");
+    assert_eq!(&text[first.start()..first.end()], "One two th");
     assert!(cursor.next_sentence(text).is_none());
     assert_eq!(cursor.state(), ReadState::Done);
 }
@@ -155,7 +170,7 @@ fn stopping_keeps_the_position_and_resume_continues() {
     cursor.from_here(0).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "Alpha.");
+    assert_eq!(&text[first.start()..first.end()], "Alpha.");
     cursor.stop();
     assert_eq!(cursor.state(), ReadState::Stopped);
     assert_eq!(cursor.position(), 6);
@@ -167,7 +182,7 @@ fn stopping_keeps_the_position_and_resume_continues() {
     cursor.resume();
     assert_eq!(cursor.state(), ReadState::Reading);
     let second = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[second.start..second.end], " Beta.");
+    assert_eq!(&text[second.start()..second.end()], " Beta.");
 }
 
 #[test]
@@ -179,7 +194,7 @@ fn stop_is_always_available() {
     assert_eq!(cursor.state(), ReadState::Idle, "stop from idle is a no-op");
 
     cursor.from_here(0).unwrap();
-    assert_eq!(cursor.next_sentence(text).unwrap().end, 6);
+    assert_eq!(cursor.next_sentence(text).unwrap().end(), 6);
     assert!(cursor.next_sentence(text).is_some());
     assert!(cursor.next_sentence(text).is_none());
     assert_eq!(cursor.state(), ReadState::Done);
@@ -200,7 +215,7 @@ fn restart_returns_to_the_origin() {
     assert_eq!(cursor.state(), ReadState::Reading);
     assert_eq!(cursor.position(), 7);
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "Beta.");
+    assert_eq!(&text[first.start()..first.end()], "Beta.");
 }
 
 #[test]
@@ -232,7 +247,7 @@ fn a_period_inside_a_number_is_not_a_boundary() {
     cursor.from_here(0).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "It costs 3.14 dollars.");
+    assert_eq!(&text[first.start()..first.end()], "It costs 3.14 dollars.");
 }
 
 #[test]
@@ -242,9 +257,9 @@ fn a_newline_is_a_boundary() {
     cursor.from_here(0).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "First line\n");
+    assert_eq!(&text[first.start()..first.end()], "First line\n");
     let second = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[second.start..second.end], "Second line\n");
+    assert_eq!(&text[second.start()..second.end()], "Second line\n");
     assert!(cursor.next_sentence(text).is_none());
 }
 
@@ -255,9 +270,9 @@ fn cjk_terminators_are_boundaries() {
     cursor.from_here(0).unwrap();
 
     let first = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[first.start..first.end], "你好。");
+    assert_eq!(&text[first.start()..first.end()], "你好。");
     let second = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[second.start..second.end], "世界！");
+    assert_eq!(&text[second.start()..second.end()], "世界！");
     assert!(cursor.next_sentence(text).is_none());
 }
 
@@ -290,7 +305,7 @@ fn a_selection_may_be_started_after_a_stop() {
     assert_eq!(cursor.position(), 13);
     assert_eq!(cursor.limit(), text.len());
     let next = cursor.next_sentence(text).unwrap();
-    assert_eq!(&text[next.start..next.end], "Gamma.");
+    assert_eq!(&text[next.start()..next.end()], "Gamma.");
 }
 
 #[test]

@@ -28,13 +28,13 @@
 /// A half-open byte range in a text.
 ///
 /// `end` is clamped up to `start`, so a reversed range is the empty range at
-/// `start` rather than a panic.
+/// `start` rather than a panic. The fields are private so that
+/// [`TextSpan::new`] is the only constructor and a reversed span cannot be
+/// built with a struct literal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextSpan {
-    /// First byte of the range.
-    pub start: usize,
-    /// One past the last byte of the range.
-    pub end: usize,
+    start: usize,
+    end: usize,
 }
 
 impl TextSpan {
@@ -44,6 +44,16 @@ impl TextSpan {
             start,
             end: if end < start { start } else { end },
         }
+    }
+
+    /// The first byte of the range.
+    pub const fn start(self) -> usize {
+        self.start
+    }
+
+    /// One past the last byte of the range.
+    pub const fn end(self) -> usize {
+        self.end
     }
 
     /// The number of bytes in the span.
@@ -178,15 +188,15 @@ impl ReadingCursor {
         if span.is_empty() {
             return Err(ReadError::EmptySelection);
         }
-        if span.end > self.total {
+        if span.end() > self.total {
             return Err(ReadError::PastEnd {
-                requested: span.end,
+                requested: span.end(),
                 len: self.total,
             });
         }
-        self.origin = span.start;
-        self.limit = span.end;
-        self.position = span.start;
+        self.origin = span.start();
+        self.limit = span.end();
+        self.position = span.start();
         self.state = ReadState::Reading;
         Ok(())
     }
@@ -225,7 +235,7 @@ impl ReadingCursor {
         };
         let end = sentence_end(slice).max(1);
         let span = TextSpan::new(self.position, self.position + end);
-        self.position = span.end;
+        self.position = span.end();
         if self.position >= self.limit {
             self.state = ReadState::Done;
         }
