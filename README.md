@@ -119,6 +119,7 @@ docs/
   INTERRUPTIONS.md         Interruption detection: toast, banner, popup, cookie, paywall
   INTERRUPTION_INBOX.md    Interruption inbox: file, batch by app and kind, review on demand
   ICON_SEMANTICS.md        Icon semantics: accessible label, caption, neighbours, uncertainty
+  SUMMARIZE.md             Extractive summarization: key points, citations, ROUGE reported
   NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
   SPEECH.md                TTS engines, voices, fallback chain, and audio focus
   VOICE_COMMANDS.md        Voice command grammar, help, and push-to-talk

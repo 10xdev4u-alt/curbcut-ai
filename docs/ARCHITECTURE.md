@@ -460,6 +460,26 @@ Implemented in `crates/curbcut-understand/src/icon_semantics.rs`. See
   confident non-generic caption; `Debug` and `redacted` carry the label length,
   never the label.
 
+### 7.13 Extractive summarization
+
+Implemented in `crates/curbcut-understand/src/summarize.rs`. See
+[`docs/SUMMARIZE.md`](SUMMARIZE.md).
+
+- `summarize` chunks a document with `chunk_text`, keeps only `Sentence` chunks,
+  and scores each by the mean term frequency of its words. A sentence is a
+  candidate when its word count is within `min_words..=max_words`.
+- Candidates are selected by score, a near-duplicate (Jaccard word overlap above
+  `MAX_REDUNDANCY`) is skipped, and the survivors are emitted sorted by `start`,
+  so reading order is preserved.
+- Every `KeyPoint` cites a half-open byte range and a chunk id; `KeyPoint::cited`
+  returns the exact source slice.
+- `SummaryMetrics` reports ROUGE-1 and ROUGE-L recall against the source. Both
+  are recall, and neither gates the result.
+- The step is extractive only. An abstractive paraphrase is a model call and
+  belongs to the model layer (§7.2).
+- `KeyPoint` and `Summary` implement `Debug` with lengths and offsets, never the
+  selected text.
+
 ---
 
 ## 8. Adaptation engine

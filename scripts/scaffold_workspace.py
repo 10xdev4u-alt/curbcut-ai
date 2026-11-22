@@ -42,7 +42,7 @@ CRATES = [
     ("curbcut-capture", "Screen capture adapters and the zeroizing frame ring buffer.", ["curbcut-core"]),
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
-    ("curbcut-understand", "Classification, chunking, simplification, and reading level.", ["curbcut-core"]),
+    ("curbcut-understand", "Classification, chunking, simplification, summarization, and reading level.", ["curbcut-core"]),
     ("curbcut-adapt", "Profiles, rules engine, layout solver, typography, and the explanation report.", ["curbcut-core", "curbcut-understand"]),
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, voice command grammar, and reading position.", ["curbcut-core"]),
@@ -237,13 +237,17 @@ CRATE_STATUS = {
         "with a rectangle and a dismissibility flag, and reads labels in memory\n"
         "only. Icon semantics combines an icon's accessible label, its caption,\n"
         "and its neighbours into a plain what-this-does label of at most eight\n"
-        "words, and marks a guess as uncertain. See\n"
+        "words, and marks a guess as uncertain. Extractive summarization ranks\n"
+        "sentences by mean term frequency, skips near-duplicates, and emits key\n"
+        "points in reading order with a byte range and chunk id per point, while\n"
+        "ROUGE-1 and ROUGE-L recall are reported rather than gated. See\n"
         "[`../../docs/RULES.md`](../../docs/RULES.md),\n"
         "[`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),\n"
         "[`../../docs/JARGON.md`](../../docs/JARGON.md),\n"
         "[`../../docs/TEXT_CHUNKING.md`](../../docs/TEXT_CHUNKING.md),\n"
         "[`../../docs/INTERRUPTIONS.md`](../../docs/INTERRUPTIONS.md),\n"
         "[`../../docs/ICON_SEMANTICS.md`](../../docs/ICON_SEMANTICS.md),\n"
+        "[`../../docs/SUMMARIZE.md`](../../docs/SUMMARIZE.md),\n"
         "[`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md),\n"
         "[`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md), and\n"
         "[`../../docs/DESTRUCTIVE_ACTIONS.md`](../../docs/DESTRUCTIVE_ACTIONS.md), and\n"
