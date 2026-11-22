@@ -1,6 +1,6 @@
 # curbcut-understand
 
-Classification, chunking, simplification, and reading level.
+Classification, chunking, simplification, summarization, and reading level.
 
 ## Status
 
@@ -25,13 +25,17 @@ in a merged graph — toast, banner, popup, cookie notice, or paywall —
 with a rectangle and a dismissibility flag, and reads labels in memory
 only. Icon semantics combines an icon's accessible label, its caption,
 and its neighbours into a plain what-this-does label of at most eight
-words, and marks a guess as uncertain. See
+words, and marks a guess as uncertain. Extractive summarization ranks
+sentences by mean term frequency, skips near-duplicates, and emits key
+points in reading order with a byte range and chunk id per point, while
+ROUGE-1 and ROUGE-L recall are reported rather than gated. See
 [`../../docs/RULES.md`](../../docs/RULES.md),
 [`../../docs/READING_LEVEL.md`](../../docs/READING_LEVEL.md),
 [`../../docs/JARGON.md`](../../docs/JARGON.md),
 [`../../docs/TEXT_CHUNKING.md`](../../docs/TEXT_CHUNKING.md),
 [`../../docs/INTERRUPTIONS.md`](../../docs/INTERRUPTIONS.md),
 [`../../docs/ICON_SEMANTICS.md`](../../docs/ICON_SEMANTICS.md),
+[`../../docs/SUMMARIZE.md`](../../docs/SUMMARIZE.md),
 [`../../docs/NORMALIZE.md`](../../docs/NORMALIZE.md),
 [`../../docs/SENSITIVE_CONTENT.md`](../../docs/SENSITIVE_CONTENT.md), and
 [`../../docs/DESTRUCTIVE_ACTIONS.md`](../../docs/DESTRUCTIVE_ACTIONS.md), and

@@ -39,6 +39,12 @@
 //! id, a table stays whole, and no split lands mid-word. See
 //! [`../../../docs/TEXT_CHUNKING.md`](../../../docs/TEXT_CHUNKING.md).
 //!
+//! [`summarize`] extracts key sentences by mean term frequency, skips
+//! near-duplicates, and emits them in reading order with a byte range and chunk
+//! id per point. ROUGE-1 and ROUGE-L recall are reported, never gated. It is
+//! extractive only; an abstractive step is a model call (`CC-045`). See
+//! [`../../../docs/SUMMARIZE.md`](../../../docs/SUMMARIZE.md).
+//!
 //! [`interruption`] reads a merged screen graph and reports its transient
 //! overlays — toast, banner, popup, cookie notice, or paywall — with a rectangle
 //! and a dismissibility flag. It reads labels in memory and never logs them. See
@@ -74,6 +80,7 @@ pub mod reading;
 pub mod roles;
 pub mod rule;
 pub mod sensitive;
+pub mod summarize;
 pub mod text_chunking;
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Classification, chunking, simplification, and reading level."
+description = "Classification, chunking, simplification, summarization, and reading level."
 publish = false
 
 [lints]
