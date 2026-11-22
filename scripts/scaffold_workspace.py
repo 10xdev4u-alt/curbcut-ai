@@ -47,7 +47,7 @@ CRATES = [
     ("curbcut-render", "Overlay plan types, hit-testing, and rendering contracts.", ["curbcut-core", "curbcut-adapt"]),
     ("curbcut-tts", "TTS abstraction, audio focus, voice command grammar, and reading position.", ["curbcut-core"]),
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
-    ("curbcut-store", "Storage schema, migrations, repositories, key handling, and the plan cache.", ["curbcut-core"]),
+    ("curbcut-store", "Storage schema, migrations, repositories, key handling, the plan cache, and the sealed understanding cache.", ["curbcut-core"]),
     ("curbcut-telemetry", "Opt-in, counts-only telemetry and redaction.", ["curbcut-core"]),
     ("curbcut-cli", "Headless control, benchmark, and redacted debug dump.", ["curbcut-core"]),
     ("curbcut-app", "Tauri app shell and frontend bridge (stub until the toolchain lands).", ["curbcut-core"]),
@@ -246,8 +246,12 @@ CRATE_STATUS = {
     "curbcut-store": (
         "The plan cache is implemented: a bounded LRU cache of overlay plans\n"
         "keyed by app, window, and content hash, and opt-in per-app memory for\n"
-        "one remembered choice per app. See\n"
-        "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md)."
+        "one remembered choice per app. The bounded LRU lives in `lru` and is\n"
+        "shared with `understanding_cache`, which caches encoded understanding\n"
+        "results keyed by content hash, model version, and profile, and stores\n"
+        "every value as ciphertext from a caller-supplied `Cipher`. See\n"
+        "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md) and\n"
+        "[`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md)."
     ),
     "curbcut-input": (
         "The global shortcut catalog is implemented: `ShortcutAction` lists\n"

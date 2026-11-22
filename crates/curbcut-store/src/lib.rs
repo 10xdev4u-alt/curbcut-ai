@@ -6,6 +6,12 @@
 //! apps the user opted into. See
 //! [`../../../docs/PLAN_CACHE.md`](../../../docs/PLAN_CACHE.md).
 //!
+//! [`understanding_cache::UnderstandingCache`] caches encoded understanding
+//! results keyed by content hash, model version, and profile, bounded by the
+//! same LRU ([`lru::LruCache`]) and sealed with a caller-supplied
+//! [`understanding_cache::Cipher`]. See
+//! [`../../../docs/UNDERSTANDING_CACHE.md`](../../../docs/UNDERSTANDING_CACHE.md).
+//!
 //! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -18,8 +24,14 @@ pub const CRATE_NAME: &str = "curbcut-store";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// A bounded least-recently-used cache.
+pub mod lru;
+
 /// Bounded plan cache and opt-in per-app memory.
 pub mod plan_cache;
+
+/// Sealed understanding-result cache.
+pub mod understanding_cache;
 
 #[cfg(test)]
 mod tests {
