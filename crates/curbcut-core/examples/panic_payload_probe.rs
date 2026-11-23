@@ -26,7 +26,9 @@ fn main() {
     ))
     .lines()
     .map(str::trim)
-    .find(|line| !line.is_empty())
+    // The fixture header is comments; a comment is not a canary, and panicking
+    // with it would make the detector look for the wrong string.
+    .find(|line| !line.is_empty() && !line.starts_with('#'))
     .expect("at least one canary in the fixture");
 
     let outcome = guard(move || -> () {

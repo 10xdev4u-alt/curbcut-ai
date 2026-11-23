@@ -92,6 +92,29 @@ def self_test(canaries: list[str]) -> int:
         print("SELF-TEST FAILED: the fixture has no canaries", file=sys.stderr)
         return 1
 
+    # The probe and this detector must agree on what a canary is. A mismatch
+    # here makes the whole check vacuous: the probe panics with a comment line
+    # while the detector only greps the real canaries.
+    probe_canary = next(
+        (
+            stripped
+            for stripped in (
+                line.strip()
+                for line in CANARY_FILE.read_text(encoding="utf-8").splitlines()
+            )
+            if stripped and not stripped.startswith("#")
+        ),
+        None,
+    )
+    if probe_canary not in canaries:
+        print(
+            "SELF-TEST FAILED: the probe's payload is not in the detector's "
+            f"canary list ({probe_canary!r})",
+            file=sys.stderr,
+        )
+        return 1
+    print("self-test: the probe's payload is one of the detector's canaries")
+
     handle = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False)
     handle.write(canaries[0])
     handle.close()

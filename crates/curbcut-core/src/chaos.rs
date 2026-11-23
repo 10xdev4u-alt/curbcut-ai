@@ -20,8 +20,7 @@
 use std::cell::Cell;
 use std::fmt;
 use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe, PanicHookInfo};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, Once};
 
 use crate::capability::{Capability, CapabilityToken, Session};
 use crate::id::SessionId;
@@ -30,8 +29,12 @@ use crate::types::Rect;
 
 /// The hook that was installed before this module replaced it.
 static PREVIOUS_HOOK: Mutex<Option<HookFn>> = Mutex::new(None);
-/// Whether the silencing hook has been installed. Once only.
-static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
+/// Installs the silencing hook exactly once, blocking late callers until done.
+///
+/// A plain flag is not enough: `take_hook` resets the process hook to the
+/// default one, so a second thread that saw the flag set would run its guarded
+/// operation while the default hook was still live.
+static INSTALL_HOOK: Once = Once::new();
 
 type HookFn = Box<dyn Fn(&PanicHookInfo<'_>) + Sync + Send + 'static>;
 
@@ -358,26 +361,25 @@ impl std::error::Error for Caught {}
 /// `take_hook` and `set_hook`. Instead one hook is installed for the process
 /// and decides per panic whether the panicking thread asked for silence.
 fn install_silencing_hook() {
-    if HOOK_INSTALLED.swap(true, Ordering::SeqCst) {
-        return;
-    }
-    let previous = take_hook();
-    // A poisoned lock means another thread panicked while taking it; keeping
-    // the default behaviour (printing) is the safe failure mode, because
-    // silently dropping every hook would hide unrelated crashes.
-    if let Ok(mut slot) = PREVIOUS_HOOK.lock() {
-        *slot = Some(previous);
-    }
-    set_hook(Box::new(|info| {
-        if SUPPRESSED_DEPTH.with(Cell::get) > 0 {
-            return;
+    INSTALL_HOOK.call_once(|| {
+        let previous = take_hook();
+        // A poisoned lock means another thread panicked while taking it; keeping
+        // the default behaviour (printing) is the safe failure mode, because
+        // silently dropping every hook would hide unrelated crashes.
+        if let Ok(mut slot) = PREVIOUS_HOOK.lock() {
+            *slot = Some(previous);
         }
-        if let Ok(slot) = PREVIOUS_HOOK.lock() {
-            if let Some(previous) = slot.as_ref() {
-                previous(info);
+        set_hook(Box::new(|info| {
+            if SUPPRESSED_DEPTH.with(Cell::get) > 0 {
+                return;
             }
-        }
-    }));
+            if let Ok(slot) = PREVIOUS_HOOK.lock() {
+                if let Some(previous) = slot.as_ref() {
+                    previous(info);
+                }
+            }
+        }));
+    });
 }
 
 /// Runs `operation`, turning a panic into `Err(Caught)`.
