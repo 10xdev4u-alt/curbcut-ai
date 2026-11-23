@@ -26,6 +26,15 @@ fn root() -> std::path::PathBuf {
         .to_path_buf()
 }
 
+/// Normalizes CRLF to LF.
+///
+/// `.gitattributes` pins the checkout to LF, but `include_str!` embeds whatever
+/// bytes are on disk, and the renderers emit LF. Normalizing here keeps the
+/// comparison about content rather than about the checkout's line endings.
+fn normalized(text: &str) -> String {
+    text.replace("\r\n", "\n")
+}
+
 /// The GitHub-style anchors of every heading in a document.
 fn anchors(text: &str) -> BTreeSet<String> {
     text.lines()
@@ -93,20 +102,19 @@ fn every_coga_row_target_resolves() {
 fn the_mapping_doc_matches_the_rust_tables() {
     let wcag = render_wcag_table();
     let coga = render_coga_table();
-    assert!(MAPPING_DOC.contains(&wcag), "the WCAG table is stale");
-    assert!(MAPPING_DOC.contains(&coga), "the COGA table is stale");
+    let doc = normalized(MAPPING_DOC);
+    assert!(doc.contains(&wcag), "the WCAG table is stale");
+    assert!(doc.contains(&coga), "the COGA table is stale");
 }
 
 #[test]
 fn the_vpat_doc_matches_the_rust_table() {
     let table = render_vpat_table();
-    assert!(VPAT_DOC.contains(&table), "the VPAT table is stale");
+    let doc = normalized(VPAT_DOC);
+    assert!(doc.contains(&table), "the VPAT table is stale");
+    assert!(doc.contains("DRAFT"), "the VPAT draft banner is missing");
     assert!(
-        VPAT_DOC.contains("DRAFT"),
-        "the VPAT draft banner is missing"
-    );
-    assert!(
-        VPAT_DOC.contains("Human review"),
+        doc.contains("Human review"),
         "the review checklist is missing"
     );
 }
@@ -120,7 +128,7 @@ fn the_limitations_doc_matches_the_rust_list() {
         "the rendered list lost an item"
     );
     assert!(
-        LIMITATIONS_DOC.contains(&list),
+        normalized(LIMITATIONS_DOC).contains(&list),
         "the limitations list is stale"
     );
 }
