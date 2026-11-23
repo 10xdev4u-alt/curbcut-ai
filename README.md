@@ -93,6 +93,7 @@ docs/
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader
+  PROPERTY_TESTS.md        Seeded property tests and parser fuzzing: harness and suites
   MODEL_GUARD.md           Model hash pinning and release signature keys
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
   RULES_ENGINE.md          Forward-chaining rules: facts, priority, conflict, toggles

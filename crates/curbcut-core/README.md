@@ -1,6 +1,6 @@
 # curbcut-core
 
-Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, and SHA-256/HMAC.
+Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, SHA-256/HMAC, and the seeded property-test harness.
 
 ## Status
 
@@ -20,7 +20,11 @@ zeroizing `SecureBuffer` and `SecureText` types with a shared
 `GUARD_BYTE` and a thread-local drop counter. The `snapshot` module
 renders a content-free, deterministic `OverlayPlan` for the golden
 tests. The `hash` module is a dependency-free SHA-256 and HMAC-SHA-256,
-checked against the published test vectors. See
+checked against the published test vectors. The `prop` module is the
+seeded property-test harness every crate uses: a splitmix64 generator,
+a runner that reports the seed and case index on a break, and a
+wall-clock budget for fuzz runs. See
+[`../../docs/PROPERTY_TESTS.md`](../../docs/PROPERTY_TESTS.md),
 [`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),
 [`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md),
 [`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md), and

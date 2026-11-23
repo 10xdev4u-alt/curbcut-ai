@@ -25,6 +25,7 @@ pub mod event;
 pub mod hash;
 pub mod id;
 pub mod net;
+pub mod prop;
 pub mod redact;
 pub mod secure;
 pub mod snapshot;

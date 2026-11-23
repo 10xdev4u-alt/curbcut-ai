@@ -52,6 +52,20 @@ Matching in `Redactor` is exact and case-sensitive. The CI scanner is
 deliberately broader (case-insensitive), because a log that lowercases a canary
 still leaked it.
 
+The replacement never contains a registered secret, so redaction is idempotent:
+redacting an already-redacted string returns it unchanged. A secret that is a
+substring of the placeholder — a one-character secret such as `d`, which
+`[redacted]` contains — would otherwise survive its own replacement. When a
+candidate replacement is unsafe, `Redactor::marker` picks a character that
+appears in no registered secret and repeats it, with a private-use fallback.
+A marker, not a hash, keeps correlation impossible for that secret.
+
+One pass can still form a new secret across the boundary between surviving text
+and a replacement: with secrets `x[` and `b`, redacting `xb` leaves
+`x[redacted]`, which holds `x[`. The pass therefore repeats until the text stops
+changing, bounded by a fixed maximum. Replacement candidates contain no secret,
+so each changing pass removes an occurrence and the loop settles.
+
 Every diagnostic must go through `Logger` or `Redactor`. A bare `println!` or
 `eprintln!` in a diagnostic path bypasses the layer and is a review blocker.
 
