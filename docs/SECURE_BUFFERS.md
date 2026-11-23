@@ -18,8 +18,8 @@ safe, and it is not a substitute for not storing content at all.
 
 Both own a `Vec<u8>`, fill it with `GUARD_BYTE` on drop, and implement `Debug`
 by printing the **length** and nothing else. Neither implements a logging
-format: `Display` exists on `SecureText` so a caller can hand the text to a
-renderer, and nothing else.
+format: `SecureText` deliberately has no `Display`, so `{}` and `.to_string()`
+cannot be used to emit content. Read it through `as_str` at the point of use.
 
 ## Why `SecureText` is not a `String`
 

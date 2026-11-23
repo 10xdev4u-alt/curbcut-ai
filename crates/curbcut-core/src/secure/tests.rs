@@ -55,6 +55,13 @@ fn zeroize_overwrites_the_bytes_in_place() {
 }
 
 #[test]
+fn from_vec_takes_ownership_of_the_bytes() {
+    let buffer = SecureBuffer::from_vec(vec![1, 2, 3]);
+    assert_eq!(buffer.as_slice(), &[1, 2, 3]);
+    assert!(!buffer.is_zeroized());
+}
+
+#[test]
 fn as_mut_slice_writes_and_the_buffer_still_zeroizes_on_drop() {
     reset_zeroized_on_drop();
     let mut buffer = SecureBuffer::new(4);
@@ -71,7 +78,6 @@ fn a_text_buffer_round_trips_utf8() {
     assert_eq!(text.len(), "héllo wörld".len());
     assert!(!text.is_empty());
     assert_eq!(text.as_bytes(), "héllo wörld".as_bytes());
-    assert_eq!(text.to_string(), "héllo wörld");
     assert_eq!(text.as_ref(), "héllo wörld");
 }
 

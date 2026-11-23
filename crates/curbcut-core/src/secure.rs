@@ -9,7 +9,8 @@
 //! byte-backed rather than a `String` and hands out a `&str` only while it is
 //! alive. [`SecureBuffer`] is the byte form; [`SecureText`] is the UTF-8 form.
 //! Both print a length, never their bytes, and both count drops so a test can
-//! prove the overwrite happened. See
+//! prove the overwrite happened. `SecureText` deliberately has no `Display`,
+//! so `{}` and `.to_string()` cannot be used to emit content. See
 //! [`../../../docs/SECURE_BUFFERS.md`](../../../docs/SECURE_BUFFERS.md).
 
 use std::fmt;
@@ -58,10 +59,18 @@ impl SecureBuffer {
     }
 
     /// Copies `bytes` into a buffer that overwrites itself on drop.
+    ///
+    /// The caller keeps its own copy, so prefer [`SecureBuffer::from_vec`] when
+    /// the source is not needed.
     pub fn from_slice(bytes: &[u8]) -> Self {
         Self {
             data: bytes.to_vec(),
         }
+    }
+
+    /// Takes ownership of `bytes`, so no unzeroized copy is left behind.
+    pub fn from_vec(bytes: Vec<u8>) -> Self {
+        Self { data: bytes }
     }
 
     /// Overwrites every byte with [`GUARD_BYTE`].
@@ -166,12 +175,6 @@ impl fmt::Debug for SecureText {
         f.debug_struct("SecureText")
             .field("len", &self.bytes.len())
             .finish()
-    }
-}
-
-impl fmt::Display for SecureText {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
     }
 }
 

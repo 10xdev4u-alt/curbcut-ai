@@ -191,7 +191,7 @@ impl<C: Cipher> UnderstandingCache<C> {
     /// silently succeeding.
     pub fn store(&mut self, key: UnderstandingKey, payload: &[u8]) -> Result<(), CipherError> {
         let sealed = self.cipher.seal(payload)?;
-        self.inner.put(key, SecureBuffer::from_slice(&sealed));
+        self.inner.put(key, SecureBuffer::from_vec(sealed));
         Ok(())
     }
 
