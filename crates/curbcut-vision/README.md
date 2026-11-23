@@ -14,11 +14,14 @@ reduces two frames to a grid of cell means, merges the changed cells
 into rectangles, and triggers re-analysis with a cooldown so a moving
 carousel causes one analysis rather than one per frame. `OcrText.text`
 and `IconCaption.caption` are zeroizing `SecureText`, so recognized
-content is overwritten when the result drops. See
+content is overwritten when the result drops. The model guard pins each
+artifact by SHA-256, checks a release signature, and refuses to load a
+model that fails either check. See
 [`../../docs/VISION.md`](../../docs/VISION.md),
 [`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md),
-[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md), and
-[`../../docs/DIRTY_RECT.md`](../../docs/DIRTY_RECT.md).
+[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md),
+[`../../docs/DIRTY_RECT.md`](../../docs/DIRTY_RECT.md), and
+[`../../docs/MODEL_GUARD.md`](../../docs/MODEL_GUARD.md).
 
 ## Build and test
 

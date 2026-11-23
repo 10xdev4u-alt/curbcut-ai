@@ -1,6 +1,6 @@
 # curbcut-core
 
-Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, and golden plan snapshots.
+Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, and SHA-256/HMAC.
 
 ## Status
 
@@ -19,10 +19,12 @@ anything but `UpdateCheck`, and it still consults the switch. The
 zeroizing `SecureBuffer` and `SecureText` types with a shared
 `GUARD_BYTE` and a thread-local drop counter. The `snapshot` module
 renders a content-free, deterministic `OverlayPlan` for the golden
-tests. See
+tests. The `hash` module is a dependency-free SHA-256 and HMAC-SHA-256,
+checked against the published test vectors. See
 [`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),
-[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md), and
-[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md).
+[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md),
+[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md), and
+[`../../docs/MODEL_GUARD.md`](../../docs/MODEL_GUARD.md).
 
 ## Build and test
 

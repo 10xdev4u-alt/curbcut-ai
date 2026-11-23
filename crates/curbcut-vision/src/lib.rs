@@ -36,6 +36,7 @@ pub mod detector;
 pub mod dirty;
 pub mod frame;
 pub mod layout;
+pub mod model_guard;
 pub mod motion;
 pub mod motion_report;
 pub mod ocr;

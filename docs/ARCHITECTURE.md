@@ -1044,6 +1044,11 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
 - Fallback chain: quantized → fp16 → fp32 → heuristic. Never fail silently.
 - Model files signed and pinned by hash; update through the app updater.
 - A `models/manifest.json` records version, hash, license, source, and benchmark results.
+- A model is verified before it is loaded: `curbcut_vision::model_guard` checks the
+  SHA-256 pin and the release signature, and a model that fails either is never
+  handed to a backend. SHA-256 and HMAC-SHA256 live in `curbcut_core::hash`, with
+  the primitive checked against the published test vectors. See
+  [`docs/MODEL_GUARD.md`](MODEL_GUARD.md).
 
 ---
 
@@ -1055,6 +1060,9 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
   with a shared fallback. Implemented in
   `crates/curbcut-core/tests/golden_plans.rs`; see
   [`docs/GOLDEN_TESTS.md`](GOLDEN_TESTS.md).
+- **Model guard**: a pinned hash and a release signature are verified before a
+  model is loaded, and a failure falls back rather than loading. See
+  [`docs/MODEL_GUARD.md`](MODEL_GUARD.md).
 - **Differential**: compare our reading order and mapped roles against a
   recorded screen-reader baseline, and our merge against the raw a11y tree.
   Implemented in `crates/curbcut-a11y/tests/differential.rs`; see
