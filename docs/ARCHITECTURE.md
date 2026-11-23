@@ -1086,7 +1086,13 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
   `crates/curbcut-cli/tests/a11y_mapping.rs` resolves every row's test link.
   Manual rows point at a written procedure in
   [`docs/A11Y_AUDIT.md`](A11Y_AUDIT.md), not at a fabricated automated test.
-- **Chaos**: kill permissions, revoke mid-session, corrupt cache, huge screens, 4K/5K, mixed DPI, RDP.
+- **Chaos**: a deterministic fault-injection harness (`chaos` in
+  `curbcut-core`) drives permission revocation, cache corruption, huge screens,
+  and remote-desktop capture over generated scripts. A run is clean only when
+  no panic escapes, every injected fault is announced, and every announcement
+  recovers. Implemented in `crates/curbcut-core/src/chaos.rs` and
+  `crates/curbcut-core/tests/chaos.rs`; see
+  [`docs/CHAOS_TESTS.md`](CHAOS_TESTS.md).
 
 ---
 

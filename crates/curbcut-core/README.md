@@ -1,6 +1,6 @@
 # curbcut-core
 
-Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, SHA-256/HMAC, and the seeded property-test harness.
+Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, SHA-256/HMAC, the seeded property-test harness, and failure injection.
 
 ## Status
 
@@ -23,7 +23,11 @@ tests. The `hash` module is a dependency-free SHA-256 and HMAC-SHA-256,
 checked against the published test vectors. The `prop` module is the
 seeded property-test harness every crate uses: a splitmix64 generator,
 a runner that reports the seed and case index on a break, and a
-wall-clock budget for fuzz runs. See
+wall-clock budget for fuzz runs. The `chaos` module is the failure
+injection harness: scripted faults, a panic guard that drops the
+payload, and a report that fails when a fault is unannounced or an
+announcement does not recover. See
+[`../../docs/CHAOS_TESTS.md`](../../docs/CHAOS_TESTS.md),
 [`../../docs/PROPERTY_TESTS.md`](../../docs/PROPERTY_TESTS.md),
 [`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),
 [`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md),

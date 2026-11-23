@@ -18,6 +18,7 @@ pub const CRATE_NAME: &str = "curbcut-core";
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub mod capability;
+pub mod chaos;
 pub mod command;
 pub mod config;
 pub mod error;

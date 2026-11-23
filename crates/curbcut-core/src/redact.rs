@@ -191,7 +191,7 @@ impl Redactor {
     /// `x[redacted]`, which still holds `x[`. The pass therefore repeats until
     /// the text stops changing. Replacement candidates never contain a
     /// registered secret, so each changing pass removes at least one occurrence
-    /// and the loop reaches a fixed point; [`MAX_PASSES`] bounds a pathological
+    /// and the loop reaches a fixed point; `MAX_PASSES` bounds a pathological
     /// secret set.
     pub fn redact(&self, text: &str) -> String {
         let mut out = text.to_string();

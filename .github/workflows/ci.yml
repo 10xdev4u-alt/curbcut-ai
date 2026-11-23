@@ -90,6 +90,24 @@ jobs:
         env:
           CURBCUT_PROP_CASES: "5000"
 
+  chaos:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: chaos
+      - name: Failure injection suite
+        run: cargo test -p curbcut-core --test chaos
+        env:
+          CURBCUT_PROP_CASES: "5000"
+
   socket-guard:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
@@ -166,8 +184,17 @@ jobs:
       - name: Scan the repository for content canaries
         run: python3 scripts/check_no_content_logging.py
       - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: panic-silence
       - name: Redaction tests
         run: cargo test -p curbcut-core --test no_content_logging
+      - name: Build the panic-payload probe
+        run: cargo build -p curbcut-core --example panic_payload_probe
+      - name: Self-test the panic-silence detector
+        run: python3 scripts/check_panic_silence.py --self-test
+      - name: Assert the guarded panic printed nothing
+        run: python3 scripts/check_panic_silence.py
 
   a11y-mapping:
     needs: changes
