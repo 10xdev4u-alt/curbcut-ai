@@ -168,3 +168,18 @@ jobs:
           shared-key: differential
       - name: Differential reading-order and role baseline
         run: cargo test -p curbcut-a11y --test differential -- --nocapture
+
+  model-guard:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: model-guard
+      - name: Hash test vectors
+        run: cargo test -p curbcut-core --lib hash
+      - name: Model pin and signature guard
+        run: cargo test -p curbcut-vision --test model_guard -- --nocapture

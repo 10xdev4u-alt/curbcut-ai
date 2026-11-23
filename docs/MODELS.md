@@ -78,7 +78,9 @@ The fallback is announced in the UI ("CurbCut is running in rules-only mode") an
 
 ## 6. Model update policy
 
-- Models are pinned by SHA-256 in `models/manifest.json`.
+- Models are pinned by SHA-256 in `models/manifest.json` and authenticated by a
+  release signature. A model that fails either check is never loaded; see
+  [`MODEL_GUARD.md`](MODEL_GUARD.md).
 - Updates ship with app updates; no silent model swaps.
 - A new model must beat the current one on the benchmark by a margin (≥ 1% mAP / ≥ 0.5% CER) or it does not ship.
 - Rollback: keep the previous model for one release; a user can pin a model version in settings.

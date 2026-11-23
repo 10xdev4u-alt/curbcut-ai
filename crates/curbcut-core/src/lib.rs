@@ -22,6 +22,7 @@ pub mod command;
 pub mod config;
 pub mod error;
 pub mod event;
+pub mod hash;
 pub mod id;
 pub mod net;
 pub mod redact;

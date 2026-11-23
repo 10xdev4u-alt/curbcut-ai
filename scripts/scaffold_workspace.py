@@ -38,7 +38,7 @@ strip = true
 
 # name, description, dependencies
 CRATES = [
-    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, and golden plan snapshots.", []),
+    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, and SHA-256/HMAC.", []),
     ("curbcut-capture", "Screen capture adapters and the zeroizing frame ring buffer.", ["curbcut-core"]),
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
@@ -135,10 +135,12 @@ CRATE_STATUS = {
         "zeroizing `SecureBuffer` and `SecureText` types with a shared\n"
         "`GUARD_BYTE` and a thread-local drop counter. The `snapshot` module\n"
         "renders a content-free, deterministic `OverlayPlan` for the golden\n"
-        "tests. See\n"
+        "tests. The `hash` module is a dependency-free SHA-256 and HMAC-SHA-256,\n"
+        "checked against the published test vectors. See\n"
         "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),\n"
-        "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md), and\n"
-        "[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md)."
+        "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md),\n"
+        "[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md), and\n"
+        "[`../../docs/MODEL_GUARD.md`](../../docs/MODEL_GUARD.md)."
     ),
     "curbcut-a11y": (
         "The platform role and state mapping is implemented, and the a11y +\n"
@@ -223,11 +225,14 @@ CRATE_STATUS = {
         "into rectangles, and triggers re-analysis with a cooldown so a moving\n"
         "carousel causes one analysis rather than one per frame. `OcrText.text`\n"
         "and `IconCaption.caption` are zeroizing `SecureText`, so recognized\n"
-        "content is overwritten when the result drops. See\n"
+        "content is overwritten when the result drops. The model guard pins each\n"
+        "artifact by SHA-256, checks a release signature, and refuses to load a\n"
+        "model that fails either check. See\n"
         "[`../../docs/VISION.md`](../../docs/VISION.md),\n"
         "[`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md),\n"
-        "[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md), and\n"
-        "[`../../docs/DIRTY_RECT.md`](../../docs/DIRTY_RECT.md)."
+        "[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md),\n"
+        "[`../../docs/DIRTY_RECT.md`](../../docs/DIRTY_RECT.md), and\n"
+        "[`../../docs/MODEL_GUARD.md`](../../docs/MODEL_GUARD.md)."
     ),
     "curbcut-understand": (
         "The deterministic rule layer is implemented: versioned rules, role\n"
