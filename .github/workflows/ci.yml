@@ -90,6 +90,24 @@ jobs:
         env:
           CURBCUT_PROP_CASES: "5000"
 
+  chaos:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: chaos
+      - name: Failure injection suite
+        run: cargo test -p curbcut-core --test chaos
+        env:
+          CURBCUT_PROP_CASES: "5000"
+
   socket-guard:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}

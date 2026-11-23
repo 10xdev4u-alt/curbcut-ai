@@ -38,7 +38,7 @@ strip = true
 
 # name, description, dependencies
 CRATES = [
-    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, SHA-256/HMAC, and the seeded property-test harness.", []),
+    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, SHA-256/HMAC, the seeded property-test harness, and failure injection.", []),
     ("curbcut-capture", "Screen capture adapters and the zeroizing frame ring buffer.", ["curbcut-core"]),
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
@@ -139,7 +139,11 @@ CRATE_STATUS = {
         "checked against the published test vectors. The `prop` module is the\n"
         "seeded property-test harness every crate uses: a splitmix64 generator,\n"
         "a runner that reports the seed and case index on a break, and a\n"
-        "wall-clock budget for fuzz runs. See\n"
+        "wall-clock budget for fuzz runs. The `chaos` module is the failure\n"
+        "injection harness: scripted faults, a panic guard that drops the\n"
+        "payload, and a report that fails when a fault is unannounced or an\n"
+        "announcement does not recover. See\n"
+        "[`../../docs/CHAOS_TESTS.md`](../../docs/CHAOS_TESTS.md),\n"
         "[`../../docs/PROPERTY_TESTS.md`](../../docs/PROPERTY_TESTS.md),\n"
         "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),\n"
         "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md),\n"

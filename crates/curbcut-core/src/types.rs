@@ -78,18 +78,18 @@ impl Rect {
 
     /// Right edge, exclusive.
     ///
-    /// Saturated: a rectangle with coordinates near `i32::MAX` yields `i32::MAX`
-    /// rather than overflowing.
+    /// Saturated: a rectangle with coordinates near `i32::MAX`, or a width
+    /// above `i32::MAX`, yields `i32::MAX` rather than overflowing or wrapping.
     pub fn right(self) -> i32 {
-        self.x.saturating_add(self.width as i32)
+        edge(self.x, self.width)
     }
 
     /// Bottom edge, exclusive.
     ///
-    /// Saturated: a rectangle with coordinates near `i32::MAX` yields `i32::MAX`
-    /// rather than overflowing.
+    /// Saturated: a rectangle with coordinates near `i32::MAX`, or a height
+    /// above `i32::MAX`, yields `i32::MAX` rather than overflowing or wrapping.
     pub fn bottom(self) -> i32 {
-        self.y.saturating_add(self.height as i32)
+        edge(self.y, self.height)
     }
 
     /// Area.
@@ -121,7 +121,12 @@ impl Rect {
         if right <= x || bottom <= y {
             return None;
         }
-        Some(Self::new(x, y, (right - x) as u32, (bottom - y) as u32))
+        Some(Self::new(
+            x,
+            y,
+            dimension(i64::from(right) - i64::from(x)),
+            dimension(i64::from(bottom) - i64::from(y)),
+        ))
     }
 
     /// The smallest rectangle containing both.
@@ -130,7 +135,12 @@ impl Rect {
         let y = self.y.min(other.y);
         let right = self.right().max(other.right());
         let bottom = self.bottom().max(other.bottom());
-        Self::new(x, y, (right - x) as u32, (bottom - y) as u32)
+        Self::new(
+            x,
+            y,
+            dimension(i64::from(right) - i64::from(x)),
+            dimension(i64::from(bottom) - i64::from(y)),
+        )
     }
 
     /// Intersection over union, in `0.0..=1.0`.
@@ -147,6 +157,20 @@ impl Rect {
             _ => 0.0,
         }
     }
+}
+
+/// An edge from `origin` plus a `u32` dimension, computed in `i64`.
+///
+/// The exact sum can leave `i32`; it clamps rather than wrapping, so
+/// `right() >= x` and `bottom() >= y` hold for any rectangle a caller can
+/// build. A dimension above `i32::MAX` keeps its full value here.
+fn edge(origin: i32, value: u32) -> i32 {
+    (i64::from(origin) + i64::from(value)).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32
+}
+
+/// A signed extent as a `u32` dimension, clamped to the representable range.
+fn dimension(value: i64) -> u32 {
+    value.clamp(0, i64::from(u32::MAX)) as u32
 }
 
 /// The semantic role of an element.
@@ -800,6 +824,33 @@ mod tests {
             rect.intersection(rect),
             Some(Rect::new(i32::MAX - 10, i32::MAX - 10, 10, 10))
         );
+    }
+
+    #[test]
+    fn a_dimension_above_i32_max_never_wraps_negative() {
+        // A `u32` wider than `i32::MAX` used to cast negative, so `right()`
+        // landed left of `x`. It saturates now.
+        let rect = Rect::new(-5, -5, u32::MAX, u32::MAX);
+        assert_eq!(rect.right(), i32::MAX);
+        assert_eq!(rect.bottom(), i32::MAX);
+        assert!(rect.right() >= rect.x);
+        assert!(rect.bottom() >= rect.y);
+        // The area is exact in `u64`.
+        assert_eq!(rect.area(), u64::from(u32::MAX) * u64::from(u32::MAX));
+    }
+
+    #[test]
+    fn extreme_rectangles_stay_consistent() {
+        let a = Rect::new(i32::MIN, i32::MIN, u32::MAX, u32::MAX);
+        let b = Rect::new(i32::MAX - 1, i32::MAX - 1, u32::MAX, u32::MAX);
+        let union = a.union(b);
+        assert!(union.x <= union.right());
+        assert!(union.y <= union.bottom());
+        assert_eq!(union.width, u32::MAX);
+        assert_eq!(union.height, u32::MAX);
+        let overlap = a.intersection(b).expect("the extremes overlap");
+        assert!(overlap.width >= 1);
+        assert!(overlap.height >= 1);
     }
 
     #[test]
