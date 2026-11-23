@@ -219,6 +219,81 @@ fn a_panic_is_caught_counted_and_never_escapes() {
     assert!(!report.no_panic_escaped());
 }
 
+/// A component that panics while deciding whether it accepts a fault.
+struct PanicOnAccept;
+
+impl Faulty for PanicOnAccept {
+    fn accepts(&self, _fault: Fault) -> bool {
+        panic!("acceptance check")
+    }
+
+    fn inject(&mut self, _fault: Fault) {}
+
+    fn degradation(&self) -> Option<Degradation> {
+        None
+    }
+
+    fn recover(&mut self) -> bool {
+        true
+    }
+}
+
+#[test]
+fn a_panicking_acceptance_check_is_caught_and_counted() {
+    let report = curbcut_core::chaos::run(
+        &mut PanicOnAccept,
+        &Script::new([(0, Fault::CacheCorrupt), (1, Fault::HugeScreen)]),
+    );
+    assert_eq!(report.panics(), 1, "{report}");
+    assert_eq!(report.faults(), 0, "no fault was injected before the panic");
+}
+
+/// A component whose faults are never announced, but which can be recovered.
+struct Quiet {
+    recoveries: u32,
+}
+
+impl Faulty for Quiet {
+    fn accepts(&self, _fault: Fault) -> bool {
+        true
+    }
+
+    fn inject(&mut self, _fault: Fault) {}
+
+    fn degradation(&self) -> Option<Degradation> {
+        None
+    }
+
+    fn recover(&mut self) -> bool {
+        self.recoveries += 1;
+        true
+    }
+}
+
+#[test]
+fn an_unannounced_fault_still_runs_recovery() {
+    let mut quiet = Quiet { recoveries: 0 };
+    let report = curbcut_core::chaos::run(
+        &mut quiet,
+        &Script::new([
+            (0, Fault::HugeScreen),
+            (1, Fault::HugeScreen),
+            (2, Fault::CacheCorrupt),
+        ]),
+    );
+    assert_eq!(
+        quiet.recoveries, 3,
+        "recovery ran after every injected fault, announced or not"
+    );
+    assert_eq!(report.faults(), 3);
+    assert_eq!(report.unannounced(), 3);
+    assert!(report.all_recovered());
+    assert!(
+        !report.is_clean(),
+        "the missing announcements still fail the run"
+    );
+}
+
 #[test]
 fn a_report_that_meets_every_invariant_is_clean() {
     let mut gate = PermissionGate::new(Capability::Assist);

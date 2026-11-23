@@ -144,15 +144,17 @@ impl Rect {
     }
 
     /// Intersection over union, in `0.0..=1.0`.
+    ///
+    /// The union is computed in `u128`. Two maximal rectangles have a combined
+    /// area past `u64::MAX`; saturating there clamps the denominator and scores
+    /// a single rectangle above one. `intersection` already guarantees the
+    /// overlap is no larger than either operand, so the subtraction cannot
+    /// underflow.
     pub fn iou(self, other: Self) -> f32 {
         match self.intersection(other) {
             Some(overlap) if !self.is_empty() => {
-                // Saturating: two maximal rectangles have a combined area past
-                // `u64::MAX`, and the difference cannot go negative.
-                let union = self
-                    .area()
-                    .saturating_add(other.area())
-                    .saturating_sub(overlap.area());
+                let union =
+                    u128::from(self.area()) + u128::from(other.area()) - u128::from(overlap.area());
                 if union == 0 {
                     0.0
                 } else {
@@ -856,9 +858,23 @@ mod tests {
         let overlap = a.intersection(b).expect("the extremes overlap");
         assert!(overlap.width >= 1);
         assert!(overlap.height >= 1);
-        // Two maximal rectangles have a combined area past `u64::MAX`.
+        // Two maximal rectangles have a combined area past `u64::MAX`, which
+        // used to saturate the denominator and score an IoU far above one.
         let iou = a.iou(b);
         assert!((0.0..=1.0).contains(&iou), "{iou}");
+        assert!(iou < 1e-10, "the overlap is a single pixel: {iou}");
+        let self_iou = a.iou(a);
+        assert!(
+            (self_iou - 1.0).abs() < 1e-6,
+            "a maximal rectangle against itself scores {self_iou}"
+        );
+        let identical = Rect::new(5, 5, 50, 50);
+        assert!((identical.iou(identical) - 1.0).abs() < 1e-6);
+        assert_eq!(
+            Rect::new(0, 0, 10, 10).iou(Rect::new(20, 20, 5, 5)),
+            0.0,
+            "disjoint rectangles have no intersection"
+        );
     }
 
     #[test]

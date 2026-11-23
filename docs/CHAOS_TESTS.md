@@ -11,17 +11,17 @@ The harness is deterministic and dependency-free. It lives in
 
 ## The three invariants
 
-1. **No panic escapes.** Every injection runs inside
-   [`guard`](curbcut_core::chaos::guard). `guard` replaces the process panic
-   hook for the duration of the operation, so the default hook cannot print
-   the payload to stderr before it is caught, then turns the panic into
-   `Err(Caught)` and drops the payload unread. A panic message can quote its
-   input, so it must never reach a log.
+1. **No panic escapes.** Every acceptance check and every injection runs
+   inside [`guard`](curbcut_core::chaos::guard). The harness installs one
+   process-wide panic hook that consults a thread-local suppression depth, so
+   the default hook cannot print the payload to stderr before it is caught,
+   then turns the panic into `Err(Caught)` and drops the payload unread. A
+   panic message can quote its input, so it must never reach a log.
 2. **A fault is announced.** After injection the component reports a
    [`Degradation`](curbcut_core::chaos::Degradation) carrying a static reason
    code. A fault with no announcement fails the report.
-3. **Recovery is automatic.** `Faulty::recover` restores the baseline, and the
-   report records whether it did.
+3. **Recovery is automatic.** `Faulty::recover` runs after every injected
+   fault, announced or not, and the report records whether it succeeded.
 
 A run is clean only when all three hold:
 
@@ -70,8 +70,28 @@ its origin. The edges now compute in `i64` and clamp, and `intersection` /
 
 ## Privacy
 
-Reason codes are static strings. A degradation names a condition, never a
-screen value, OCR text, or accessibility string. `Caught` carries no payload.
+A degradation names a condition, never a screen value, OCR text, or
+accessibility string. `Caught` carries no payload, and `Debug` for
+`Degradation` and `CaptureLink` prints the reason code's shape rather than its
+value: both fields accept any `&'static str`, so a leaked `String` would
+satisfy the type. `ChecksumCache`'s `Debug` prints keys and counts only.
+
+Suppression is proven from outside the process, because an in-process test
+cannot see what the hook wrote to stderr.
+`crates/curbcut-core/examples/panic_payload_probe.rs` panics inside `guard`
+with a canary read at runtime from the shared fixture, and
+`scripts/check_panic_silence.py` runs it and fails if any canary reaches
+stdout or stderr:
+
+```bash
+cargo build -p curbcut-core --example panic_payload_probe
+python3 scripts/check_panic_silence.py          # exits 2 until it is built
+python3 scripts/check_panic_silence.py --self-test
+```
+
+The `privacy` CI job runs both. The check is deliberately coarse: it greps for
+the fixture canaries, so it catches the exact regression the harness exists to
+prevent and nothing subtler.
 
 ## Running
 

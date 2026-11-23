@@ -17,13 +17,32 @@
 //! against a cache, a huge display against [`Rect`] geometry, a remote desktop
 //! against a capture link. Every reason is a static string — never content.
 
+use std::cell::Cell;
 use std::fmt;
-use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe};
+use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe, PanicHookInfo};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use crate::capability::{Capability, CapabilityToken, Session};
 use crate::id::SessionId;
 use crate::prop::Rng;
 use crate::types::Rect;
+
+/// The hook that was installed before this module replaced it.
+static PREVIOUS_HOOK: Mutex<Option<HookFn>> = Mutex::new(None);
+/// Whether the silencing hook has been installed. Once only.
+static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
+
+type HookFn = Box<dyn Fn(&PanicHookInfo<'_>) + Sync + Send + 'static>;
+
+thread_local! {
+    /// How many guarded operations the current thread is inside.
+    ///
+    /// The panic hook runs on the panicking thread, so a thread-local depth is
+    /// what makes suppression correct under concurrency: another thread's
+    /// guarded panic cannot be un-silenced by this one finishing first.
+    static SUPPRESSED_DEPTH: Cell<u32> = const { Cell::new(0) };
+}
 
 /// One injected failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -117,9 +136,12 @@ impl Script {
 
 /// An announced degradation.
 ///
-/// `reason` is a static string, so an announcement cannot carry a screen value,
-/// OCR text, or an accessibility string into a log.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// `reason` is documented as a static reason code, but the type system only
+/// sees a `&'static str`, and a leaked `String` satisfies that bound. The
+/// manual `Debug` below therefore prints the shape without the code, so a
+/// report formatted into a log cannot carry content even if a caller misuses
+/// the field.
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Degradation {
     /// The step that produced it.
     pub step: u64,
@@ -131,8 +153,23 @@ pub struct Degradation {
     pub recovered: bool,
 }
 
+impl fmt::Debug for Degradation {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Degradation")
+            .field("step", &self.step)
+            .field("fault", &self.fault)
+            .field("reason", &"<static reason code omitted>")
+            .field("recovered", &self.recovered)
+            .finish()
+    }
+}
+
 impl Degradation {
     /// An announcement for `fault` at `step`.
+    ///
+    /// `reason` must be a static reason code from this module's registry. It is
+    /// never printed by `Debug`, so an accidental content string stays out of
+    /// logs; treat the field as opaque.
     pub const fn new(step: u64, fault: Fault, reason: &'static str) -> Self {
         Self {
             step,
@@ -237,10 +274,10 @@ pub trait Faulty {
 
 /// Runs `script` against `component`.
 ///
-/// Each scheduled fault is injected inside [`guard`]. A panic ends the run and
-/// is counted, never propagated. Every other fault is followed by
-/// [`Faulty::recover`], so the report shows both the announcement and the
-/// recovery.
+/// Each scheduled fault is checked and injected inside [`guard`]. A panic ends
+/// the run and is counted, never propagated. Every other fault is followed by
+/// [`Faulty::recover`] whether or not it was announced, so a quiet fault still
+/// leaves the component at its baseline and the report shows both facts.
 pub fn run<C: Faulty>(component: &mut C, script: &Script) -> ChaosReport {
     let mut report = ChaosReport {
         steps: script.len() as u64,
@@ -248,35 +285,44 @@ pub fn run<C: Faulty>(component: &mut C, script: &Script) -> ChaosReport {
     };
 
     for (step, fault) in script.iter() {
-        if !component.accepts(fault) {
+        // `accepts` is part of the component's behaviour, so it runs under the
+        // same containment as `inject`: an acceptance check that panics must be
+        // caught and counted rather than escaping into the caller's log.
+        let accepted = match guard(|| component.accepts(fault)) {
+            Ok(accepted) => accepted,
+            Err(_caught) => {
+                report.panics += 1;
+                break;
+            }
+        };
+        if !accepted {
             continue;
         }
         let outcome = guard(|| {
             component.inject(fault);
-            match component.degradation() {
-                Some(degradation) => {
-                    let recovered = component.recover();
-                    Some(Degradation {
-                        step,
-                        recovered,
-                        ..degradation
-                    })
-                }
-                None => None,
-            }
+            let degradation = component.degradation();
+            let recovered = component.recover();
+            (degradation, recovered)
         });
 
         match outcome {
-            Ok(Some(degradation)) => {
+            Ok((Some(degradation), recovered)) => {
                 report.faults += 1;
-                if !degradation.recovered {
+                if !recovered {
                     report.unrecovered += 1;
                 }
-                report.degradations.push(degradation);
+                report.degradations.push(Degradation {
+                    step,
+                    recovered,
+                    ..degradation
+                });
             }
-            Ok(None) => {
+            Ok((None, recovered)) => {
                 report.faults += 1;
                 report.unannounced += 1;
+                if !recovered {
+                    report.unrecovered += 1;
+                }
             }
             Err(_caught) => {
                 report.panics += 1;
@@ -303,24 +349,54 @@ impl fmt::Display for Caught {
 
 impl std::error::Error for Caught {}
 
-/// Runs `operation`, turning a panic into `Err(Caught)`.
+/// Installs the silencing hook once, delegating to whatever was there before.
 ///
 /// The default panic hook prints the payload to stderr at panic time, before
-/// `catch_unwind` can inspect it, so the hook is replaced for the duration of
-/// the operation. A payload can quote its input, and a panic message reaches
-/// the log; this harness must not let it. The previous hook is restored on the
-/// way out, including on unwind.
+/// `catch_unwind` can inspect it, and a payload can quote its input. Swapping
+/// hooks around each call is both racy — two threads interleave their
+/// save/set/restore — and leaves the default hook live in the gap between
+/// `take_hook` and `set_hook`. Instead one hook is installed for the process
+/// and decides per panic whether the panicking thread asked for silence.
+fn install_silencing_hook() {
+    if HOOK_INSTALLED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let previous = take_hook();
+    // A poisoned lock means another thread panicked while taking it; keeping
+    // the default behaviour (printing) is the safe failure mode, because
+    // silently dropping every hook would hide unrelated crashes.
+    if let Ok(mut slot) = PREVIOUS_HOOK.lock() {
+        *slot = Some(previous);
+    }
+    set_hook(Box::new(|info| {
+        if SUPPRESSED_DEPTH.with(Cell::get) > 0 {
+            return;
+        }
+        if let Ok(slot) = PREVIOUS_HOOK.lock() {
+            if let Some(previous) = slot.as_ref() {
+                previous(info);
+            }
+        }
+    }));
+}
+
+/// Runs `operation`, turning a panic into `Err(Caught)`.
 ///
-/// Hooks are process-wide, so a concurrent panic in another thread is silenced
-/// for the same moment. Its test still fails; only the message is withheld.
+/// A panic message can quote the input that caused it, and the panic hook
+/// writes it to stderr before [`catch_unwind`] runs. The hook installed once at
+/// first use withholds the message on any thread currently inside `guard`, and
+/// leaves every other panic untouched.
+///
+/// Panics on a thread this call did not start are not suppressed: the depth is
+/// thread-local, so containing one thread never hides a crash elsewhere.
 pub fn guard<F, R>(operation: F) -> Result<R, Caught>
 where
     F: FnOnce() -> R,
 {
-    let previous = take_hook();
-    set_hook(Box::new(|_| {}));
+    install_silencing_hook();
+    SUPPRESSED_DEPTH.with(|depth| depth.set(depth.get() + 1));
     let outcome = catch_unwind(AssertUnwindSafe(operation));
-    set_hook(previous);
+    SUPPRESSED_DEPTH.with(|depth| depth.set(depth.get() - 1));
     outcome.map_err(|_| Caught)
 }
 
@@ -528,7 +604,11 @@ impl Faulty for ChecksumCache {
 }
 
 /// How a frame reaches us.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+///
+/// `Unavailable` carries a caller-supplied reason code. Like
+/// [`Degradation::reason`], it is printed by hand so `{:?}` cannot become a
+/// content leak.
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum CaptureLink {
     /// A local display.
     #[default]
@@ -537,6 +617,16 @@ pub enum CaptureLink {
     RemoteDesktop,
     /// Capture is unavailable. The reason is a static code.
     Unavailable(&'static str),
+}
+
+impl fmt::Debug for CaptureLink {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Local => f.write_str("Local"),
+            Self::RemoteDesktop => f.write_str("RemoteDesktop"),
+            Self::Unavailable(_) => f.write_str("Unavailable(<reason code omitted>)"),
+        }
+    }
 }
 
 impl CaptureLink {
@@ -787,6 +877,102 @@ mod tests {
         assert_eq!(report.faults(), 1);
         assert_eq!(report.unannounced(), 1);
         assert!(!report.announced_every_fault());
+    }
+
+    #[test]
+    fn a_quiet_fault_is_still_recovered() {
+        struct Quiet {
+            recoveries: u32,
+        }
+        impl Faulty for Quiet {
+            fn accepts(&self, _fault: Fault) -> bool {
+                true
+            }
+            fn inject(&mut self, _fault: Fault) {}
+            fn degradation(&self) -> Option<Degradation> {
+                None
+            }
+            fn recover(&mut self) -> bool {
+                self.recoveries += 1;
+                true
+            }
+        }
+        let mut quiet = Quiet { recoveries: 0 };
+        let report = run(&mut quiet, &Script::new([(0, Fault::HugeScreen)]));
+        assert_eq!(
+            quiet.recoveries, 1,
+            "recovery must run even when the fault was never announced"
+        );
+        assert_eq!(report.unannounced(), 1);
+        assert!(report.all_recovered());
+        assert!(
+            !report.is_clean(),
+            "a missing announcement still fails the run"
+        );
+    }
+
+    #[test]
+    fn a_quiet_fault_that_cannot_recover_is_counted() {
+        struct StuckQuiet;
+        impl Faulty for StuckQuiet {
+            fn accepts(&self, _fault: Fault) -> bool {
+                true
+            }
+            fn inject(&mut self, _fault: Fault) {}
+            fn degradation(&self) -> Option<Degradation> {
+                None
+            }
+            fn recover(&mut self) -> bool {
+                false
+            }
+        }
+        let report = run(&mut StuckQuiet, &Script::new([(0, Fault::HugeScreen)]));
+        assert_eq!(report.unrecovered(), 1);
+        assert_eq!(report.unannounced(), 1);
+    }
+
+    #[test]
+    fn a_panicking_acceptance_check_is_caught_and_counted() {
+        struct Suspicious;
+        impl Faulty for Suspicious {
+            fn accepts(&self, _fault: Fault) -> bool {
+                panic!("acceptance check exploded")
+            }
+            fn inject(&mut self, _fault: Fault) {}
+            fn degradation(&self) -> Option<Degradation> {
+                None
+            }
+            fn recover(&mut self) -> bool {
+                true
+            }
+        }
+        let report = run(
+            &mut Suspicious,
+            &Script::new([(0, Fault::CacheCorrupt), (1, Fault::PermissionRevoked)]),
+        );
+        assert_eq!(report.panics(), 1, "{report}");
+        assert_eq!(report.faults(), 0, "the run stops at the panicking step");
+        assert!(!report.no_panic_escaped());
+    }
+
+    #[test]
+    fn debug_omits_reason_codes_even_when_a_caller_leaks_content() {
+        let leaked: &'static str = Box::leak("user-screen-text".to_string().into_boxed_str());
+        let degradation = Degradation::new(3, Fault::CacheCorrupt, leaked);
+        let text = format!("{degradation:?}");
+        assert!(!text.contains("user-screen-text"), "{text}");
+        assert!(text.contains("Degradation"), "{text}");
+
+        let link = CaptureLink::Unavailable(leaked);
+        let text = format!("{link:?}");
+        assert!(!text.contains("user-screen-text"), "{text}");
+
+        let mut cache = ChecksumCache::new();
+        cache.put(1, b"x");
+        let report = run(&mut cache, &Script::new([(0, Fault::CacheCorrupt)]));
+        let text = format!("{report:?}");
+        assert!(!text.contains("user-screen-text"), "{text}");
+        assert!(text.contains("ChaosReport"), "{text}");
     }
 
     #[test]
