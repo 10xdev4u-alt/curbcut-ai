@@ -151,10 +151,13 @@ CRATE_STATUS = {
         "Hungarian assignment. The write guard makes `WriteGuard::request`\n"
         "the only path to another app: it requires a valid `WriteA11y`\n"
         "token, denies and skips the sink otherwise, and records every\n"
-        "attempt. See\n"
+        "attempt. The differential test measures the reading order and the\n"
+        "mapped roles against a recorded screen-reader baseline and publishes\n"
+        "the discrepancy count, so a merge change lowers it or fails. See\n"
         "[`../../docs/MERGE.md`](../../docs/MERGE.md),\n"
-        "[`../../docs/STABILITY.md`](../../docs/STABILITY.md), and\n"
-        "[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md)."
+        "[`../../docs/STABILITY.md`](../../docs/STABILITY.md),\n"
+        "[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md), and\n"
+        "[`../../docs/DIFFERENTIAL_TESTS.md`](../../docs/DIFFERENTIAL_TESTS.md)."
     ),
     "curbcut-adapt": (
         "The forward-chaining rules engine is implemented: content-free facts\n"

@@ -26,6 +26,7 @@ pub const CRATE_NAME: &str = "curbcut-a11y";
 /// Crate version, taken from `CARGO_PKG_VERSION`.
 pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub mod differential;
 pub mod mapping;
 pub mod merge;
 pub mod stability;

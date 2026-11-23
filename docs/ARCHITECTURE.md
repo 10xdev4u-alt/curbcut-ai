@@ -1055,7 +1055,10 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
   with a shared fallback. Implemented in
   `crates/curbcut-core/tests/golden_plans.rs`; see
   [`docs/GOLDEN_TESTS.md`](GOLDEN_TESTS.md).
-- **Differential**: compare our merge against the raw a11y tree and against a screen reader's reading order.
+- **Differential**: compare our reading order and mapped roles against a
+  recorded screen-reader baseline, and our merge against the raw a11y tree.
+  Implemented in `crates/curbcut-a11y/tests/differential.rs`; see
+  [`docs/DIFFERENTIAL_TESTS.md`](DIFFERENTIAL_TESTS.md).
 - **Integration**: headless platform fakes that emit synthetic frames/trees.
 - **E2E**: Playwright for our UI; a scripted app (Electron test harness) for overlay behavior.
 - **Perf**: benchmark suite on three reference machines (M-series Mac, Windows iGPU, Linux iGPU) with budgets.

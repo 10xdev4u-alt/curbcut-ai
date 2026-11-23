@@ -14,10 +14,13 @@ StableIds across frames with median scroll compensation and a
 Hungarian assignment. The write guard makes `WriteGuard::request`
 the only path to another app: it requires a valid `WriteA11y`
 token, denies and skips the sink otherwise, and records every
-attempt. See
+attempt. The differential test measures the reading order and the
+mapped roles against a recorded screen-reader baseline and publishes
+the discrepancy count, so a merge change lowers it or fails. See
 [`../../docs/MERGE.md`](../../docs/MERGE.md),
-[`../../docs/STABILITY.md`](../../docs/STABILITY.md), and
-[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md).
+[`../../docs/STABILITY.md`](../../docs/STABILITY.md),
+[`../../docs/WRITE_GUARD.md`](../../docs/WRITE_GUARD.md), and
+[`../../docs/DIFFERENTIAL_TESTS.md`](../../docs/DIFFERENTIAL_TESTS.md).
 
 ## Build and test
 
