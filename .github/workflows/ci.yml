@@ -155,3 +155,16 @@ jobs:
           shared-key: golden
       - name: Golden plan snapshots
         run: cargo test -p curbcut-core --test golden_plans
+
+  differential:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: differential
+      - name: Differential reading-order and role baseline
+        run: cargo test -p curbcut-a11y --test differential -- --nocapture
