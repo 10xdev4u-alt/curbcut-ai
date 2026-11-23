@@ -246,8 +246,10 @@ fn a_dim_plan_is_exact_non_overlapping_and_protected() {
 fn an_out_of_range_opacity_is_rejected() {
     let cases = prop::case_budget("CURBCUT_PROP_CASES", prop::DEFAULT_CASES);
     prop::run(0x5004, cases, |rng, _| {
+        // A strictly out-of-range value: `-0.0 == 0.0`, so a draw that can be
+        // zero would test an in-range input and fail the property by accident.
         let opacity = if rng.bool() {
-            rng.below(1_000) as f32 / -1_000.0
+            -(1.0 + rng.below(1_000) as f32 / 1_000.0)
         } else {
             1.0 + rng.between(1, 1_000) as f32 / 1_000.0
         };

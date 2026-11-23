@@ -192,17 +192,45 @@ fn redaction_is_idempotent_and_removes_every_canary() {
 fn hash_mode_replaces_a_canary_with_a_stable_placeholder() {
     let cases = prop::case_budget("CURBCUT_PROP_CASES", prop::DEFAULT_CASES);
     prop::run(0x2003, cases, |rng, _| {
-        let redactor = Redactor::new().with_mode(RedactMode::Hash);
+        // A secret built from the canary prefix, so no fixture string is in
+        // the source. It is registered, so hash mode must actually hash it.
+        let secret = format!(
+            "{}{}",
+            curbcut_core::redact::CANARY_PREFIX,
+            rng.between(0, u64::MAX)
+        );
+        let mut redactor = Redactor::new().with_mode(RedactMode::Hash);
+        redactor.add_secret(&secret);
+
+        // The placeholder is the hash of the secret alone.
+        let token = redactor.redact(&secret);
+        let inner = token
+            .strip_prefix('[')
+            .and_then(|value| value.strip_suffix(']'))
+            .ok_or("the hash placeholder is not bracketed")?;
+        if inner.len() != 16 || !inner.chars().all(|ch| ch.is_ascii_hexdigit()) {
+            return Err("the hash placeholder is not 16 hex characters".to_string());
+        }
+
         let len = rng.between(0, 200) as usize;
-        let text = rng.ascii(len);
+        let at = rng.below(len as u64 + 1) as usize;
+        let mut text = rng.ascii(len);
+        text.insert_str(at, &secret);
+
         let once = redactor.redact(&text);
+        if once.contains(&secret) {
+            return Err("the secret survived hash mode".to_string());
+        }
+        if !once.contains(&token) {
+            return Err("hash mode did not use the stable placeholder".to_string());
+        }
         let twice = redactor.redact(&once);
         if once != twice {
             return Err("hash redaction is not stable".to_string());
         }
         Ok(())
     })
-    .expect("hash mode is stable");
+    .expect("hash mode replaces a canary with a stable placeholder");
 }
 
 #[test]

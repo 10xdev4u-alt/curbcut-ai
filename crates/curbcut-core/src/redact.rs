@@ -32,6 +32,13 @@ const MARKER_CHARS: &[char] = &['─', '—', '■', '•', '●', '§'];
 /// How many characters make up a fallback marker.
 const MARKER_LEN: usize = 8;
 
+/// Safety net on the fixed-point loop in [`Redactor::redact`].
+///
+/// A realistic secret set settles in one or two passes. The bound exists so a
+/// hand-built secret set that keeps forming new secrets across replacement
+/// boundaries terminates instead of looping forever.
+const MAX_PASSES: usize = 64;
+
 /// What a redacted secret is replaced with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RedactMode {
@@ -179,11 +186,27 @@ impl Redactor {
     /// Matching is exact and case-sensitive. Secrets are already longest-first,
     /// so an overlapping secret is replaced whole.
     ///
-    /// The replacement never contains a registered secret, so the result is
-    /// idempotent. A secret that is a substring of the placeholder — a
-    /// one-character secret such as `d`, which `[redacted]` contains — would
-    /// otherwise survive its own replacement.
+    /// One pass can form a new secret across the boundary between surviving text
+    /// and a replacement — with secrets `x[` and `b`, redacting `xb` leaves
+    /// `x[redacted]`, which still holds `x[`. The pass therefore repeats until
+    /// the text stops changing. Replacement candidates never contain a
+    /// registered secret, so each changing pass removes at least one occurrence
+    /// and the loop reaches a fixed point; [`MAX_PASSES`] bounds a pathological
+    /// secret set.
     pub fn redact(&self, text: &str) -> String {
+        let mut out = text.to_string();
+        for _ in 0..MAX_PASSES {
+            let next = self.redact_once(&out);
+            if next == out {
+                break;
+            }
+            out = next;
+        }
+        out
+    }
+
+    /// One replacement pass over `text`.
+    fn redact_once(&self, text: &str) -> String {
         let mut out = text.to_string();
         for secret in &self.secrets {
             let replacement = self.replacement(secret);
@@ -486,6 +509,18 @@ TEST_SECRET_THREE
         redactor.add_secret("d");
         let redacted = redactor.redact("x d y");
         assert!(!redacted.contains('d'), "{redacted}");
+    }
+
+    #[test]
+    fn a_secret_formed_across_a_replacement_boundary_still_disappears() {
+        // Pass one leaves `x[redacted]`, which contains the secret `x[`; pass
+        // two must remove it rather than leave a fragment behind.
+        let mut redactor = Redactor::new();
+        redactor.add_secrets(["x[", "b"]);
+        let once = redactor.redact("xb");
+        assert!(!once.contains("x["), "{once}");
+        assert!(!once.contains('b'), "{once}");
+        assert_eq!(redactor.redact(&once), once, "redaction is idempotent");
     }
 
     #[test]

@@ -60,6 +60,12 @@ candidate replacement is unsafe, `Redactor::marker` picks a character that
 appears in no registered secret and repeats it, with a private-use fallback.
 A marker, not a hash, keeps correlation impossible for that secret.
 
+One pass can still form a new secret across the boundary between surviving text
+and a replacement: with secrets `x[` and `b`, redacting `xb` leaves
+`x[redacted]`, which holds `x[`. The pass therefore repeats until the text stops
+changing, bounded by a fixed maximum. Replacement candidates contain no secret,
+so each changing pass removes an occurrence and the loop settles.
+
 Every diagnostic must go through `Logger` or `Redactor`. A bare `println!` or
 `eprintln!` in a diagnostic path bypasses the layer and is a review blocker.
 

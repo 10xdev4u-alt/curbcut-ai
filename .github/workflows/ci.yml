@@ -26,6 +26,7 @@ jobs:
               - 'crates/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
+              - '.github/workflows/ci.yml'
               - 'scripts/socket_guard.py'
               - 'docs/**'
             ui:
