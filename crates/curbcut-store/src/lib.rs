@@ -17,6 +17,13 @@
 //! snapshot, per-app and global reset, and layouts that survive an app update.
 //! See [`../../../docs/LAYOUT_MEMORY.md`](../../../docs/LAYOUT_MEMORY.md).
 //!
+//! [`feedback::LearnedSimplification`] records whether the user accepted or
+//! rejected a simplification, keyed by a content hash, and moves a
+//! simplification level within bounds: a step at a time, only after a minimum
+//! number of observations and records, with a bounded undo history and a
+//! bounded log. See
+//! [`../../../docs/LEARNED_SIMPLIFICATIONS.md`](../../../docs/LEARNED_SIMPLIFICATIONS.md).
+//!
 //! The rest of the crate is added incrementally; see
 //! [`../../../backlog/EPICS.md`](../../../backlog/EPICS.md).
 
@@ -37,6 +44,9 @@ pub mod plan_cache;
 
 /// Per-user, per-app, per-window layout memory.
 pub mod layout_memory;
+
+/// Learned simplifications from accept/reject feedback.
+pub mod feedback;
 
 /// Sealed understanding-result cache.
 pub mod understanding_cache;
