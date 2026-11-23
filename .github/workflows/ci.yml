@@ -172,6 +172,18 @@ jobs:
       - name: Check the role mapping doc
         run: python3 scripts/render_role_mapping.py --check
 
+  incident-plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test the incident-plan validator
+        run: python3 scripts/validate_incident_plan.py --self-test
+      - name: Check the plan keeps its guarantees
+        run: python3 scripts/validate_incident_plan.py
+
   privacy:
     runs-on: ubuntu-latest
     steps:
