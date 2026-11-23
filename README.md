@@ -84,6 +84,8 @@ docs/
   MODELS.md                Model zoo, budgets, quantization, fallbacks
   INNOVATIONS.md           Creative extensions and differentiators
   THREAT_MODEL.md          Security and privacy threat model
+  INCIDENT_RESPONSE.md     Severity levels, containment, disclosure, rehearsal
+  POSTMORTEM_TEMPLATE.md   Blameless postmortem and dry-run write-up template
   A11Y_MAPPING.md          WCAG 2.2 + COGA mapping and honest limits
   A11Y_AUDIT.md            Manual accessibility audit protocol (generated links)
   VPAT.md                  Draft VPAT for our own UI (generated)
@@ -152,8 +154,10 @@ backlog/
   PRS.md                   124 PR specs with review threads
   COMMITS.md               329-commit sequence
   METRICS.md               Backlog statistics
+  INCIDENTS.md             Incident register: date, severity, status, link
 scripts/
   render_backlog.py        Regenerates the backlog documents from source data
+  validate_incident_plan.py Fails if the incident plan loses a guarantee
   new_issue.py             Scaffold a correctly-labelled issue
   publish_issues.py        Publish the backlog to GitHub and record the CC-># map
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
