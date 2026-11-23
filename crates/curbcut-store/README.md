@@ -1,6 +1,6 @@
 # curbcut-store
 
-Storage schema, migrations, repositories, key handling, the plan cache, the sealed understanding cache, and per-app layout memory.
+Storage schema, migrations, repositories, key handling, the plan cache, the sealed understanding cache, per-app layout memory, and learned simplifications.
 
 ## Status
 
@@ -12,10 +12,15 @@ results keyed by content hash, model version, and profile, and stores
 every value as ciphertext from a caller-supplied `Cipher`. Per-user,
 per-app, per-window layout memory remembers a content-free choice,
 keeps it across an app update, resets per app, per user, or globally,
-and migrates a schema-v1 snapshot by filling the absent font scale. See
+and migrates a schema-v1 snapshot by filling the absent font scale.
+Learned simplifications record a content hash and an accept/reject
+verdict, move a simplification level by a bounded step only after a
+minimum number of observations and records, keep a bounded undo history,
+and report the acceptance rate. See
 [`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md),
 [`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md),
-and [`../../docs/LAYOUT_MEMORY.md`](../../docs/LAYOUT_MEMORY.md).
+[`../../docs/LAYOUT_MEMORY.md`](../../docs/LAYOUT_MEMORY.md), and
+[`../../docs/LEARNED_SIMPLIFICATIONS.md`](../../docs/LEARNED_SIMPLIFICATIONS.md).
 
 ## Build and test
 

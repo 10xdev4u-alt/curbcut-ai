@@ -101,6 +101,7 @@ docs/
   SHORTCUTS.md             Global shortcut catalog: actions, defaults, rebinding
   PLAN_CACHE.md            Plan cache: bounded LRU plans and opt-in per-app memory
   LAYOUT_MEMORY.md         Per-user, per-app, per-window layout memory: migration and reset
+  LEARNED_SIMPLIFICATIONS.md Learned simplifications: hashed accept/reject feedback, bounded adaptation
   CONFIRM.md               Confirmation and undo: consequence, outcome, action log
   HOVER.md                 Pointer tracking: dwell, move threshold, Wayland limit
   CLICKS.md                Click routing: consume or hand off, focus, no double-click

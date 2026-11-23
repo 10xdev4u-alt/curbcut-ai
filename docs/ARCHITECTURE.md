@@ -992,6 +992,25 @@ Implemented in `crates/curbcut-store/src/layout_memory.rs`. See
   a snapshot newer than this build.
 - The choice is numbers and a boolean; `Debug` prints slugs and counts only.
 
+### 11.6 Learned simplifications
+
+Implemented in `crates/curbcut-store/src/feedback.rs`. See
+[`docs/LEARNED_SIMPLIFICATIONS.md`](LEARNED_SIMPLIFICATIONS.md).
+
+- `FeedbackLog` stores a `ContentHash`, a `Feedback`, and a sequence number, and
+  holds at most its capacity, evicting the oldest entry. A capacity of zero
+  stores nothing.
+- `LearnedSimplification` starts at `min_level` and moves by at most `step` per
+  adaptation, within `min_level..=max_level`. It moves only after
+  `min_observations` entries and `min_records_between` records since the last
+  move, and only when `accept_rate` is at or above `high` (rise) or at or below
+  `low` (fall).
+- `undo` restores the previous level; the history holds at most `history_limit`
+  levels. `clear` drops the log, the history, and resets the level.
+- `AdaptationConfig::clamp` swaps a reversed range, raises a zero step to one,
+  clamps rates to `0.0..=1.0`, and raises a zero history limit to one.
+- The log is keyed by a hash; `Debug` prints hashes and verdicts, never text.
+
 ---
 
 ## 12. Model serving
