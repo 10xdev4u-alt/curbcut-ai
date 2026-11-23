@@ -1055,7 +1055,16 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
 ## 13. Testing strategy
 
 - **Unit**: pure functions (rules, layout, reading level, merge). High coverage.
-- **Property-based**: merge and layout invariants (no overlap, reading order preserved, idempotent).
+- **Property-based**: merge and layout invariants (no overlap, reading order
+  preserved, idempotent), plus config-slot, redaction, hash, store-cache,
+  feedback, dim-plan, and profile-setting invariants. A seeded std-only
+  harness generates the inputs and reports the seed and case index on a break.
+  Implemented in `crates/curbcut-core/src/prop.rs` and the `properties.rs`
+  integration tests in `curbcut-core`, `curbcut-a11y`, `curbcut-store`, and
+  `curbcut-adapt`; see [`docs/PROPERTY_TESTS.md`](PROPERTY_TESTS.md).
+- **Parser fuzz**: the TOML parser, hex parser, and hash layer under generated
+  input, capped by a wall-clock budget so a slow runner stops rather than fails.
+  Implemented in `crates/curbcut-core/tests/fuzz_parsers.rs`.
 - **Golden**: snapshot tests for overlay plans against a fixture set, per-OS
   with a shared fallback. Implemented in
   `crates/curbcut-core/tests/golden_plans.rs`; see

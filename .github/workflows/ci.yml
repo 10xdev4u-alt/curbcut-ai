@@ -64,6 +64,31 @@ jobs:
       - name: Test with the net feature
         run: cargo test -p curbcut-core --features net
 
+  property:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    # A raised case budget makes a slow runner the limit; the tests stop at the
+    # wall-clock budget rather than failing on it.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: property
+      - name: Core property and parser fuzz suite
+        run: cargo test -p curbcut-core --test properties --test fuzz_parsers
+        env:
+          CURBCUT_PROP_CASES: "5000"
+          CURBCUT_FUZZ_BUDGET_MS: "60000"
+      - name: Merge, store, and adapt property suite
+        run: cargo test -p curbcut-a11y -p curbcut-store -p curbcut-adapt --test properties
+        env:
+          CURBCUT_PROP_CASES: "5000"
+
   socket-guard:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}

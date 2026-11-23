@@ -38,7 +38,7 @@ strip = true
 
 # name, description, dependencies
 CRATES = [
-    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, and SHA-256/HMAC.", []),
+    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, golden plan snapshots, SHA-256/HMAC, and the seeded property-test harness.", []),
     ("curbcut-capture", "Screen capture adapters and the zeroizing frame ring buffer.", ["curbcut-core"]),
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
@@ -136,7 +136,11 @@ CRATE_STATUS = {
         "`GUARD_BYTE` and a thread-local drop counter. The `snapshot` module\n"
         "renders a content-free, deterministic `OverlayPlan` for the golden\n"
         "tests. The `hash` module is a dependency-free SHA-256 and HMAC-SHA-256,\n"
-        "checked against the published test vectors. See\n"
+        "checked against the published test vectors. The `prop` module is the\n"
+        "seeded property-test harness every crate uses: a splitmix64 generator,\n"
+        "a runner that reports the seed and case index on a break, and a\n"
+        "wall-clock budget for fuzz runs. See\n"
+        "[`../../docs/PROPERTY_TESTS.md`](../../docs/PROPERTY_TESTS.md),\n"
         "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),\n"
         "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md),\n"
         "[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md), and\n"

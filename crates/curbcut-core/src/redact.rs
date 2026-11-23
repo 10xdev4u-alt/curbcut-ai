@@ -22,6 +22,16 @@ use std::sync::OnceLock;
 /// Prefix shared by every content canary.
 pub const CANARY_PREFIX: &str = "CC-CANARY-";
 
+/// Characters a fallback marker is built from, tried in order.
+///
+/// A marker is a run of one character, so any character that appears in no
+/// registered secret yields a marker that contains no secret. The candidates
+/// read as redaction bars in a log.
+const MARKER_CHARS: &[char] = &['─', '—', '■', '•', '●', '§'];
+
+/// How many characters make up a fallback marker.
+const MARKER_LEN: usize = 8;
+
 /// What a redacted secret is replaced with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RedactMode {
@@ -168,16 +178,62 @@ impl Redactor {
     ///
     /// Matching is exact and case-sensitive. Secrets are already longest-first,
     /// so an overlapping secret is replaced whole.
+    ///
+    /// The replacement never contains a registered secret, so the result is
+    /// idempotent. A secret that is a substring of the placeholder — a
+    /// one-character secret such as `d`, which `[redacted]` contains — would
+    /// otherwise survive its own replacement.
     pub fn redact(&self, text: &str) -> String {
         let mut out = text.to_string();
         for secret in &self.secrets {
-            let replacement = match self.mode {
-                RedactMode::Placeholder => self.placeholder.clone(),
-                RedactMode::Hash => format!("[{}]", short_hash(secret)),
-            };
+            let replacement = self.replacement(secret);
             out = out.replace(secret, &replacement);
         }
         out
+    }
+
+    /// The replacement for one secret.
+    ///
+    /// The candidate is the configured placeholder, or the secret's short hash
+    /// in [`RedactMode::Hash`]. A candidate that contains a registered secret
+    /// is unusable, so it is swapped for [`Redactor::marker`].
+    fn replacement(&self, secret: &str) -> String {
+        let candidate = match self.mode {
+            RedactMode::Placeholder => self.placeholder.clone(),
+            RedactMode::Hash => format!("[{}]", short_hash(secret)),
+        };
+        if self
+            .secrets
+            .iter()
+            .any(|known| candidate.contains(known.as_str()))
+        {
+            self.marker()
+        } else {
+            candidate
+        }
+    }
+
+    /// A marker that contains no registered secret.
+    ///
+    /// Secrets are finite, so a character outside all of them exists; the
+    /// private-use area backs up the punctuation candidates. If every candidate
+    /// is covered the configured placeholder is returned, which is unreachable
+    /// for any realistic secret set.
+    fn marker(&self) -> String {
+        let free = |ch: char| !self.secrets.iter().any(|known| known.contains(ch));
+        for ch in MARKER_CHARS {
+            if free(*ch) {
+                return ch.to_string().repeat(MARKER_LEN);
+            }
+        }
+        for code in 0xE000..=0xF8FF {
+            if let Some(ch) = char::from_u32(code) {
+                if free(ch) {
+                    return ch.to_string().repeat(MARKER_LEN);
+                }
+            }
+        }
+        self.placeholder.clone()
     }
 }
 
@@ -396,6 +452,40 @@ TEST_SECRET_THREE
         redactor.add_secrets(["TEST_SECRET", "TEST_SECRET_OVERLAP"]);
         let redacted = redactor.redact("xx TEST_SECRET_OVERLAP yy");
         assert_eq!(redacted, "xx [redacted] yy");
+    }
+
+    #[test]
+    fn a_secret_that_is_a_substring_of_the_placeholder_still_disappears() {
+        let mut redactor = Redactor::new();
+        redactor.add_secret("d");
+        let redacted = redactor.redact("a d c");
+        assert!(!redacted.contains('d'), "{redacted}");
+        assert_eq!(
+            redactor.redact(&redacted),
+            redacted,
+            "redaction is idempotent"
+        );
+    }
+
+    #[test]
+    fn a_short_secret_does_not_survive_hash_mode_either() {
+        let mut redactor = Redactor::new().with_mode(RedactMode::Hash);
+        redactor.add_secret("a");
+        let redacted = redactor.redact("a b a");
+        assert!(!redacted.contains('a'), "{redacted}");
+        assert_eq!(
+            redactor.redact(&redacted),
+            redacted,
+            "redaction is idempotent"
+        );
+    }
+
+    #[test]
+    fn a_user_placeholder_that_contains_a_secret_is_not_used() {
+        let mut redactor = Redactor::new().with_placeholder("[d]");
+        redactor.add_secret("d");
+        let redacted = redactor.redact("x d y");
+        assert!(!redacted.contains('d'), "{redacted}");
     }
 
     #[test]
