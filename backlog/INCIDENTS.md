@@ -12,5 +12,6 @@ Severity follows the levels in the plan. Status is one of `DECLARED`,
 | Date | Incident | Severity | Status | Type | Link |
 | --- | --- | --- | --- | --- | --- |
 
-No incidents declared yet. The plan was published on 2026-11-23; the first
-scheduled rehearsal is tracked as an issue.
+No incidents declared yet, and no rehearsal has been run. The plan was
+published on 2026-11-23; scheduling the first rehearsal is open work, not a
+completed step.

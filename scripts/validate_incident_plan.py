@@ -23,9 +23,11 @@ Usage::
     python3 scripts/validate_incident_plan.py --self-test  # prove it fails
 
 ``--self-test`` copies the three documents into a temporary tree, applies one
-deletion per check, and requires each deletion to be detected. It fails if a
+named deletion per guarantee, and requires each to be detected. It fails if a
 document is missing. Mutations target the line that carries the fact, so the
-copy always returns to a passing state before the next case.
+copy always returns to a passing state before the next case. Some mutations
+trip more than one check (removing a table header drops every column), so the
+mutation count is deliberately not one-to-one with the number of checks.
 """
 
 from __future__ import annotations
@@ -128,7 +130,9 @@ def validate_plan(text: str) -> list[str]:
 
     roles = section(text, "Roles and escalation")
     role_rows = table_rows(roles)
-    if len(role_rows) < ROLES:
+    # `table_rows` keeps the header, so the body is one row shorter. Counting the
+    # header as a role let a deleted role pass.
+    if len(role_rows) - 1 < ROLES:
         errors.append(f"plan has fewer than {ROLES} role table rows")
     # Match the role's own row, not a mention in another role's backup column.
     if not any(re.match(r"\|\s*incident commander\s*\|", row.lower()) for row in role_rows):
@@ -164,6 +168,11 @@ def validate_plan(text: str) -> list[str]:
         for row in disclosure_rows
     ):
         errors.append("plan does not state the GDPR notification deadline")
+    if not any(
+        "notify affected users" in row.lower() and "without undue delay" in row.lower()
+        for row in disclosure_rows
+    ):
+        errors.append("plan does not state the user-notification deadline")
 
     evidence = section(text, "Evidence handling").lower()
     if "never attach a frame" not in evidence or "ocr text" not in evidence:
@@ -191,8 +200,13 @@ def validate_template(text: str) -> list[str]:
     for needle, label in TEMPLATE_SECTIONS.items():
         if not has_heading(text, needle):
             errors.append(f"postmortem template is missing the {label} section")
-    upper = text.upper()
-    if "REAL" not in upper or "DRY RUN" not in upper:
+    # Check the `Type:` line itself. Searching the whole document let the prose
+    # "(dry runs only)" satisfy the marker after `DRY RUN` was deleted from it.
+    type_line = next(
+        (line for line in text.splitlines() if line.lower().startswith("type:")),
+        "",
+    )
+    if "REAL" not in type_line.upper() or "DRY RUN" not in type_line.upper():
         errors.append("postmortem template does not distinguish REAL from DRY RUN")
     if not any(
         row.strip().startswith("|")
@@ -226,9 +240,11 @@ def validate_register(text: str) -> list[str]:
         for column in REGISTER_COLUMNS:
             if column not in header:
                 errors.append(f"incident register is missing the {column!r} column")
+    # Require the normative sentence, not the two words: they also appear in the
+    # status vocabulary above the table.
     lowered = text.lower()
-    if "real" not in lowered or "dry run" not in lowered:
-        errors.append("incident register does not explain the REAL/DRY RUN marker")
+    if "rehearsals must say so" not in lowered:
+        errors.append("incident register does not require rehearsals to be marked")
     return errors
 
 
@@ -276,14 +292,21 @@ def _break(document: Path, old: str, new: str) -> None:
     document.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-# One mutation per check, named for the guarantee it protects. Order follows the
-# document, and every entry must be detected by `--self-test`.
+# One named mutation per guarantee, in document order. Every entry must be
+# detected by `--self-test`; several trip more than one check, so this is a
+# floor on coverage rather than an exact map onto the checks above.
 MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("sev1 row", "docs/INCIDENT_RESPONSE.md", "| SEV1 | Active exfiltration", "| -- | Active exfiltration"),
     ("sev2 row", "docs/INCIDENT_RESPONSE.md", "| SEV2 | Exposure", "| -- | Exposure"),
     ("sev3 row", "docs/INCIDENT_RESPONSE.md", "| SEV3 | A feature", "| -- | A feature"),
     ("sev4 row", "docs/INCIDENT_RESPONSE.md", "| SEV4 | Cosmetic", "| -- | Cosmetic"),
     ("ic role", "docs/INCIDENT_RESPONSE.md", "| Incident Commander | Declares severity", "| -- | Declares severity"),
+    (
+        "ops role",
+        "docs/INCIDENT_RESPONSE.md",
+        "| Ops Lead | Runs the technical steps: network kill switch, capture stop, update halt, rollback, key rotation | Platform maintainer | Any maintainer |",
+        "",
+    ),
     ("capture stop step", "docs/INCIDENT_RESPONSE.md", "| Stop capture with the local panic key |", "| -- |"),
     ("network switch step", "docs/INCIDENT_RESPONSE.md", "| Engage the network kill switch", "| -- "),
     ("update halt step", "docs/INCIDENT_RESPONSE.md", "| Halt the update channel |", "| -- |"),
@@ -296,18 +319,25 @@ MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("triage deadline", "docs/INCIDENT_RESPONSE.md", "| Triage and confirm or reject | 5 business days | IC |", "| Triage and confirm or reject | when possible | IC |"),
     ("advisory promise", "docs/INCIDENT_RESPONSE.md", "or 90 days after acknowledgement", "when convenient"),
     ("gdpr deadline", "docs/INCIDENT_RESPONSE.md", "| Notify a supervisory authority, where GDPR applies | 72 hours from becoming aware | Legal contact |", "| Notify a supervisory authority, where GDPR applies | without undue delay | Legal contact |"),
+    ("user notice deadline", "docs/INCIDENT_RESPONSE.md", "| Notify affected users, where required | Without undue delay after the authority | Legal contact |", "| Notify affected users, where required | eventually | Legal contact |"),
     ("frame prohibition", "docs/INCIDENT_RESPONSE.md", "Never attach a frame, a screenshot of content, OCR text, or a raw", "Attach whatever helps, including a frame or OCR text or a raw"),
     ("counts and hashes", "docs/INCIDENT_RESPONSE.md", "counts, lengths, dimensions,", "details,"),
     ("retention period", "docs/INCIDENT_RESPONSE.md", "Retain evidence for 18 months, then delete it.", "Keep evidence indefinitely."),
     ("utc timestamps", "docs/INCIDENT_RESPONSE.md", "with timestamps in UTC.", "with local timestamps."),
     ("rehearsal cadence", "docs/INCIDENT_RESPONSE.md", "The plan is rehearsed twice a year and after any SEV1 or SEV2", "The plan is reviewed when needed"),
     ("rehearsal checklist", "docs/INCIDENT_RESPONSE.md", "Checklist:", "Notes:"),
+    ("template summary", "docs/POSTMORTEM_TEMPLATE.md", "## Summary", "## Overview"),
+    ("template impact", "docs/POSTMORTEM_TEMPLATE.md", "## Impact", "## Effects"),
+    ("template timeline", "docs/POSTMORTEM_TEMPLATE.md", "## Timeline (UTC)", "## When"),
     ("template root cause", "docs/POSTMORTEM_TEMPLATE.md", "## Root cause", "## Analysis"),
+    ("template action items", "docs/POSTMORTEM_TEMPLATE.md", "## Action items", "## Follow-ups"),
+    ("template evidence", "docs/POSTMORTEM_TEMPLATE.md", "## Evidence", "## Attachments"),
     ("template action columns", "docs/POSTMORTEM_TEMPLATE.md", "| ID | Action | Owner | Due | Kind |", "| ID | Action | Kind |"),
     ("template status marker", "docs/POSTMORTEM_TEMPLATE.md", "Type: `REAL | DRY RUN`", "Type: `SOMETIMES`"),
     ("template redaction", "docs/POSTMORTEM_TEMPLATE.md", "Redacted excerpts only, from the categories", "Excerpts of any kind, from any source,"),
     ("template originals", "docs/POSTMORTEM_TEMPLATE.md", "Never retain an unredacted original.", "Originals may be retained."),
-    ("register columns", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |", "| Date | Incident | Type | Link |"),
+    ("register header", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |\n", ""),
+    ("register columns", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |", "| Date |"),
     ("register marker", "backlog/INCIDENTS.md", "`DRY RUN`; rehearsals must say so.", "`MAYBE`."),
 )
 
@@ -358,7 +388,7 @@ def main() -> int:
     parser.add_argument(
         "--self-test",
         action="store_true",
-        help=f"apply {len(MUTATIONS)} deletions, one per check, and require detection",
+        help=f"apply {len(MUTATIONS)} named deletions and require detection",
     )
     args = parser.parse_args()
 

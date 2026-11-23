@@ -93,7 +93,7 @@ capture, and an engineer with access engages the switch in the process.
 | Revoke and rotate signing keys | Key compromise suspected | Invalidates tampered updates | No for artifacts signed with the old key; documented |
 | Rotate store/cache keys and force re-auth | Key material may be exposed | Old ciphertext is unreadable | No for old data; documented |
 | Roll back to the last known-good release | Regression confirmed in a release | Restores prior behavior | Yes |
-| Disable the optional network features at the source | Any suspicion of unexpected egress | Removes sync and update paths from new builds | Yes |
+| Disable the optional network features at the source | Any suspicion of unexpected egress | Removes the sync, model-download, telemetry, and licence channels from new builds; update checks stay behind the kill switch | Yes |
 
 Every containment action is recorded with a timestamp, the actor, and the
 reason. A containment that cannot be reversed (signing-key revocation, store
