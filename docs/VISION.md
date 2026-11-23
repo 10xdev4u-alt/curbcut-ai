@@ -64,11 +64,14 @@ empty result. The pipeline does not panic and does not stop the other stages.
 
 ## Privacy
 
-`OcrText` and `IconCaption` hold content. Their `Debug` impls print lengths, not
-text, and `redacted()` returns a content-free view. Nothing in this crate logs
-pixels, OCR text, or captions. `a_result_carries_no_content_in_its_debug` pins
-it. Full frame pixels are borrowed and never retained; the scheduler keeps only
-a 32-byte `MotionSignature`, which is zeroized on drop.
+`OcrText` and `IconCaption` hold content in a zeroizing `SecureText`: their
+`Debug` impls print lengths, not text, and `redacted()` returns a content-free
+view. Nothing in this crate logs pixels, OCR text, or captions.
+`a_result_carries_no_content_in_its_debug` pins it, and
+`recognized_text_and_captions_are_zeroized_when_the_result_drops` pins the
+overwrite. Full frame pixels are borrowed and never retained; the scheduler
+keeps only a 32-byte `MotionSignature`, which is zeroized on drop. See
+[`SECURE_BUFFERS.md`](SECURE_BUFFERS.md).
 
 ## Testing
 

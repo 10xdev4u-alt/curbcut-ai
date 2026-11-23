@@ -12,7 +12,9 @@ a viewport into header, nav, main, aside, footer, modal, and floating
 regions and produces a stable reading order. Dirty-rect re-analysis
 reduces two frames to a grid of cell means, merges the changed cells
 into rectangles, and triggers re-analysis with a cooldown so a moving
-carousel causes one analysis rather than one per frame. See
+carousel causes one analysis rather than one per frame. `OcrText.text`
+and `IconCaption.caption` are zeroizing `SecureText`, so recognized
+content is overwritten when the result drops. See
 [`../../docs/VISION.md`](../../docs/VISION.md),
 [`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md),
 [`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md), and

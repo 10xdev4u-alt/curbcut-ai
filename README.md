@@ -87,6 +87,7 @@ docs/
   A11Y_MAPPING.md          WCAG 2.2 + COGA mapping and honest limits
   ROLE_MAPPING.md          Platform role/state compatibility tables (generated)
   REDACTION.md             Redaction layer, canary fixture, no-content CI test
+  SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
   RULES_ENGINE.md          Forward-chaining rules: facts, priority, conflict, toggles
   CLI.md                   Headless CLI: commands, exit codes, redacted dump

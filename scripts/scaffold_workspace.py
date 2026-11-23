@@ -38,7 +38,7 @@ strip = true
 
 # name, description, dependencies
 CRATES = [
-    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration.", []),
+    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, and zeroizing buffers.", []),
     ("curbcut-capture", "Screen capture adapters and the zeroizing frame ring buffer.", ["curbcut-core"]),
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
@@ -131,8 +131,11 @@ CRATE_STATUS = {
         "exists without the feature, it takes the feature it dials and refuses\n"
         "anything but `UpdateCheck`, and it still consults the switch. The\n"
         "`socket-guard` CI job runs `scripts/socket_guard.py` over the\n"
-        "`net_probe` example in both builds. See\n"
-        "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md)."
+        "`net_probe` example in both builds. The `secure` module adds the\n"
+        "zeroizing `SecureBuffer` and `SecureText` types with a shared\n"
+        "`GUARD_BYTE` and a thread-local drop counter. See\n"
+        "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md) and\n"
+        "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md)."
     ),
     "curbcut-a11y": (
         "The platform role and state mapping is implemented, and the a11y +\n"
@@ -192,8 +195,11 @@ CRATE_STATUS = {
         "ring with a byte budget, best-effort `mlock`, and a guard byte on\n"
         "release. Protected-content detection refuses a DRM surface, a\n"
         "secure desktop, an uncapturable window, or a black frame, and\n"
-        "returns the accessibility-only fallback message. See\n"
-        "[`../../docs/PROTECTED_CONTENT.md`](../../docs/PROTECTED_CONTENT.md)."
+        "returns the accessibility-only fallback message. `GUARD_BYTE` is\n"
+        "re-exported from `curbcut_core::secure`, so the ring and the other\n"
+        "buffers share one guard byte. See\n"
+        "[`../../docs/PROTECTED_CONTENT.md`](../../docs/PROTECTED_CONTENT.md) and\n"
+        "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md)."
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
@@ -209,7 +215,9 @@ CRATE_STATUS = {
         "regions and produces a stable reading order. Dirty-rect re-analysis\n"
         "reduces two frames to a grid of cell means, merges the changed cells\n"
         "into rectangles, and triggers re-analysis with a cooldown so a moving\n"
-        "carousel causes one analysis rather than one per frame. See\n"
+        "carousel causes one analysis rather than one per frame. `OcrText.text`\n"
+        "and `IconCaption.caption` are zeroizing `SecureText`, so recognized\n"
+        "content is overwritten when the result drops. See\n"
         "[`../../docs/VISION.md`](../../docs/VISION.md),\n"
         "[`../../docs/MOTION_DETECTION.md`](../../docs/MOTION_DETECTION.md),\n"
         "[`../../docs/LAYOUT_ANALYSIS.md`](../../docs/LAYOUT_ANALYSIS.md), and\n"
@@ -266,7 +274,9 @@ CRATE_STATUS = {
         "Learned simplifications record a content hash and an accept/reject\n"
         "verdict, move a simplification level by a bounded step only after a\n"
         "minimum number of observations and records, keep a bounded undo history,\n"
-        "and report the acceptance rate. See\n"
+        "and report the acceptance rate. Sealed values are held in a zeroizing\n"
+        "`SecureBuffer`, so eviction overwrites them rather than merely\n"
+        "unlinking. See\n"
         "[`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md),\n"
         "[`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md),\n"
         "[`../../docs/LAYOUT_MEMORY.md`](../../docs/LAYOUT_MEMORY.md), and\n"

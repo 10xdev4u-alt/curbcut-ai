@@ -46,9 +46,11 @@ pub trait Cipher {
 ```
 
 `store` seals the payload **before** it reaches the LRU. The cache holds
-ciphertext only; the only way back is `load`, which opens it. `sealed(key)`
-returns ciphertext for writing to disk and does not count as a use, so a backup
-or a flush does not change the eviction order.
+ciphertext only, in a zeroizing `SecureBuffer`; the only way back is `load`,
+which opens it. `sealed(key)` returns ciphertext for writing to disk and does
+not count as a use, so a backup or a flush does not change the eviction order.
+An evicted entry is overwritten with the guard byte, not merely unlinked. See
+[`SECURE_BUFFERS.md`](SECURE_BUFFERS.md).
 
 The crate ships **no** `Cipher` implementation. The key belongs in the OS
 keychain (macOS Keychain, Windows DPAPI, Linux libsecret), which is a platform
@@ -86,6 +88,7 @@ The key holds a hash and two identifiers; it holds no text. The stored value is
 ciphertext. Neither may be logged, and a payload is derived text, so it must
 never appear in a log, a dump, or a crash report.
 
-`Debug` on `UnderstandingCache` prints the key and the ciphertext, never a
-plaintext payload. The caller still owns the boundary: an implementation that
-logged a decoded payload would leak it.
+`Debug` on `UnderstandingCache` prints the key and the length of each sealed
+value, never a plaintext payload and never the ciphertext bytes. The caller
+still owns the boundary: an implementation that logged a decoded payload would
+leak it.

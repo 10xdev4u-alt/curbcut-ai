@@ -1015,6 +1015,25 @@ Implemented in `crates/curbcut-store/src/feedback.rs`. See
   it. The rate limiter counts records since the last move, so no-ops at a bound
   do not delay a later reversal.
 
+### 11.7 Zeroizing buffers
+
+Implemented in `crates/curbcut-core/src/secure.rs`. See
+[`docs/SECURE_BUFFERS.md`](SECURE_BUFFERS.md).
+
+- `GUARD_BYTE` is the byte written over released content. `curbcut-capture`
+  re-exports it, so the frame ring and every other buffer share one definition.
+- `SecureBuffer` is an owned byte buffer and `SecureText` a UTF-8 view over
+  one. Both overwrite themselves with `GUARD_BYTE` on drop, so a frame, a
+  recognized phrase, or a sealed cache value cannot be read back from freed
+  memory. `Debug` prints a length, never bytes.
+- The buffers count their own drops on a thread-local counter, exposed as a
+  `#[doc(hidden)]` test hook so a test can prove the overwrite without reading
+  freed memory.
+- `OcrText.text` and `IconCaption.caption` are `SecureText`; the understanding
+  cache holds sealed values in `SecureBuffer`, so eviction overwrites them.
+- Safe Rust cannot reach into a `String`, so text is byte-backed rather than a
+  `String`; `SecureText::as_str` is the only read.
+
 ---
 
 ## 12. Model serving

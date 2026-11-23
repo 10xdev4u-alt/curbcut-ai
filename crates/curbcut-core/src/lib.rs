@@ -25,6 +25,7 @@ pub mod event;
 pub mod id;
 pub mod net;
 pub mod redact;
+pub mod secure;
 pub(crate) mod toml;
 pub mod types;
 
