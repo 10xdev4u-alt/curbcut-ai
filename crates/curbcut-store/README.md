@@ -16,7 +16,9 @@ and migrates a schema-v1 snapshot by filling the absent font scale.
 Learned simplifications record a content hash and an accept/reject
 verdict, move a simplification level by a bounded step only after a
 minimum number of observations and records, keep a bounded undo history,
-and report the acceptance rate. See
+and report the acceptance rate. Sealed values are held in a zeroizing
+`SecureBuffer`, so eviction overwrites them rather than merely
+unlinking. See
 [`../../docs/PLAN_CACHE.md`](../../docs/PLAN_CACHE.md),
 [`../../docs/UNDERSTANDING_CACHE.md`](../../docs/UNDERSTANDING_CACHE.md),
 [`../../docs/LAYOUT_MEMORY.md`](../../docs/LAYOUT_MEMORY.md), and

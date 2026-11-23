@@ -28,7 +28,10 @@ pub const MAX_FRAME_BYTES: usize = 64 * 1024 * 1024;
 /// allocation, which aborts rather than returning an error.
 pub const MAX_RING_CAPACITY: usize = 500_000;
 /// Byte written over a released frame.
-pub const GUARD_BYTE: u8 = 0;
+///
+/// Re-exported from `curbcut_core::secure`, so the workspace has one guard byte
+/// rather than one per crate.
+pub use curbcut_core::secure::GUARD_BYTE;
 
 /// Pattern used by the guard-byte test.
 #[cfg(test)]

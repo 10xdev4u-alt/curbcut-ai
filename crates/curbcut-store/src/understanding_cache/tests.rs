@@ -378,6 +378,34 @@ fn invalidate_profile_drops_every_result_for_that_profile() {
 }
 
 #[test]
+fn evicting_an_entry_zeroizes_the_sealed_bytes() {
+    curbcut_core::secure::reset_zeroized_on_drop();
+    let mut cache = UnderstandingCache::new(2, ProbeCipher { key: 7 });
+    cache.store(key(1, "m1", "read"), b"one").unwrap();
+    cache.store(key(2, "m1", "read"), b"two").unwrap();
+    assert_eq!(curbcut_core::secure::zeroized_on_drop(), 0);
+
+    cache.store(key(3, "m1", "read"), b"three").unwrap();
+    assert_eq!(
+        curbcut_core::secure::zeroized_on_drop(),
+        1,
+        "the evicted entry must be overwritten, not merely unlinked"
+    );
+}
+
+#[test]
+fn clear_zeroizes_every_sealed_entry() {
+    curbcut_core::secure::reset_zeroized_on_drop();
+    let mut cache = UnderstandingCache::new(4, ProbeCipher { key: 7 });
+    cache.store(key(1, "m1", "read"), b"a").unwrap();
+    cache.store(key(2, "m1", "read"), b"b").unwrap();
+    assert_eq!(curbcut_core::secure::zeroized_on_drop(), 0);
+
+    cache.clear();
+    assert_eq!(curbcut_core::secure::zeroized_on_drop(), 2);
+}
+
+#[test]
 fn clear_drops_every_sealed_entry() {
     let mut cache = UnderstandingCache::new(4, ProbeCipher { key: 7 });
     cache.store(key(1, "m1", "read"), b"a").unwrap();

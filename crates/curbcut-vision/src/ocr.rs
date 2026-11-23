@@ -3,6 +3,7 @@
 use std::fmt;
 
 use curbcut_core::error::Result;
+use curbcut_core::secure::SecureText;
 use curbcut_core::types::Rect;
 
 use crate::frame::VisionFrame;
@@ -10,14 +11,14 @@ use crate::frame::VisionFrame;
 /// Recognized text.
 ///
 /// `text` is content: it must never be logged, dumped, or formatted by
-/// `Debug`. Use [`OcrText::text`] to read it and [`OcrText::redacted`] for a
+/// `Debug`. Use [`OcrText::as_str`] to read it and [`OcrText::redacted`] for a
 /// content-free view.
 #[derive(Clone, PartialEq)]
 pub struct OcrText {
     /// Screen rectangle of the recognized run.
     pub rect: Rect,
-    /// Recognized text. Content: never log it.
-    pub text: String,
+    /// Recognized text. Content: never log it. Zeroized when dropped.
+    pub text: SecureText,
     /// Confidence from the recognizer, from 0.0 to 1.0.
     pub confidence: f32,
 }
@@ -27,9 +28,16 @@ impl OcrText {
     pub fn new(rect: Rect, text: impl Into<String>, confidence: f32) -> Self {
         Self {
             rect,
-            text: text.into(),
+            text: SecureText::new(text),
             confidence,
         }
+    }
+
+    /// The recognized text.
+    ///
+    /// Content: never log it.
+    pub fn as_str(&self) -> &str {
+        self.text.as_str()
     }
 
     /// A content-free view: the box, the length, and the confidence.

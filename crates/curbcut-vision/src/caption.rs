@@ -3,6 +3,7 @@
 use std::fmt;
 
 use curbcut_core::error::Result;
+use curbcut_core::secure::SecureText;
 use curbcut_core::types::Rect;
 
 use crate::detector::Detection;
@@ -11,13 +12,14 @@ use crate::frame::VisionFrame;
 /// A caption for an icon or image.
 ///
 /// `caption` is content: it must never be logged, dumped, or formatted by
-/// `Debug`. Use [`IconCaption::redacted`] for a content-free view.
+/// `Debug`. Use [`IconCaption::as_str`] to read it and
+/// [`IconCaption::redacted`] for a content-free view.
 #[derive(Clone, PartialEq)]
 pub struct IconCaption {
     /// Screen rectangle of the icon.
     pub rect: Rect,
-    /// Caption text. Content: never log it.
-    pub caption: String,
+    /// Caption text. Content: never log it. Zeroized when dropped.
+    pub caption: SecureText,
     /// Confidence from the captioner, from 0.0 to 1.0.
     pub confidence: f32,
 }
@@ -27,9 +29,16 @@ impl IconCaption {
     pub fn new(rect: Rect, caption: impl Into<String>, confidence: f32) -> Self {
         Self {
             rect,
-            caption: caption.into(),
+            caption: SecureText::new(caption),
             confidence,
         }
+    }
+
+    /// The caption text.
+    ///
+    /// Content: never log it.
+    pub fn as_str(&self) -> &str {
+        self.caption.as_str()
     }
 
     /// A content-free view: the box, the length, and the confidence.

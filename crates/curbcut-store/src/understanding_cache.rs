@@ -15,9 +15,11 @@
 //! - **Plaintext is never stored.** [`crate::understanding_cache::UnderstandingCache::store`]
 //!   seals the payload before it reaches the LRU, and the only way back is
 //!   [`crate::understanding_cache::UnderstandingCache::load`], which opens it.
-//!   The cache holds ciphertext and
+//!   The cache holds ciphertext in a
+//!   [`SecureBuffer`](curbcut_core::secure::SecureBuffer) and
 //!   [`crate::understanding_cache::UnderstandingCache::sealed`] hands out
-//!   ciphertext for writing to disk.
+//!   ciphertext for writing to disk, so an evicted entry is overwritten rather
+//!   than merely unlinked.
 //! - **Eviction is recency only.** There is no time-based expiry, so eviction
 //!   is deterministic under a given operation sequence.
 //!
@@ -34,6 +36,7 @@
 use std::fmt;
 
 use curbcut_core::id::ProfileId;
+use curbcut_core::secure::SecureBuffer;
 
 use crate::lru::LruCache;
 use crate::plan_cache::ContentHash;
@@ -145,7 +148,7 @@ pub trait Cipher {
 /// [`crate::plan_cache::PlanCache`].
 #[derive(Debug, Clone)]
 pub struct UnderstandingCache<C: Cipher> {
-    inner: LruCache<UnderstandingKey, Vec<u8>>,
+    inner: LruCache<UnderstandingKey, SecureBuffer>,
     cipher: C,
 }
 
@@ -188,7 +191,7 @@ impl<C: Cipher> UnderstandingCache<C> {
     /// silently succeeding.
     pub fn store(&mut self, key: UnderstandingKey, payload: &[u8]) -> Result<(), CipherError> {
         let sealed = self.cipher.seal(payload)?;
-        self.inner.put(key, sealed);
+        self.inner.put(key, SecureBuffer::from_slice(&sealed));
         Ok(())
     }
 
@@ -202,7 +205,7 @@ impl<C: Cipher> UnderstandingCache<C> {
         let Some(sealed) = self.inner.get(key) else {
             return Ok(None);
         };
-        let opened = self.cipher.open(sealed);
+        let opened = self.cipher.open(sealed.as_slice());
         if matches!(&opened, Err(CipherError::Corrupt)) {
             // Corrupt bytes can never be read, so keeping the entry only
             // costs capacity. A `NoKey` error is different: the sealed bytes
@@ -218,7 +221,7 @@ impl<C: Cipher> UnderstandingCache<C> {
     /// This is ciphertext, never plaintext, and it is not marked as used: a
     /// backup or a flush must not change the eviction order.
     pub fn sealed(&self, key: &UnderstandingKey) -> Option<&[u8]> {
-        self.inner.peek(key).map(Vec::as_slice)
+        self.inner.peek(key).map(SecureBuffer::as_slice)
     }
 
     /// Drops every entry for a content hash. Returns how many were dropped.

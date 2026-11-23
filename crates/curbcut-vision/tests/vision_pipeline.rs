@@ -203,6 +203,27 @@ mod tests {
     }
 
     #[test]
+    fn recognized_text_and_captions_are_zeroized_when_the_result_drops() {
+        curbcut_core::secure::reset_zeroized_on_drop();
+        let (mut pipeline, _detector) = pipeline();
+
+        let result = match pipeline.process(&frame!(1, 0, 1)) {
+            VisionOutcome::Analyzed(result) => result,
+            other => panic!("expected analyzed, got {other:?}"),
+        };
+        assert_eq!(result.texts[0].as_str(), "read");
+        assert_eq!(result.captions[0].as_str(), "icon");
+        assert_eq!(curbcut_core::secure::zeroized_on_drop(), 0);
+
+        drop(result);
+        assert_eq!(
+            curbcut_core::secure::zeroized_on_drop(),
+            2,
+            "the recognized text and the caption must be zeroized on drop"
+        );
+    }
+
+    #[test]
     fn the_passive_pipeline_returns_empty_results() {
         let mut pipeline = VisionPipeline::passive();
         match pipeline.process(&frame!(1, 0, 1)) {

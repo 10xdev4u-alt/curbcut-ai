@@ -1,6 +1,6 @@
 # curbcut-core
 
-Event bus, config, errors, capability tokens, orchestration.
+Event bus, config, errors, capability tokens, orchestration, and zeroizing buffers.
 
 ## Status
 
@@ -15,8 +15,11 @@ has no optional transport module at all, and
 exists without the feature, it takes the feature it dials and refuses
 anything but `UpdateCheck`, and it still consults the switch. The
 `socket-guard` CI job runs `scripts/socket_guard.py` over the
-`net_probe` example in both builds. See
-[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md).
+`net_probe` example in both builds. The `secure` module adds the
+zeroizing `SecureBuffer` and `SecureText` types with a shared
+`GUARD_BYTE` and a thread-local drop counter. See
+[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md) and
+[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md).
 
 ## Build and test
 
