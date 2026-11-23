@@ -144,9 +144,26 @@ def validate_plan(text: str) -> list[str]:
     for step in CONTAINMENT_STEPS:
         if not any(step in row for row in lowered_rows):
             errors.append(f"plan is missing the containment step {step!r}")
-    if "no remote control" not in containment.lower():
+    # Require the normative claim and its reason. Matching only "no remote
+    # control" let a sentence like "... but a server console is planned" pass.
+    containment_lower = containment.lower()
+    if (
+        "there is no remote control of an installed copy" not in containment_lower
+        or "cannot be reached from a server" not in containment_lower
+    ):
         errors.append(
             "plan does not state that an installed copy cannot be controlled remotely"
+        )
+    # The step names are not enough: an earlier revision kept the right name and
+    # claimed it removed the update path, which NETWORK_POLICY.md says survives
+    # in every build. Check the effect this row actually promises.
+    feature_row = next(
+        (row for row in lowered_rows if "disable the optional network features" in row),
+        "",
+    )
+    if "update checks stay behind the kill switch" not in feature_row:
+        errors.append(
+            "plan does not state that update checks stay behind the kill switch"
         )
 
     disclosure = section(text, "Disclosure")
@@ -228,12 +245,23 @@ def validate_template(text: str) -> list[str]:
 
 def validate_register(text: str) -> list[str]:
     errors: list[str] = []
+    # Identify the header by structure: the first table row followed by a
+    # separator. Searching for the word "date" made that column undetectable,
+    # because renaming it hid the whole table behind "no incidents table".
+    lines = text.splitlines()
     header: list[str] | None = None
-    for line in text.splitlines():
+    for index, line in enumerate(lines):
         stripped = line.strip()
-        if stripped.startswith("|") and "date" in stripped.lower():
-            header = [cell.strip().lower() for cell in stripped.strip("|").split("|")]
-            break
+        if not stripped.startswith("|"):
+            continue
+        following = lines[index + 1].strip() if index + 1 < len(lines) else ""
+        if not following.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if all(re.fullmatch(r":?-{2,}:?", cell) for cell in cells):
+            continue
+        header = [cell.lower() for cell in cells]
+        break
     if header is None:
         errors.append("incident register has no incidents table")
     else:
@@ -315,6 +343,7 @@ MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("rollback step", "docs/INCIDENT_RESPONSE.md", "| Roll back to the last known-good release |", "| -- |"),
     ("feature disable step", "docs/INCIDENT_RESPONSE.md", "| Disable the optional network features at the source |", "| -- |"),
     ("remote-control limit", "docs/INCIDENT_RESPONSE.md", "**There is no remote control of an installed copy.**", "**Remote control is available.**"),
+    ("feature egress effect", "docs/INCIDENT_RESPONSE.md", "update checks stay behind the kill switch", "update checks are always online"),
     ("acknowledgement deadline", "docs/INCIDENT_RESPONSE.md", "| Acknowledge a reporter | 72 hours | Comms Lead |", "| Acknowledge a reporter | soon | Comms Lead |"),
     ("triage deadline", "docs/INCIDENT_RESPONSE.md", "| Triage and confirm or reject | 5 business days | IC |", "| Triage and confirm or reject | when possible | IC |"),
     ("advisory promise", "docs/INCIDENT_RESPONSE.md", "or 90 days after acknowledgement", "when convenient"),
@@ -337,7 +366,8 @@ MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("template redaction", "docs/POSTMORTEM_TEMPLATE.md", "Redacted excerpts only, from the categories", "Excerpts of any kind, from any source,"),
     ("template originals", "docs/POSTMORTEM_TEMPLATE.md", "Never retain an unredacted original.", "Originals may be retained."),
     ("register header", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |\n", ""),
-    ("register columns", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |", "| Date |"),
+    ("register date column", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |", "| Incident | Severity | Status | Type | Link |"),
+    ("register other columns", "backlog/INCIDENTS.md", "| Date | Incident | Severity | Status | Type | Link |", "| Date |"),
     ("register marker", "backlog/INCIDENTS.md", "`DRY RUN`; rehearsals must say so.", "`MAYBE`."),
 )
 
