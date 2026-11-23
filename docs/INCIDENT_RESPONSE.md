@@ -23,8 +23,8 @@ Two rules outrank every step below:
 
 | Level | Definition | Examples | First action | Update cadence |
 | --- | --- | --- | --- | --- |
-| SEV1 | Active exfiltration of screen content, or the overlay acting in another app without consent | Capture pipeline sending frames off-device; a capability bypass that clicks or types | Declare, page, kill switch on | Every 30 min |
-| SEV2 | Exposure of stored data or keys, or total loss of a core safety guarantee | Store or keychain read from disk; redaction disabled by a config path | Declare, page, rotate keys | Every 2 h |
+| SEV1 | Active exfiltration of screen content, or the overlay acting in another app without consent | Capture pipeline sending frames off-device; a capability bypass that clicks or types | Declare, page, stop capture and block egress on the device | Every 30 min |
+| SEV2 | Exposure of stored data or keys, or total loss of a core safety guarantee | Store or keychain read from disk; redaction disabled by a config path | Declare, page, prepare key rotation (needs IC + 1 approval) | Every 2 h |
 | SEV3 | A feature is broken or degraded for some users, no data exposure | Overlay fails on one OS version; model guard false positive | Triage in working hours | Daily |
 | SEV4 | Cosmetic, documentation, or process issues | Wrong label, stale doc, flaky test | Backlog | Next grooming |
 
@@ -43,7 +43,7 @@ not agreed verbally.
 | Role | Responsibility | Primary | Backup |
 | --- | --- | --- | --- |
 | Incident Commander | Declares severity, owns the timeline, approves containment and recovery | Security lead | Maintainer on call |
-| Ops Lead | Runs the technical steps: kill switch, update halt, rollback, key rotation | Platform maintainer | Any maintainer |
+| Ops Lead | Runs the technical steps: network kill switch, capture stop, update halt, rollback, key rotation | Platform maintainer | Any maintainer |
 | Comms Lead | Single voice to users, reporters, and any authority; drafts advisories | Security lead | Founding engineer |
 | Scribe | Keeps the timestamped incident log; writes the postmortem skeleton | Rotating maintainer | Incident Commander |
 | Legal contact | Decides notification duties and reviews external wording | Named legal counsel | Comms Lead (escalate) |
@@ -79,18 +79,26 @@ the IC name. Silence after declaration is never evidence that things are fine.
 
 Run the smallest step that stops the harm. Do not wait for a full diagnosis.
 
+**There is no remote control of an installed copy.** The network kill switch
+(`net::KillSwitch`) is in-process: a restart resets it to engaged, which is the
+safe direction, but it cannot be reached from a server. Containment of a
+running pipeline therefore starts on the device — the user's panic key stops
+capture, and an engineer with access engages the switch in the process.
+
 | Step | When | Effect | Reversible |
 | --- | --- | --- | --- |
-| Enable the remote kill switch | SEV1, suspected exfiltration or unauthorized action | Disables capture and the action engine for opted-in installs | Yes |
+| Stop capture with the local panic key | SEV1: unauthorized action or active exfiltration | Hides the overlay, stops capture, mutes TTS | Yes |
+| Engage the network kill switch (`net::KillSwitch::engage()`) | Suspected egress | Denies every network channel in this process; does not stop capture | Yes |
 | Halt the update channel | A bad build shipped | Stops further installs of the affected version | Yes |
-| Revoke and rotate signing keys | Key compromise suspected | Invalidates tampered updates | Yes, after re-signing |
+| Revoke and rotate signing keys | Key compromise suspected | Invalidates tampered updates | No for artifacts signed with the old key; documented |
 | Rotate store/cache keys and force re-auth | Key material may be exposed | Old ciphertext is unreadable | No for old data; documented |
 | Roll back to the last known-good release | Regression confirmed in a release | Restores prior behavior | Yes |
-| Disable the optional network features | Any suspicion of unexpected egress | Removes sync and update paths | Yes |
+| Disable the optional network features at the source | Any suspicion of unexpected egress | Removes sync and update paths from new builds | Yes |
 
 Every containment action is recorded with a timestamp, the actor, and the
-reason. A containment that cannot be reversed (key rotation) needs IC plus one
-other maintainer to agree before it runs.
+reason. A containment that cannot be reversed (signing-key revocation, store
+and cache key rotation) needs IC plus one other maintainer to agree before it
+runs.
 
 ## 5. Eradication and recovery
 
@@ -128,7 +136,10 @@ the Comms Lead.
 ## 7. Evidence handling
 
 - Keep the incident log in the private channel export, with timestamps in UTC.
-- Attach redacted excerpts only: counts, hashes, stack frames, version strings.
+- Attach redacted excerpts only, from the categories
+  [`REDACTION.md`](REDACTION.md) allows: counts, lengths, dimensions,
+  timestamps, hashes, error summaries, version strings, field and capability
+  names, rule ids, profile slugs.
 - Never attach a frame, a screenshot of content, OCR text, or a raw
   accessibility string. If a repro needs one, describe it instead.
 - Retain evidence for 18 months, then delete it. Deletion is recorded.

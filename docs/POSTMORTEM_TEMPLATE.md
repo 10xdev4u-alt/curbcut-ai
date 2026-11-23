@@ -96,7 +96,10 @@ List the exact edits made as a result.
 
 ## Evidence
 
-- Redacted excerpts (counts, hashes, stack frames, versions) only.
-- Where full evidence is retained, name the store and the retention deadline.
+- Redacted excerpts only, from the categories [`REDACTION.md`](REDACTION.md)
+  allows: counts, lengths, dimensions, timestamps, hashes, error summaries,
+  version strings, field and capability names, rule ids, profile slugs.
+- Where the complete set of redacted excerpts is retained, name the store and
+  the retention deadline. Never retain an unredacted original.
 - Confirmation that the content-canary scan was run over the incident
   artifacts and found no matches.

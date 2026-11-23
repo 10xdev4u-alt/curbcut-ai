@@ -59,7 +59,7 @@ We follow a coordinated disclosure process:
 2. We acknowledge within 72 hours.
 3. We reproduce and triage within 5 business days.
 4. We fix, or publish a mitigation with a date.
-5. We disclose publicly after a fix ships, credit the reporter if they want it, and publish a postmortem.
+5. We disclose publicly after a fix ships and credit the reporter if they want it. A SEV1 or SEV2 gets a blameless postmortem within 5 business days of closure; lower severities get one when the team judges it useful. See [`docs/INCIDENT_RESPONSE.md`](docs/INCIDENT_RESPONSE.md).
 
 ## Contact
 
