@@ -38,7 +38,7 @@ strip = true
 
 # name, description, dependencies
 CRATES = [
-    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, and zeroizing buffers.", []),
+    ("curbcut-core", "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, and golden plan snapshots.", []),
     ("curbcut-capture", "Screen capture adapters and the zeroizing frame ring buffer.", ["curbcut-core"]),
     ("curbcut-a11y", "Accessibility tree adapters and the unified element model.", ["curbcut-core"]),
     ("curbcut-vision", "ONNX inference, detection, OCR, layout, and motion scheduling.", ["curbcut-core", "curbcut-capture"]),
@@ -133,9 +133,12 @@ CRATE_STATUS = {
         "`socket-guard` CI job runs `scripts/socket_guard.py` over the\n"
         "`net_probe` example in both builds. The `secure` module adds the\n"
         "zeroizing `SecureBuffer` and `SecureText` types with a shared\n"
-        "`GUARD_BYTE` and a thread-local drop counter. See\n"
-        "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md) and\n"
-        "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md)."
+        "`GUARD_BYTE` and a thread-local drop counter. The `snapshot` module\n"
+        "renders a content-free, deterministic `OverlayPlan` for the golden\n"
+        "tests. See\n"
+        "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),\n"
+        "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md), and\n"
+        "[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md)."
     ),
     "curbcut-a11y": (
         "The platform role and state mapping is implemented, and the a11y +\n"

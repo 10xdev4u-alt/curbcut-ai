@@ -1,0 +1,12 @@
+profile: focus
+highlight: word
+layout:
+  tiles:
+    - id=1 rect=(0,0,120,48) action=click target=1 label_len=4
+    - id=2 rect=(120,0,120,48) action=dismiss target=2 label_len=7
+  reading_order: 1, 2
+steps:
+  - id=3 title_len=18 detail_len=19 done=false
+  - id=4 title_len=7 detail_len=0 done=false
+rationale:
+  - rule=one_step text_len=54

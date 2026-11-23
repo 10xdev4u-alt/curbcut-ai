@@ -26,6 +26,7 @@ pub mod id;
 pub mod net;
 pub mod redact;
 pub mod secure;
+pub mod snapshot;
 pub(crate) mod toml;
 pub mod types;
 

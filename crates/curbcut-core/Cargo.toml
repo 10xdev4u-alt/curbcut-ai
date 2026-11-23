@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Event bus, config, errors, capability tokens, orchestration, and zeroizing buffers."
+description = "Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, and golden plan snapshots."
 publish = false
 
 [lints]
