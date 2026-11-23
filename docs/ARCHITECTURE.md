@@ -1051,7 +1051,10 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
 
 - **Unit**: pure functions (rules, layout, reading level, merge). High coverage.
 - **Property-based**: merge and layout invariants (no overlap, reading order preserved, idempotent).
-- **Golden**: snapshot tests for overlay plans against a fixture screen dataset.
+- **Golden**: snapshot tests for overlay plans against a fixture set, per-OS
+  with a shared fallback. Implemented in
+  `crates/curbcut-core/tests/golden_plans.rs`; see
+  [`docs/GOLDEN_TESTS.md`](GOLDEN_TESTS.md).
 - **Differential**: compare our merge against the raw a11y tree and against a screen reader's reading order.
 - **Integration**: headless platform fakes that emit synthetic frames/trees.
 - **E2E**: Playwright for our UI; a scripted app (Electron test harness) for overlay behavior.

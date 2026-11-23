@@ -141,3 +141,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Redaction tests
         run: cargo test -p curbcut-core --test no_content_logging
+
+  golden:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: golden
+      - name: Golden plan snapshots
+        run: cargo test -p curbcut-core --test golden_plans

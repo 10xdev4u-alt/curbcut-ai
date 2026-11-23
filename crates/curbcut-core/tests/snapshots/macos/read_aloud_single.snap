@@ -1,0 +1,10 @@
+profile: read
+highlight: line
+layout:
+  tiles:
+    - id=7 rect=(0,0,120,48) action=invoke target=7 label_len=4
+  reading_order: 7
+steps:
+  - id=8 title_len=10 detail_len=0 done=true
+rationale:
+  -

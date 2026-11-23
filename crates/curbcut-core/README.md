@@ -1,6 +1,6 @@
 # curbcut-core
 
-Event bus, config, errors, capability tokens, orchestration, and zeroizing buffers.
+Event bus, config, errors, capability tokens, orchestration, zeroizing buffers, and golden plan snapshots.
 
 ## Status
 
@@ -17,9 +17,12 @@ anything but `UpdateCheck`, and it still consults the switch. The
 `socket-guard` CI job runs `scripts/socket_guard.py` over the
 `net_probe` example in both builds. The `secure` module adds the
 zeroizing `SecureBuffer` and `SecureText` types with a shared
-`GUARD_BYTE` and a thread-local drop counter. See
-[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md) and
-[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md).
+`GUARD_BYTE` and a thread-local drop counter. The `snapshot` module
+renders a content-free, deterministic `OverlayPlan` for the golden
+tests. See
+[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),
+[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md), and
+[`../../docs/GOLDEN_TESTS.md`](../../docs/GOLDEN_TESTS.md).
 
 ## Build and test
 
