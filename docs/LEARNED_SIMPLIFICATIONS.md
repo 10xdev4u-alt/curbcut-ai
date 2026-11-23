@@ -46,8 +46,20 @@ below `low`. A rate strictly between the two does nothing.
 `low = 0.4`, `min_observations = 5`, `min_records_between = 4`, and a history
 limit of `16`. `AdaptationConfig::clamp` repairs a configuration: a reversed
 level range or rate range is swapped, a zero step becomes one, a rate is
-clamped to `0.0..=1.0`, and a zero history limit becomes one. The learner
-clamps on construction, so the stored configuration is always valid.
+clamped to `0.0..=1.0`, and a zero history limit becomes one. A non-finite rate
+is replaced by its default before the range swap, because `f32::clamp` passes
+`NaN` through and a `NaN` comparison would otherwise swap the pair and disable
+one direction. The learner clamps on construction, so the stored configuration
+is always valid.
+
+Two limits are independent and the learner does not reconcile them:
+
+- `capacity` is the log's, not the configuration's. Adaptation needs at least
+  `min_observations` entries in the log, so a learner whose `capacity` is
+  smaller than `min_observations` never adapts. `new` does not check this.
+- `records_since_adapt` counts records since the last **move**, not since the
+  last call. A run of no-op records at a bound, where the level cannot move,
+  therefore does not delay the next reversal.
 
 ## API
 

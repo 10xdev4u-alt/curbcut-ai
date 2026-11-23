@@ -79,6 +79,19 @@ fn clamp_repairs_a_reversed_or_zeroed_configuration() {
 
     let already_valid = AdaptationConfig::new(1, 20, 2, 0.9, 0.1, 4, 3, 8);
     assert_eq!(already_valid.clamp(), already_valid);
+
+    let nan_high = AdaptationConfig::new(1, 10, 1, f32::NAN, 0.2, 1, 1, 8).clamp();
+    assert_eq!(nan_high.high, DEFAULT_HIGH);
+    assert_eq!(nan_high.low, 0.2);
+    assert!(nan_high.high.is_finite());
+
+    let nan_low = AdaptationConfig::new(1, 10, 1, 0.9, f32::NAN, 1, 1, 8).clamp();
+    assert_eq!(nan_low.low, DEFAULT_LOW);
+    assert_eq!(nan_low.high, 0.9);
+
+    let nan_both = AdaptationConfig::new(1, 10, 1, f32::NAN, f32::NAN, 1, 1, 8).clamp();
+    assert_eq!(nan_both.high, DEFAULT_HIGH);
+    assert_eq!(nan_both.low, DEFAULT_LOW);
 }
 
 #[test]

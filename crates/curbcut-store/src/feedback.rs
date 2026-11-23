@@ -296,17 +296,29 @@ impl AdaptationConfig {
     ///
     /// A reversed level range is swapped, a reversed rate range is swapped, a
     /// zero step becomes one, rates are clamped to `0.0..=1.0`, and a zero
-    /// history limit becomes one.
+    /// history limit becomes one. A non-finite rate is replaced by its default
+    /// before the range swap, because `f32::clamp` passes `NaN` through and a
+    /// `NaN` comparison would otherwise silently swap the pair.
     pub fn clamp(self) -> Self {
+        let high = if self.high.is_nan() {
+            DEFAULT_HIGH
+        } else {
+            self.high
+        };
+        let low = if self.low.is_nan() {
+            DEFAULT_LOW
+        } else {
+            self.low
+        };
         let (min_level, max_level) = if self.min_level <= self.max_level {
             (self.min_level, self.max_level)
         } else {
             (self.max_level, self.min_level)
         };
-        let (low, high) = if self.low <= self.high {
-            (self.low, self.high)
+        let (low, high) = if low <= high {
+            (low, high)
         } else {
-            (self.high, self.low)
+            (high, low)
         };
         Self {
             min_level,

@@ -1008,8 +1008,12 @@ Implemented in `crates/curbcut-store/src/feedback.rs`. See
 - `undo` restores the previous level; the history holds at most `history_limit`
   levels. `clear` drops the log, the history, and resets the level.
 - `AdaptationConfig::clamp` swaps a reversed range, raises a zero step to one,
-  clamps rates to `0.0..=1.0`, and raises a zero history limit to one.
+  clamps rates to `0.0..=1.0`, and raises a zero history limit to one. A
+  non-finite rate becomes its default before the swap.
 - The log is keyed by a hash; `Debug` prints hashes and verdicts, never text.
+- Adaptation needs `capacity >= min_observations`; the learner does not check
+  it. The rate limiter counts records since the last move, so no-ops at a bound
+  do not delay a later reversal.
 
 ---
 
