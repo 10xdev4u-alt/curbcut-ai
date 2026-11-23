@@ -192,13 +192,13 @@ mod tests {
         OverlayPlan {
             profile: Some(ProfileId::focus()),
             layout: Layout {
-                tiles: vec![tile(1, "Save", 0, ActionKind::Click)],
+                tiles: vec![tile(1, "SECRET_TILE_LABEL", 0, ActionKind::Click)],
                 reading_order: vec![ElementId(1), ElementId(2)],
             },
             steps: vec![Step {
                 id: ChunkId(3),
                 title: "SECRET_STEP_TITLE".to_string(),
-                detail: None,
+                detail: Some("SECRET_STEP_DETAIL".to_string()),
                 done: false,
             }],
             highlight: HighlightMode::Word,
@@ -222,20 +222,23 @@ mod tests {
         let snapshot = plan(&sample_plan());
         assert!(snapshot.contains("profile: focus"));
         assert!(snapshot.contains("highlight: word"));
-        assert!(snapshot.contains("label_len=4"));
+        assert!(snapshot.contains("label_len=17"));
         assert!(snapshot.contains("title_len=17"));
-        assert!(snapshot.contains("detail_len=0"));
+        assert!(snapshot.contains("detail_len=18"));
         assert!(snapshot.contains("rule=one_step"));
         assert!(snapshot.contains("text_len=16"));
         assert!(snapshot.contains("reading_order: 1, 2"));
-        assert!(
-            !snapshot.contains("SECRET_STEP_TITLE"),
-            "a snapshot must not carry content"
-        );
-        assert!(
-            !snapshot.contains("SECRET_RATIONALE"),
-            "a snapshot must not carry rationale prose"
-        );
+        for secret in [
+            "SECRET_TILE_LABEL",
+            "SECRET_STEP_TITLE",
+            "SECRET_STEP_DETAIL",
+            "SECRET_RATIONALE",
+        ] {
+            assert!(
+                !snapshot.contains(secret),
+                "a snapshot must not carry content: {secret}"
+            );
+        }
     }
 
     #[test]

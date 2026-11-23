@@ -27,6 +27,7 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
               - 'scripts/socket_guard.py'
+              - 'docs/**'
             ui:
               - 'apps/ui/**'
               - 'pnpm-lock.yaml'

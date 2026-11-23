@@ -8,7 +8,7 @@
 //! Snapshots are per-OS: `tests/snapshots/<os>/<name>.snap` wins over
 //! `tests/snapshots/<name>.snap`, so a platform-specific rendering has a place
 //! to live without disturbing the common case. See
-//! [`../../../../docs/GOLDEN_TESTS.md`](../../../../docs/GOLDEN_TESTS.md).
+//! [`../../../docs/GOLDEN_TESTS.md`](../../../docs/GOLDEN_TESTS.md).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,6 +26,46 @@ fn fixtures() -> Vec<(&'static str, OverlayPlan)> {
         ("read_aloud_single", read_aloud_single()),
         ("empty_plan", OverlayPlan::default()),
     ]
+}
+
+/// The canary strings, read from the fixture rather than written into the
+/// source, so the repository itself carries no canary.
+fn canaries() -> Vec<String> {
+    fs::read_to_string("tests/fixtures/content_canaries.txt")
+        .expect("read the canary fixture")
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(str::to_string)
+        .collect()
+}
+
+/// A plan whose four content fields are canaries, so a `plan()` that emitted
+/// raw text would be caught.
+fn canary_plan(canaries: &[String]) -> OverlayPlan {
+    OverlayPlan {
+        profile: Some(ProfileId::custom("canary")),
+        layout: Layout {
+            tiles: vec![Tile {
+                id: ElementId(99),
+                label: canaries[0].clone(),
+                rect: Rect::new(0, 0, 10, 10),
+                action: Action {
+                    kind: ActionKind::Click,
+                    target: ElementId(99),
+                },
+            }],
+            reading_order: vec![ElementId(99)],
+        },
+        steps: vec![Step {
+            id: ChunkId(98),
+            title: canaries[1].clone(),
+            detail: Some(canaries[2].clone()),
+            done: false,
+        }],
+        highlight: HighlightMode::None,
+        rationale: vec![Rationale::new(RuleId::new("canary"), canaries[3].clone())],
+    }
 }
 
 fn tile(id: u64, label: &str, x: i32, kind: ActionKind) -> Tile {
@@ -104,7 +144,11 @@ fn snapshot_path(name: &str) -> PathBuf {
 
 #[test]
 fn golden_snapshots_match() {
-    let update = std::env::var_os("UPDATE_SNAPSHOTS").is_some();
+    let update = std::env::var("UPDATE_SNAPSHOTS").ok().as_deref() == Some("1");
+    assert!(
+        !(update && std::env::var_os("CI").is_some()),
+        "UPDATE_SNAPSHOTS is refused in CI: an unexplained diff must fail"
+    );
     let mut failures = Vec::new();
     for (name, fixture) in fixtures() {
         let actual = normalize(&plan(&fixture));
@@ -132,19 +176,16 @@ fn golden_snapshots_match() {
 
 #[test]
 fn snapshots_carry_no_content_canaries() {
-    let canaries =
-        fs::read_to_string("tests/fixtures/content_canaries.txt").expect("read the canary fixture");
-    for (name, fixture) in fixtures() {
-        let rendered = plan(&fixture);
-        for canary in canaries
-            .lines()
-            .map(str::trim)
-            .filter(|line| !line.is_empty())
-        {
-            assert!(
-                !rendered.contains(canary),
-                "{name} leaks the content canary {canary}"
-            );
-        }
+    let canaries = canaries();
+    assert!(
+        canaries.len() >= 4,
+        "the canary fixture needs at least four entries"
+    );
+    let rendered = plan(&canary_plan(&canaries));
+    for canary in &canaries {
+        assert!(
+            !rendered.contains(canary),
+            "a snapshot leaks the content canary {canary}"
+        );
     }
 }
