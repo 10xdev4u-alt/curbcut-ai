@@ -123,6 +123,11 @@
 
 ## 4. Data inventory
 
+The full class-by-class inventory, with retention rules and provisional lawful
+bases, is [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md); the assessment behind
+it is [`docs/DPIA.md`](DPIA.md). This table is the threat-model view of the same
+data, not a second inventory.
+
 | Data | Location | Lifetime | Encryption | Logs? |
 | --- | --- | --- | --- | --- |
 | Frames | RAM ring buffer | ≤ 2 s | mlock | never |

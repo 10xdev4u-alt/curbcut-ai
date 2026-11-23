@@ -196,6 +196,18 @@ jobs:
       - name: Assert the guarded panic printed nothing
         run: python3 scripts/check_panic_silence.py
 
+  privacy-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test the inventory validator
+        run: python3 scripts/validate_data_inventory.py --self-test
+      - name: Validate the data inventory, DPIA, and findings register
+        run: python3 scripts/validate_data_inventory.py
+
   a11y-mapping:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
