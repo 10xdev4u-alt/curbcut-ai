@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Headless control, benchmark, and redacted debug dump."
+description = "Headless control, benchmark, redacted debug dump, and the accessibility mapping/VPAT generator."
 publish = false
 
 [lints]

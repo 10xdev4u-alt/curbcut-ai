@@ -1071,6 +1071,12 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
 - **E2E**: Playwright for our UI; a scripted app (Electron test harness) for overlay behavior.
 - **Perf**: benchmark suite on three reference machines (M-series Mac, Windows iGPU, Linux iGPU) with budgets.
 - **A11y**: automated (axe, platform a11y audit) + manual with screen readers and switch users.
+  The mapping table, the draft VPAT, and the limitations page are generated from
+  `crates/curbcut-cli/src/vpat.rs`; `scripts/render_a11y_mapping.py --check`
+  fails when a published document drifts, and
+  `crates/curbcut-cli/tests/a11y_mapping.rs` resolves every row's test link.
+  Manual rows point at a written procedure in
+  [`docs/A11Y_AUDIT.md`](A11Y_AUDIT.md), not at a fabricated automated test.
 - **Chaos**: kill permissions, revoke mid-session, corrupt cache, huge screens, 4K/5K, mixed DPI, RDP.
 
 ---

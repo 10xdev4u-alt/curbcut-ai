@@ -49,7 +49,7 @@ CRATES = [
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
     ("curbcut-store", "Storage schema, migrations, repositories, key handling, the plan cache, the sealed understanding cache, per-app layout memory, and learned simplifications.", ["curbcut-core"]),
     ("curbcut-telemetry", "Opt-in, counts-only telemetry and redaction.", ["curbcut-core"]),
-    ("curbcut-cli", "Headless control, benchmark, and redacted debug dump.", ["curbcut-core"]),
+    ("curbcut-cli", "Headless control, benchmark, redacted debug dump, and the accessibility mapping/VPAT generator.", ["curbcut-core"]),
     ("curbcut-app", "Tauri app shell and frontend bridge (stub until the toolchain lands).", ["curbcut-core"]),
     ("curbcut-macros", "Typed event and provenance macros.", []),
 ]
@@ -210,9 +210,14 @@ CRATE_STATUS = {
         "[`../../docs/SECURE_BUFFERS.md`](../../docs/SECURE_BUFFERS.md)."
     ),
     "curbcut-cli": (
-        "The headless CLI is implemented: status, redacted dump, benchmark, and\n"
-        "panic commands, with stable exit codes. See\n"
-        "[`../../docs/CLI.md`](../../docs/CLI.md)."
+        "The headless CLI is implemented: status, redacted dump, benchmark,\n"
+        "panic, vpat, and limitations commands, with stable exit codes. The\n"
+        "accessibility mapping, the draft VPAT, and the limitations page are\n"
+        "generated from one data module, so a published claim and the test that\n"
+        "backs it cannot drift apart. See\n"
+        "[`../../docs/CLI.md`](../../docs/CLI.md),\n"
+        "[`../../docs/A11Y_MAPPING.md`](../../docs/A11Y_MAPPING.md), and\n"
+        "[`../../docs/VPAT.md`](../../docs/VPAT.md)."
     ),
     "curbcut-vision": (
         "The vision pipeline is implemented: Detector, Ocr, and IconCaptioner\n"

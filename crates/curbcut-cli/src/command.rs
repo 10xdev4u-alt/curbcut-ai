@@ -12,6 +12,7 @@ use std::fmt;
 
 use crate::bench;
 use crate::dump::DumpGraph;
+use crate::vpat;
 
 /// Exit code for a successful command.
 pub const EXIT_OK: i32 = 0;
@@ -34,6 +35,10 @@ pub enum Command {
     Dump,
     /// Deterministic benchmark.
     Bench,
+    /// Draft VPAT, generated from the mapping data.
+    Vpat,
+    /// The published limitations, generated from the mapping data.
+    Limitations,
     /// Deliberately panic, to prove the panic path and exit code.
     Panic,
     /// Usage.
@@ -59,6 +64,8 @@ impl Command {
             "status" => Ok(Self::Status),
             "dump" => Ok(Self::Dump),
             "bench" => Ok(Self::Bench),
+            "vpat" => Ok(Self::Vpat),
+            "limitations" => Ok(Self::Limitations),
             "panic" => Ok(Self::Panic),
             "help" | "--help" | "-h" => Ok(Self::Help),
             other => Err(format!("unknown command: {}", truncate(other))),
@@ -88,6 +95,14 @@ impl Command {
                 let _ = writeln!(out, "{}", stats);
                 EXIT_OK
             }
+            Self::Vpat => {
+                let _ = write!(out, "{}", vpat::draft_vpat());
+                EXIT_OK
+            }
+            Self::Limitations => {
+                let _ = write!(out, "{}", vpat::render_limitations());
+                EXIT_OK
+            }
             Self::Panic => panic!("curbcut-cli panic requested"),
             Self::Help => {
                 let _ = write!(out, "{}", usage());
@@ -115,6 +130,8 @@ commands:
   status    content-free status line
   dump      redacted debug dump (lengths and hashes only)
   bench     deterministic redaction benchmark
+  vpat      draft VPAT for our own UI, from the mapping data
+  limitations  the published limitations, from the same data
   panic     panic on purpose, to check the panic path
   help      this text
 
@@ -285,5 +302,46 @@ mod tests {
         assert_eq!(EXIT_PANIC, 101);
         assert_ne!(EXIT_OK, EXIT_USAGE);
         assert_ne!(EXIT_USAGE, EXIT_PANIC);
+    }
+
+    #[test]
+    fn vpat_exits_zero_and_is_a_draft() {
+        let (code, out, err) = outputs(&["vpat"]);
+        assert_eq!(code, EXIT_OK);
+        assert!(err.is_empty(), "{err}");
+        assert!(out.starts_with("# Draft VPAT: CurbCut AI"), "{out}");
+        assert!(out.contains("DRAFT"), "{out}");
+        assert!(out.contains("Partially Supports"), "{out}");
+        assert!(out.contains("Human review"), "{out}");
+    }
+
+    #[test]
+    fn the_vpat_names_every_criterion() {
+        let (code, out, _) = outputs(&["vpat"]);
+        assert_eq!(code, EXIT_OK);
+        for row in crate::vpat::WCAG {
+            assert!(out.contains(row.criterion), "{} missing", row.criterion);
+        }
+    }
+
+    #[test]
+    fn limitations_exits_zero_and_lists_every_limitation() {
+        let (code, out, err) = outputs(&["limitations"]);
+        assert_eq!(code, EXIT_OK);
+        assert!(err.is_empty(), "{err}");
+        for limitation in crate::vpat::LIMITATIONS {
+            assert!(out.contains(limitation), "{limitation}");
+        }
+        assert_eq!(out.lines().count(), crate::vpat::LIMITATIONS.len());
+    }
+
+    #[test]
+    fn the_vpat_and_limitations_never_print_screen_content() {
+        let (_, vpat, _) = outputs(&["vpat"]);
+        let (_, limitations, _) = outputs(&["limitations"]);
+        for content in ["CC-CANARY", "quick brown fox"] {
+            assert!(!vpat.contains(content), "{content}");
+            assert!(!limitations.contains(content), "{content}");
+        }
     }
 }

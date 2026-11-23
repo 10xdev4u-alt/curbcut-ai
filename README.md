@@ -85,6 +85,9 @@ docs/
   INNOVATIONS.md           Creative extensions and differentiators
   THREAT_MODEL.md          Security and privacy threat model
   A11Y_MAPPING.md          WCAG 2.2 + COGA mapping and honest limits
+  A11Y_AUDIT.md            Manual accessibility audit protocol (generated links)
+  VPAT.md                  Draft VPAT for our own UI (generated)
+  LIMITATIONS.md           Published limitations (generated)
   ROLE_MAPPING.md          Platform role/state compatibility tables (generated)
   REDACTION.md             Redaction layer, canary fixture, no-content CI test
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
