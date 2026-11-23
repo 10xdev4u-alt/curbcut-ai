@@ -13,6 +13,7 @@
 use std::fmt;
 
 use curbcut_core::hash::{hmac_sha256, sha256};
+use curbcut_core::secure::SecureBuffer;
 
 /// Why a model pin or signature did not verify.
 ///
@@ -155,7 +156,7 @@ pub trait Verifier {
 /// `key_id` and re-signing the manifest.
 pub struct HmacReleaseKey {
     key_id: String,
-    key: Vec<u8>,
+    key: SecureBuffer,
 }
 
 impl fmt::Debug for HmacReleaseKey {
@@ -172,13 +173,13 @@ impl HmacReleaseKey {
     pub fn new(key_id: &str, key: impl Into<Vec<u8>>) -> Self {
         Self {
             key_id: key_id.to_string(),
-            key: key.into(),
+            key: SecureBuffer::from_vec(key.into()),
         }
     }
 
     /// Signs a message, for producing a manifest in tests and tooling.
     pub fn sign(&self, message: &str) -> String {
-        hmac_sha256(&self.key, message.as_bytes()).as_hex()
+        hmac_sha256(self.key.as_slice(), message.as_bytes()).as_hex()
     }
 }
 
@@ -192,7 +193,80 @@ impl Verifier for HmacReleaseKey {
         if key_id != self.key_id {
             return Err(VerificationError::UnknownKey);
         }
-        let expected = hmac_sha256(&self.key, message);
+        let expected = hmac_sha256(self.key.as_slice(), message);
+        if expected.matches_hex(signature) {
+            Ok(())
+        } else {
+            Err(VerificationError::SignatureMismatch)
+        }
+    }
+}
+
+/// A set of trusted release keys.
+///
+/// A rotation keeps the old key in the ring for one release, so a model signed
+/// before the roll still verifies while the new key is deployed. Remove the old
+/// key after the overlap and a signature under it becomes
+/// [`VerificationError::UnknownKey`].
+#[derive(Default)]
+pub struct KeyRing {
+    keys: Vec<(String, SecureBuffer)>,
+}
+
+impl fmt::Debug for KeyRing {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KeyRing")
+            .field("key_ids", &self.key_ids())
+            .finish_non_exhaustive()
+    }
+}
+
+impl KeyRing {
+    /// Creates an empty ring.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds a trusted key.
+    pub fn add(&mut self, key_id: &str, key: impl Into<Vec<u8>>) -> &mut Self {
+        self.keys
+            .push((key_id.to_string(), SecureBuffer::from_vec(key.into())));
+        self
+    }
+
+    /// The number of trusted keys.
+    pub fn len(&self) -> usize {
+        self.keys.len()
+    }
+
+    /// Whether the ring is empty.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+
+    /// The trusted key ids.
+    pub fn key_ids(&self) -> Vec<&str> {
+        self.keys
+            .iter()
+            .map(|(key_id, _)| key_id.as_str())
+            .collect()
+    }
+}
+
+impl Verifier for KeyRing {
+    fn verify(
+        &self,
+        key_id: &str,
+        message: &[u8],
+        signature: &str,
+    ) -> Result<(), VerificationError> {
+        let key = self
+            .keys
+            .iter()
+            .find(|(trusted, _)| trusted == key_id)
+            .map(|(_, key)| key.as_slice())
+            .ok_or(VerificationError::UnknownKey)?;
+        let expected = hmac_sha256(key, message);
         if expected.matches_hex(signature) {
             Ok(())
         } else {
@@ -261,7 +335,7 @@ pub fn load<'a>(
 }
 
 /// The result of a guarded load.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum LoadOutcome<'a> {
     /// The model verified; the bytes may be handed to a backend.
     Loaded(&'a [u8]),
@@ -269,6 +343,16 @@ pub enum LoadOutcome<'a> {
     Missing,
     /// The model was present but not usable. Fall back, never load it.
     Rejected(VerificationError),
+}
+
+impl fmt::Debug for LoadOutcome<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Loaded(bytes) => f.debug_tuple("Loaded").field(&bytes.len()).finish(),
+            Self::Missing => f.write_str("Missing"),
+            Self::Rejected(error) => f.debug_tuple("Rejected").field(&error.as_str()).finish(),
+        }
+    }
 }
 
 impl LoadOutcome<'_> {
@@ -480,11 +564,77 @@ mod tests {
     }
 
     #[test]
+    fn debug_never_prints_model_bytes() {
+        let (spec, key) = spec_and_key();
+        let bytes = bytes();
+        let loaded = load(&spec, Some(&bytes), &key);
+        let rendered = format!("{loaded:?}");
+        assert!(rendered.contains("Loaded"));
+        assert!(rendered.contains(&bytes.len().to_string()));
+        assert!(
+            !rendered.contains("onnx-model-bytes"),
+            "Debug must not print model bytes"
+        );
+
+        let rejected = load(&spec, None, &key);
+        assert_eq!(format!("{rejected:?}"), "Missing");
+    }
+
+    #[test]
+    fn a_key_ring_trusts_a_retired_key_during_the_overlap() {
+        let bytes = bytes();
+        let digest = sha256(&bytes).as_hex();
+        let old = HmacReleaseKey::new("release-2026-01", b"old-secret");
+        let mut spec = ModelSpec::new(
+            "det-v2",
+            "1.0.0",
+            digest,
+            bytes.len() as u64,
+            String::new(),
+            "release-2026-01",
+        );
+        spec.signature = old.sign(&spec.signature_message());
+
+        let mut ring = KeyRing::new();
+        ring.add("release-2026-01", b"old-secret");
+        assert!(load(&spec, Some(&bytes), &ring).is_loaded());
+
+        // The new key is deployed; the old one stays trusted for one release.
+        ring.add("release-2027-01", b"new-secret");
+        assert_eq!(ring.len(), 2);
+        assert!(load(&spec, Some(&bytes), &ring).is_loaded());
+
+        // After the overlap the retired key is no longer trusted.
+        let mut rotated = KeyRing::new();
+        rotated.add("release-2027-01", b"new-secret");
+        assert_eq!(
+            load(&spec, Some(&bytes), &rotated),
+            LoadOutcome::Rejected(VerificationError::UnknownKey)
+        );
+    }
+
+    #[test]
+    fn a_key_ring_zeroizes_its_keys_on_drop() {
+        curbcut_core::secure::reset_zeroized_on_drop();
+        let mut ring = KeyRing::new();
+        ring.add("release-2026-01", b"old-secret");
+        ring.add("release-2027-01", b"new-secret");
+        assert_eq!(curbcut_core::secure::zeroized_on_drop(), 0);
+        drop(ring);
+        assert_eq!(
+            curbcut_core::secure::zeroized_on_drop(),
+            2,
+            "every release key must be overwritten when the ring drops"
+        );
+    }
+
+    #[test]
     fn the_documented_rules_match_the_docs() {
         let doc = include_str!("../../../docs/MODEL_GUARD.md");
         for word in [
             "Verifier",
             "ModelSpec",
+            "KeyRing",
             "fallback",
             "key_id",
             "models/manifest.json",

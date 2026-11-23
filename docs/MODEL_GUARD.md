@@ -34,16 +34,21 @@ vectors, so the primitive is verified independently of this crate.
 | Ed25519 release key | Ed25519 | embedded in the app bundle | production; supplied through `Verifier` |
 
 - A `Verifier` is a trait. Production supplies an Ed25519 verifier over the
-  release public key; `HmacReleaseKey` is a symmetric release MAC used where no
-  public-key backend is wired yet. The MAC key is a **release secret**, not a
+  release public key; that backend is not wired in this crate yet, and the trait
+  is the seam it plugs into. `HmacReleaseKey` is a symmetric release MAC used
+  where no public-key backend exists. The MAC key is a **release secret**, not a
   user secret: it proves an artifact came from the release pipeline.
+- `KeyRing` holds several trusted keys. A rotation adds a new `key_id`, and the
+  old key stays in the ring for one release, so a model signed before the roll
+  still verifies; removing it turns a signature under it into
+  `VerificationError::UnknownKey`.
 - `UnsupportedVerifier` refuses every model. A build with no backend must fail
   closed rather than load an unauthenticated model.
-- Rotate by adding a new `key_id`, re-signing `models/manifest.json`, and
-  shipping the new key. Old keys stay trusted for one release so a model is not
-  invalidated by a key roll.
 - A key id is never a secret and is safe to log. A key, a digest, and a model
-  byte are not.
+  byte are not. `LoadOutcome`'s `Debug` prints a byte count, never the bytes, and
+  `KeyRing`'s `Debug` prints key ids only.
+- Release keys are held in `SecureBuffer`, so a dropped key is overwritten rather
+  than left in freed memory.
 
 ## The manifest
 
@@ -70,7 +75,9 @@ The unit tests cover: a pinned model loads; a tampered, truncated, or
 forged-signature model is rejected; a missing model is `Missing`, not
 `Rejected`; an unknown key and a build without a backend are rejected; a
 signature does not replay onto another version; an uppercase signature still
-verifies.
+verifies; a key ring trusts a retired key during the overlap and rejects it
+after; `Debug` never prints model bytes; and a dropped key ring overwrites its
+keys.
 
 ## Privacy
 
