@@ -74,7 +74,7 @@ class SourceError(RuntimeError):
 
 def _unescape(text: str) -> str:
     """Decodes the two escapes the mapping data uses."""
-    return text.replace(r"\"", '"').replace(r"\\", r"\\")
+    return text.replace(r"\"", '"').replace(r"\\", "\\")
 
 
 def _string_field(body: str, name: str, where: str) -> str:
@@ -474,6 +474,24 @@ pub const LIMITATIONS: &[&str] = &[
     assert row["kind"] == "automated", row
     assert status_cell(row) == "Partially supports; a qualifier", status_cell(row)
     assert remark(row).endswith("crates/example/tests.rs#the_test."), remark(row)
+
+    # A Rust `\\` escape decodes to one backslash, not two.
+    escaped = parse_rows(
+        r"""
+pub const WCAG: &[MappingRow] = &[
+    MappingRow {
+        criterion: "9.9.8 Backslash",
+        level: Level::A,
+        behavior: "A \\backslash\\ in a path.",
+        status: Status::Supports,
+        note: "",
+        test: "crates/example/tests.rs#the_test",
+        kind: TestKind::Automated,
+    },
+];
+"""
+    )
+    assert escaped[0]["behavior"] == "A \\backslash\\ in a path.", escaped[0]
 
     coga = parse_coga(synthetic)
     assert len(coga) == 1, coga
