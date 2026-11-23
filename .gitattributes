@@ -1,0 +1,8 @@
+# Every text file checks out with LF on every platform.
+#
+# The accessibility documents are generated with LF, and both
+# `scripts/render_a11y_mapping.py --check` and
+# `crates/curbcut-cli/tests/a11y_mapping.rs` compare the checked-out bytes
+# against that output. A CRLF checkout would fail both, so the line ending is
+# pinned here rather than left to `core.autocrlf`.
+* text=auto eol=lf

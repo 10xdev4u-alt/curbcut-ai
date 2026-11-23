@@ -16,6 +16,8 @@ than panicking in the argument iterator.
 | `status` | `status ok`, `crate=…`, `version=…` | 0 |
 | `dump` | redacted graph dump | 0 |
 | `bench` | `bench iterations=… bytes=… elapsed_ns=…` | 0 |
+| `vpat` | the draft VPAT for our own UI | 0 |
+| `limitations` | the numbered limitations list | 0 |
 | `panic` | a panic message | 101 |
 | `help`, `--help`, `-h` | usage | 0 |
 
@@ -57,6 +59,24 @@ asserts neither appears.
 `bytes` is the sum of the redacted lengths, which is deterministic for a fixed
 iteration count, so two runs can be compared. `elapsed_ns` is wall-clock and
 varies. `the_byte_count_is_deterministic` pins the checksum.
+
+## The generated accessibility documents
+
+`vpat` prints the draft VPAT and `limitations` prints the limitations list. Both
+are rendered from `crates/curbcut-cli/src/vpat.rs`, the same data that
+`scripts/render_a11y_mapping.py` writes to `docs/A11Y_MAPPING.md`,
+`docs/VPAT.md`, and `docs/LIMITATIONS.md`. The command output and the published
+documents cannot drift apart.
+
+```bash
+cargo run -q --bin curbcut-cli -- vpat
+cargo run -q --bin curbcut-cli -- limitations
+```
+
+The VPAT is a draft. It evaluates CurbCut's own UI only, and it is never a
+conformance claim about a third-party application. Manual rows point at a
+procedure in `docs/A11Y_AUDIT.md`; see
+[`A11Y_MAPPING.md`](A11Y_MAPPING.md).
 
 ## Testing
 

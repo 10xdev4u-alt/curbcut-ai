@@ -143,6 +143,26 @@ jobs:
       - name: Redaction tests
         run: cargo test -p curbcut-core --test no_content_logging
 
+  a11y-mapping:
+    needs: changes
+    if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test the accessibility doc generator
+        run: python3 scripts/render_a11y_mapping.py --self-test
+      - name: Check the generated accessibility documents
+        run: python3 scripts/render_a11y_mapping.py --check
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: a11y-mapping
+      - name: Resolve every row's test link
+        run: cargo test -p curbcut-cli --test a11y_mapping
+
   golden:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
