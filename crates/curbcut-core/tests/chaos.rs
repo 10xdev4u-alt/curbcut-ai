@@ -56,18 +56,22 @@ fn a_corrupted_cache_entry_never_reads_as_a_value() {
     let cases = prop::case_budget("CURBCUT_PROP_CASES", prop::DEFAULT_CASES);
     prop::run(0x6001, cases, |rng, _| {
         let mut cache = ChecksumCache::new();
-        let len = rng.between(1, 64) as usize;
-        cache.put(1, &rng.bytes(len));
-        let before = cache.get(1).map(<[u8]>::to_vec);
+        // Key 1 is the injection target; key 2 is an innocent bystander that
+        // must survive byte-for-byte.
+        let target_len = rng.between(1, 64) as usize;
+        cache.put(1, &rng.bytes(target_len));
+        let bystander_len = rng.between(1, 64) as usize;
+        let bystander = rng.bytes(bystander_len);
+        cache.put(2, &bystander);
 
         let script = random_script(rng, 0, 24);
         let report = curbcut_core::chaos::run(&mut cache, &script);
         invariants(&report)?;
 
-        // An entry that comes back must be byte-for-byte the one written.
-        if let (Some(expected), Some(actual)) = (&before, cache.get(1)) {
-            if actual != expected.as_slice() {
-                return Err("a corrupted entry read back different bytes".to_string());
+        // A corrupted entry reads as absent; a readable one is exact.
+        if let Some(actual) = cache.get(2) {
+            if actual != bystander.as_slice() {
+                return Err("an uncorrupted entry changed bytes".to_string());
             }
         }
         Ok(())

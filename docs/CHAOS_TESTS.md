@@ -11,10 +11,12 @@ The harness is deterministic and dependency-free. It lives in
 
 ## The three invariants
 
-1. **No panic escapes.** Every injection runs inside [`guard`]
-   (`curbcut_core::chaos::guard`), which turns a panic into `Err(Caught)` and
-   drops the payload unread. A panic message can quote its input, so it must
-   never reach a log.
+1. **No panic escapes.** Every injection runs inside
+   [`guard`](curbcut_core::chaos::guard). `guard` replaces the process panic
+   hook for the duration of the operation, so the default hook cannot print
+   the payload to stderr before it is caught, then turns the panic into
+   `Err(Caught)` and drops the payload unread. A panic message can quote its
+   input, so it must never reach a log.
 2. **A fault is announced.** After injection the component reports a
    [`Degradation`](curbcut_core::chaos::Degradation) carrying a static reason
    code. A fault with no announcement fails the report.

@@ -147,7 +147,12 @@ impl Rect {
     pub fn iou(self, other: Self) -> f32 {
         match self.intersection(other) {
             Some(overlap) if !self.is_empty() => {
-                let union = self.area() + other.area() - overlap.area();
+                // Saturating: two maximal rectangles have a combined area past
+                // `u64::MAX`, and the difference cannot go negative.
+                let union = self
+                    .area()
+                    .saturating_add(other.area())
+                    .saturating_sub(overlap.area());
                 if union == 0 {
                     0.0
                 } else {
@@ -163,7 +168,7 @@ impl Rect {
 ///
 /// The exact sum can leave `i32`; it clamps rather than wrapping, so
 /// `right() >= x` and `bottom() >= y` hold for any rectangle a caller can
-/// build. A dimension above `i32::MAX` keeps its full value here.
+/// build. The intermediate `i64` sum keeps the full dimension before clamping.
 fn edge(origin: i32, value: u32) -> i32 {
     (i64::from(origin) + i64::from(value)).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32
 }
@@ -851,6 +856,9 @@ mod tests {
         let overlap = a.intersection(b).expect("the extremes overlap");
         assert!(overlap.width >= 1);
         assert!(overlap.height >= 1);
+        // Two maximal rectangles have a combined area past `u64::MAX`.
+        let iou = a.iou(b);
+        assert!((0.0..=1.0).contains(&iou), "{iou}");
     }
 
     #[test]

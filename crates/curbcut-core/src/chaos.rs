@@ -18,7 +18,7 @@
 //! against a capture link. Every reason is a static string — never content.
 
 use std::fmt;
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{catch_unwind, set_hook, take_hook, AssertUnwindSafe};
 
 use crate::capability::{Capability, CapabilityToken, Session};
 use crate::id::SessionId;
@@ -305,12 +305,23 @@ impl std::error::Error for Caught {}
 
 /// Runs `operation`, turning a panic into `Err(Caught)`.
 ///
-/// `run` uses this so a failing component cannot unwind the caller.
+/// The default panic hook prints the payload to stderr at panic time, before
+/// `catch_unwind` can inspect it, so the hook is replaced for the duration of
+/// the operation. A payload can quote its input, and a panic message reaches
+/// the log; this harness must not let it. The previous hook is restored on the
+/// way out, including on unwind.
+///
+/// Hooks are process-wide, so a concurrent panic in another thread is silenced
+/// for the same moment. Its test still fails; only the message is withheld.
 pub fn guard<F, R>(operation: F) -> Result<R, Caught>
 where
     F: FnOnce() -> R,
 {
-    catch_unwind(AssertUnwindSafe(operation)).map_err(|_| Caught)
+    let previous = take_hook();
+    set_hook(Box::new(|_| {}));
+    let outcome = catch_unwind(AssertUnwindSafe(operation));
+    set_hook(previous);
+    outcome.map_err(|_| Caught)
 }
 
 /// A session surface: one capability granted, then revoked mid-session.
@@ -380,13 +391,26 @@ impl Faulty for PermissionGate {
 
 /// A deliberately corruptible byte cache.
 ///
-/// Each entry carries a one-byte XOR checksum. [`Self::corrupt`] flips a bit,
-/// which models a torn write or a stale buffer; a read then returns `None`
-/// rather than a value that silently disagrees with its checksum. This is a
-/// test surface for injection, not production storage.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Each entry carries a one-byte XOR checksum. [`Self::corrupt`] breaks the
+/// agreement, which models a torn write or a stale buffer; a read then returns
+/// `None` rather than a value that silently disagrees with its checksum. This
+/// is a test surface for injection, not production storage.
+///
+/// The `Debug` form prints keys and counts only: the byte vectors are payload
+/// and would reach a log through `{:?}`.
+#[derive(Clone, PartialEq, Eq)]
 pub struct ChecksumCache {
     entries: Vec<(u64, Vec<u8>, u8)>,
+}
+
+impl fmt::Debug for ChecksumCache {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let keys: Vec<u64> = self.entries.iter().map(|(key, _, _)| *key).collect();
+        f.debug_struct("ChecksumCache")
+            .field("entries", &self.entries.len())
+            .field("keys", &keys)
+            .finish()
+    }
 }
 
 impl Default for ChecksumCache {
@@ -425,22 +449,32 @@ impl ChecksumCache {
         }
     }
 
-    /// Flips one bit in `key`'s entry. `false` when the key is absent.
+    /// Breaks the checksum agreement for `key`. `false` when the key is absent.
+    ///
+    /// An empty payload has nothing to flip, so its stored checksum is moved
+    /// instead; either way the next read disagrees.
     pub fn corrupt(&mut self, key: u64) -> bool {
-        let Some((_, bytes, _)) = self.entries.iter_mut().find(|(known, _, _)| *known == key)
+        let Some((_, bytes, stored)) = self.entries.iter_mut().find(|(known, _, _)| *known == key)
         else {
             return false;
         };
         if bytes.is_empty() {
-            bytes.push(0);
+            *stored = stored.wrapping_add(1);
+        } else {
+            bytes[0] ^= 0x01;
         }
-        bytes[0] ^= 0x01;
         true
     }
 
-    /// Drops every entry, returning the cache to its baseline.
+    /// Drops every entry.
     pub fn clear(&mut self) {
         self.entries.clear();
+    }
+
+    /// Drops the entries whose checksum no longer matches, keeping the rest.
+    pub fn retain_valid(&mut self) {
+        self.entries
+            .retain(|(_, bytes, stored)| checksum(bytes) == *stored);
     }
 
     /// How many entries the cache holds.
@@ -470,7 +504,8 @@ impl Faulty for ChecksumCache {
         // is already gone, a fresh torn write leaves an unreadable entry, so
         // the fault still produces an announced degradation.
         if !self.corrupt(1) {
-            self.entries.push((1, vec![0], 1));
+            // An empty payload with a checksum of 1 cannot be read back.
+            self.entries.push((1, Vec::new(), 1));
         }
     }
 
@@ -487,8 +522,8 @@ impl Faulty for ChecksumCache {
     }
 
     fn recover(&mut self) -> bool {
-        self.clear();
-        self.is_empty()
+        self.retain_valid();
+        self.get(1).is_none()
     }
 }
 
@@ -663,6 +698,29 @@ mod tests {
         assert!(report.all_recovered(), "{report}");
         assert_eq!(report.faults(), 2, "the cache fault is not accepted here");
         assert!(gate.is_usable());
+    }
+
+    #[test]
+    fn an_empty_entry_can_still_be_corrupted() {
+        let mut cache = ChecksumCache::new();
+        cache.put(1, b"");
+        assert_eq!(cache.get(1), Some(&b""[..]));
+        assert!(cache.corrupt(1));
+        assert_eq!(cache.get(1), None, "the empty entry must read as absent");
+        let report = run(&mut cache, &Script::new([(0, Fault::CacheCorrupt)]));
+        assert!(report.is_clean(), "{report}");
+    }
+
+    #[test]
+    fn debug_prints_keys_and_counts_but_never_bytes() {
+        let mut cache = ChecksumCache::new();
+        cache.put(7, b"payload-bytes");
+        cache.put(9, b"more");
+        let text = format!("{cache:?}");
+        assert!(text.contains("ChecksumCache"), "{text}");
+        assert!(text.contains("7") && text.contains("9"), "{text}");
+        assert!(!text.contains("payload-bytes"), "{text}");
+        assert!(!text.contains("more"), "{text}");
     }
 
     #[test]
