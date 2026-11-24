@@ -2,13 +2,15 @@
 
 CurbCut reduces content at the boundary and keeps a number instead of the
 content. This document is the single statement of what each construction is,
-what it protects, and what it does not. Every other document refers here
-rather than characterizing a hash on its own. `CC-202`; finding `F-07`, risk
-`R-08`.
+what it protects, and what it does not, for every hash applied to user data or
+stored state. A document that mentions a hash should link here rather than
+characterizing it on its own. `CC-202`; finding `F-07`, risk `R-08`.
 
 ## The constructions
 
-Three constructions exist, in two families. They are not interchangeable.
+Four constructions exist, in two families. They are not interchangeable. A
+test-only one-byte XOR checksum in `crates/curbcut-core/src/chaos.rs` is not
+listed: it never touches user data or stored state.
 
 | Family | Construction | Where | Output |
 | --- | --- | --- | --- |
@@ -52,7 +54,9 @@ are not a security boundary.
 | `crates/curbcut-tts/src/engine.rs` | `Utterance::content_hash` | utterance text |
 | `crates/curbcut-adapt/src/provenance.rs` | `OriginalValue::content` | content-derived original |
 | `crates/curbcut-adapt/src/stop_motion.rs` | `snapshot_hash` | stable id and rect geometry |
-| `crates/curbcut-store/src/plan_cache.rs` | `ContentHash(u64)` | producer-computed value |
+
+`ContentHash(u64)` in `crates/curbcut-store/src/plan_cache.rs` is not a site: it
+wraps a producer-computed value and the cache itself never hashes.
 
 Properties:
 
@@ -82,7 +86,7 @@ time.
 ## Recovery
 
 Neither family can be algebraically inverted from the stored value alone. That
-is not the risk. All three constructions are public, so an attacker who can
+is not the risk. All four constructions are public, so an attacker who can
 guess the input can compute its hash and compare. For high-entropy input — a
 model file, a random token — guessing is infeasible and the cryptographic
 digest holds. For low-entropy input — a label, a line of text, a setting —
@@ -99,7 +103,7 @@ upgrade, and never describe it as protecting the content.
 | Model pin fields | HMAC-SHA-256 | signature in the manifest |
 | Accessibility label | `DefaultHasher` | `u64` in a track (`DC-05`) |
 | Reading text | `DefaultHasher` | cache key (`DC-19`) |
-| Utterance text | `DefaultHasher` | telemetry count key |
+| Utterance text | `DefaultHasher` | log-safe summary and audio handle |
 | Adaptation original | `DefaultHasher` | length and `u64` (`DC-20`) |
 | Merge conflict text | `DefaultHasher` | length and `u64` (`DC-07`) |
 | Motion region geometry | `DefaultHasher` | `u64` |

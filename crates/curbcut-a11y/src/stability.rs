@@ -40,8 +40,9 @@ pub const SCROLL_CONSENSUS_TOLERANCE: f32 = 2.0;
 
 /// Hashes a label so it can be compared without being stored.
 ///
-/// The hash is stable for the same input and is not reversible; it is the only
-/// part of a label the tracker keeps.
+/// This is a non-cryptographic identity hash: stable for the same input, not a
+/// security boundary, and recomputable from a guess. It is the only part of a
+/// label the tracker keeps. See `docs/HASHES.md`.
 pub fn label_hash(label: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     label.hash(&mut hasher);

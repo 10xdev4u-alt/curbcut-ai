@@ -10,7 +10,8 @@ matter:
   characterization honest: the cryptographic family, the 64-bit identity
   family, the birthday bound, the cross-release stability caveat, the
   "not a security boundary" disclaimer, the FNV-1a correlation token, and the
-  rule that no hash is applied to raw screen content.
+  rule that no hash is applied to raw screen content. It also states its own
+  scope: user data and stored state.
 * ``docs/STABILITY.md``, ``docs/READING_LEVEL.md``, and ``docs/PROVENANCE.md``
   link to it and use the same vocabulary. A document that calls an identity
   hash "non-reversible" or "cryptographic" contradicts the statement.
@@ -46,7 +47,19 @@ WORKFLOW = ".github/workflows/ci.yml"
 FINDINGS = "docs/PRIVACY_FINDINGS.md"
 DPIA = "docs/DPIA.md"
 
-DOCUMENTS = (HASHES, *CONSUMERS, README, WORKFLOW, FINDINGS, DPIA)
+# Source comments that characterize a hash. They must match docs/HASHES.md too.
+SOURCES = {
+    "crates/curbcut-a11y/src/stability.rs": (
+        "identity hash",
+        ("not reversible",),
+    ),
+    "crates/curbcut-tts/src/engine.rs": (
+        "non-cryptographic",
+        ("hash of the text, for telemetry",),
+    ),
+}
+
+DOCUMENTS = (HASHES, *CONSUMERS, README, WORKFLOW, FINDINGS, DPIA, *SOURCES)
 
 REQUIRED_SECTIONS = (
     "The constructions",
@@ -65,6 +78,7 @@ REQUIRED_PHRASES = (
     "across rust releases",
     "not a security boundary",
     "applied to raw screen content",
+    "applied to user data or stored state",
     "fnv-1a",
     "dc-31",
 )
@@ -142,6 +156,17 @@ def validate(root: Path) -> list[str]:
                 errors.append(
                     f"{relative} calls an identity hash {match.group(0)!r}, which "
                     "contradicts docs/HASHES.md"
+                )
+
+    for relative, (required, banned) in SOURCES.items():
+        body = flatten(documents[relative])
+        if required not in body:
+            errors.append(f"{relative} no longer states {required!r}")
+        for phrase in banned:
+            if phrase in body:
+                errors.append(
+                    f"{relative} still claims {phrase!r}, which contradicts "
+                    "docs/HASHES.md"
                 )
 
     readme = flatten(documents[README])
@@ -255,6 +280,39 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "model-pin class removed",
         "replace": [(HASHES, "`DC-31`", "`DC-01`")],
         "expect": "'dc-31'",
+    },
+    {
+        "label": "scope sentence removed",
+        "edit": [
+            (
+                HASHES,
+                "for every hash applied to user data or\nstored state",
+                "for every construction",
+            )
+        ],
+        "expect": "'applied to user data or stored state'",
+    },
+    {
+        "label": "stability source comment reverts to non-reversible",
+        "edit": [
+            (
+                "crates/curbcut-a11y/src/stability.rs",
+                "This is a non-cryptographic identity hash: stable for the same input, not a",
+                "The hash is stable for the same input and not reversible; it is",
+            )
+        ],
+        "expect": "not reversible",
+    },
+    {
+        "label": "tts source comment claims telemetry",
+        "edit": [
+            (
+                "crates/curbcut-tts/src/engine.rs",
+                "A non-cryptographic identity hash of the text, for log-safe summaries",
+                "A non-cryptographic hash of the text, for telemetry",
+            )
+        ],
+        "expect": "hash of the text, for telemetry",
     },
     {
         "label": "stability drops the link",

@@ -135,7 +135,9 @@ impl Utterance {
         self.text.len()
     }
 
-    /// A non-cryptographic hash of the text, for telemetry.
+    /// A non-cryptographic identity hash of the text, for log-safe summaries
+    /// and the in-memory audio handle. Not a security boundary; see
+    /// `docs/HASHES.md`.
     pub fn content_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         self.text.hash(&mut hasher);
