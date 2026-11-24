@@ -77,6 +77,10 @@ RISK_COLUMNS = ["ID", "Risk", "Likelihood", "Impact", "Mitigation", "Finding"]
 LIKELIHOOD = {"low", "medium", "high", "certain"}
 IMPACT = {"severe", "high", "medium", "low"}
 
+# The DPIA's published claim is ten named risks. Deriving the expectation from
+# whatever rows survive let a deleted row pass, so the count is fixed here.
+RISK_COUNT = 10
+
 RETENTION = {
     "2-seconds",
     "<1-second",
@@ -361,9 +365,12 @@ def validate_risks(text: str, known_findings: set[str]) -> list[str]:
             elif token not in known_findings:
                 errors.append(f"{risk_id} points at unknown finding {token}")
 
-    expected = [f"R-{index:02d}" for index in range(1, len(rows) + 1)]
+    expected = [f"R-{index:02d}" for index in range(1, RISK_COUNT + 1)]
     if ids != expected:
-        errors.append("risk IDs must be sequential from R-01 with no gaps or duplicates")
+        errors.append(
+            f"risk IDs must be exactly R-01 through R-{RISK_COUNT:02d}; "
+            "a deleted row cannot shrink the register"
+        )
     return errors
 
 
@@ -536,8 +543,17 @@ def self_test() -> int:
             return 1
         print("self-test: the committed documents pass")
 
+        # Restore the exact bytes between cases. Reverting with str.replace is
+        # not enough: for a deletion (`new == ""`) it would insert the original
+        # at byte 0, leaving later mutations to fail on the leftover corruption
+        # rather than on the change under test.
+        documents = sorted({root / relative for _, relative, _, _ in MUTATIONS})
+        pristine = {
+            document: document.read_text(encoding="utf-8") for document in documents
+        }
         for label, relative, old, new in MUTATIONS:
             document = root / relative
+            document.write_text(pristine[document], encoding="utf-8")
             _break(document, old, new)
             errors = validate(root)
             if not errors:
@@ -547,7 +563,6 @@ def self_test() -> int:
                     file=sys.stderr,
                 )
                 return 1
-            _break(document, new, old)
 
         (root / FINDINGS.relative_to(ROOT)).unlink()
         if not validate(root):
