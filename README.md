@@ -97,6 +97,7 @@ docs/
   PRIVACY_FINDINGS.md      Findings register with owners, due dates, and tracking
   STUDY_PROTOCOL.md        12-week longitudinal outcome study protocol (pre-ethics)
   CONSENT_TEXT.md          Versioned study consent text with five granular layers
+  SUPPLY_CHAIN.md          SBOM, attestation format, and the unmet reproducibility claim
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader
@@ -151,6 +152,8 @@ docs/
   TELEMETRY.md             Counts-only telemetry schema, allowlist, opt-in export
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
+supply-chain/
+  registry-licenses.json   Recorded licenses for dependencies outside the workspace
 backlog/
   data_issues.py           Source data: 15 epics, 124 issues
   data_prs.py              Source data: 124 PRs (derived from issues)
@@ -168,6 +171,8 @@ scripts/
   publish_issues.py        Publish the backlog to GitHub and record the CC-># map
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
+  sbom.py                    Generates the SBOM and an unsigned attestation placeholder
+  validate_supply_chain.py   Checks release prerequisites and supply-chain claims
   study_instrument.py        Scores SUS and task responses; counts and pseudonyms only
   validate_study_protocol.py Checks protocol sections and consent guarantees
 .github/

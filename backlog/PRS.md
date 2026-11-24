@@ -135,6 +135,7 @@ One PR per issue, in merge order. Each PR lists its branch, the issues it closes
 | PR-127 | feat: Headless CLI: status, redacted dump, bench, panic | `feat/headless-cli-status-redacted-dump-bench-panic` | CC-127 | `578820c`, `8b34738` | pass | 1 | merged |
 | PR-128 | feat: Telemetry schema and opt-in export | `feat/telemetry-schema-and-opt-in-export` | CC-128 | `5255ad3`, `6002196` | pass | 3 | merged |
 | PR-129 | fix: Coexistence simulator follow-ups from the CC-080 review | `fix/coexistence-simulator-follow-ups-from-the-cc` | CC-129 | `dd3e420` | pass | 2 | merged |
+| PR-130 | chore: Reproducible-build verification: two builds have not been compared by hash | `chore/reproducible-build-verification-two-builds-have` | CC-130 | `e2358db` | pass | 3 | merged |
 
 ## PR-001 — feat: Rust workspace and Tauri 2 app stub
 
@@ -2786,4 +2787,25 @@ One PR per issue, in merge order. Each PR lists its branch, the issues it closes
 | --- | --- |
 | design-reviewer | COMMENT: verify keyboard path manually |
 | code-reviewer | APPROVE |
+
+## PR-130 — chore: Reproducible-build verification: two builds have not been compared by hash
+
+- **Branch:** `chore/reproducible-build-verification-two-builds-have`
+- **Closes:** CC-130
+- **Commits:** `e2358db`
+- **CI:** pass
+- **State:** merged
+
+**Files changed**
+
+- `crates/curbcut-core/src/security/guard.rs`
+- `packaging/manifest.sh`
+
+**Review thread**
+
+| Reviewer | Verdict / comment |
+| --- | --- |
+| docs-reviewer | COMMENT: confirm the no-content-logging assertion |
+| code-reviewer | APPROVE |
+| security-reviewer | APPROVE |
 

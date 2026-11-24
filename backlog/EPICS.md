@@ -19,7 +19,7 @@ Fifteen epics carry the program from an empty repository to a shipped, audited 1
 | E11 | Data & Personalization | 6 | 6 | Profile editor, learned simplifications, app layout memory, memory aids, backup/restore, optional sync, multi-user, import/export, local stats, telemetry schema. |
 | E12 | Privacy & Security | 11 | 11 | Kill-switch, zeroization, no-content logging, encryption at rest, keychain, model pinning, penetration test, privacy audit, WCAG/COGA mapping, incident response, SBOM, license compliance. |
 | E13 | Testing & Quality | 9 | 9 | Unit blitz, property tests, golden tests, differential tests, integration, E2E, perf, a11y audit, chaos, dogfood. |
-| E14 | Release & Packaging | 8 | 8 | Installers, signing/notarization, updater with rollback, beta program, VPAT, pricing, support, 1.0. |
+| E14 | Release & Packaging | 9 | 9 | Installers, signing/notarization, updater with rollback, beta program, VPAT, pricing, support, 1.0. |
 | E15 | Ecosystem & Growth | 7 | 7 | Browser extension, mobile companion, SDK, enterprise console, marketplace, open benchmark. |
 
 ## Standard acceptance criteria (apply to every issue)

@@ -2254,7 +2254,7 @@ Define the instrument and consent flow for a 12-week longitudinal outcome study 
 - No screen content or raw text appears in logs, dumps, or crash reports.
 
 
-## E14 — Release & Packaging (8 issues)
+## E14 — Release & Packaging (9 issues)
 
 | ID | Title | Type | Priority | Size | Labels | Depends on |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -2266,6 +2266,7 @@ Define the instrument and consent flow for a 12-week longitudinal outcome study 
 | CC-111 | VPAT and accessibility statement | docs | P1 | M | release, a11y, legal | - |
 | CC-112 | Pricing, license, and support model | chore | P2 | M | release, legal | - |
 | CC-121 | Localization: 22 UI languages including RTL | feat | P1 | L | i18n, release | - |
+| CC-130 | Reproducible-build verification: two builds have not been compared by hash | chore | P1 | M | security, release | - |
 
 ### CC-106 — macOS .dmg, notarization, and staple
 
@@ -2406,6 +2407,25 @@ Localize the UI into 22 languages with full RTL mirroring and locale-aware forma
 - No truncated strings in any locale.
 - RTL layouts mirror correctly.
 - Translators are credited and paid.
+- Unit tests cover the new logic and edge cases.
+- Docs updated (user, admin, or developer as appropriate).
+- CI green on macOS arm64/x64, Windows x64, and Linux x64.
+- No screen content or raw text appears in logs, dumps, or crash reports.
+
+### CC-130 — Reproducible-build verification: two builds have not been compared by hash
+
+**Type:** `chore`  |  **Priority:** P1  |  **Size:** M
+
+**Labels:** `security`, `release`
+
+Follow-up to CC-119. The recipe pins inputs (committed Cargo.lock, declared MSRV and edition, --locked, deterministic SBOM output) but no two independent builds have ever been compared by digest, so reproducibility is an intention rather than a measured outcome. docs/SUPPLY_CHAIN.md says this plainly; this issue is where the measurement lands.
+
+**Acceptance criteria**
+
+- Two builds from independent environments are recorded with their toolchain, target, and artifact digests.
+- Either the digests match and the comparison is published, or every difference is enumerated and the recipe is tightened until they do.
+- docs/SUPPLY_CHAIN.md is updated from not proven to whatever was actually measured.
+- No compliance claim is made before the comparison exists.
 - Unit tests cover the new logic and edge cases.
 - Docs updated (user, admin, or developer as appropriate).
 - CI green on macOS arm64/x64, Windows x64, and Linux x64.
