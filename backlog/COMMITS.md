@@ -344,7 +344,8 @@ The commit sequence in merge order. Root commits are pre-PR bootstrap work; the 
 | `5255ad3` | feat: Telemetry schema and opt-in export | PR-128 | Ari Reyes | 2025-10-22 |
 | `6002196` | test(telemetry-schema-and-opt-in-export): regression coverage for CC-128 | PR-128 | Tomas Berg | 2025-10-23 |
 | `dd3e420` | fix: Coexistence simulator follow-ups from the CC-080 review | PR-129 | Tomas Berg | 2025-10-24 |
+| `e2358db` | chore: Reproducible-build verification: two builds have not been compared by hash | PR-130 | Tomas Berg | 2025-10-25 |
 
 Root commits: 111
 
-PR commits: 227
+PR commits: 228

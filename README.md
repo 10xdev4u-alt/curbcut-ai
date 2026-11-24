@@ -96,6 +96,7 @@ docs/
   DPIA.md                  Privacy impact assessment summary (internal, not legal advice)
   PRIVACY_FINDINGS.md      Findings register with owners, due dates, and tracking
   SUPPLY_CHAIN.md          SBOM, attestation format, and the unmet reproducibility claim
+  supply-chain/registry-licenses.json  Licenses for dependencies outside the workspace
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader

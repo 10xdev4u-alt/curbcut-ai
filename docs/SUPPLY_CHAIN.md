@@ -30,12 +30,18 @@ release time rather than forcing a toolchain download on every contributor.
 
 `scripts/sbom.py generate` reads `Cargo.lock` for the resolved package set and
 each crate's `Cargo.toml` for its license, and writes a CycloneDX-shaped
-document. Today the workspace is standard-library only, so every component is a
-first-party crate under `AGPL-3.0-only`. The generator is written to handle
-third-party dependencies too: a package with no resolvable license is recorded
-as `UNKNOWN` rather than guessed, and `--strict` fails the build until someone
-declares it. `scripts/sbom.py check` re-derives the expected document and
-compares components, versions, licenses, and dependency edges.
+document. Every dependency edge is a full `bom-ref`, so the published graph
+resolves to components in the same document; the workspace root appears once, in
+`metadata.component`. Today the workspace is standard-library only, so every
+component is a first-party crate under `AGPL-3.0-only`.
+
+A dependency that lives outside the workspace has no manifest here. Its license
+must be recorded in `supply-chain/registry-licenses.json`, keyed by `name@version`
+(or `name`), with a known SPDX id. A package with no resolvable license is
+recorded as `UNKNOWN` rather than guessed, and `--strict` fails the build until
+someone declares it; the generator never invents a license.
+`scripts/sbom.py check` re-derives the expected document and compares the root
+component, every component's type, version, license, and every dependency edge.
 
 CI publishes the generated SBOM as a build artifact on every run.
 
@@ -56,9 +62,9 @@ artifact here is claimed to be signed.
   Tracked as #208.
 - **No signed attestation has been published.** The placeholder format exists;
   signing infrastructure does not.
-- **Third-party license coverage is untested in practice**, because there are no
-  third-party dependencies yet. The generator's self-test exercises that path
-  against a synthetic manifest.
+- **Third-party license coverage is exercised only against a synthetic fixture**,
+  because there are no third-party dependencies yet. The declaration file stays
+  empty until such a dependency appears.
 
 These are engineering gaps, not compliance claims. Nothing in this repository
 should be read as asserting a reproducible hash or a signed release.

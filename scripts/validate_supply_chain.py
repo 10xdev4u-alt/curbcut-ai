@@ -8,9 +8,10 @@ release builds. This script checks what can be checked from files alone:
   ``unsafe_code``;
 * every crate directory is a declared member with a matching manifest and a
   resolvable license;
-* ``Cargo.lock`` matches the crate set exactly -- a package with no manifest
-  cannot have its license verified;
-* the root license text is the AGPL it claims to be;
+* ``Cargo.lock`` matches the crate set exactly, keyed by name and version;
+* a locked package outside the workspace has a recorded license in
+  ``supply-chain/registry-licenses.json`` with a known SPDX id;
+* the root license carries the AGPL title and the version 3 title line;
 * ``docs/SUPPLY_CHAIN.md`` keeps its four sections and its honest statements,
   including the one that says two independent builds have *not* been shown to
   match;
@@ -39,12 +40,14 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+REGISTRY_LICENSES = "supply-chain/registry-licenses.json"
 
 REQUIRED_FILES = (
     ("Cargo.toml", "the workspace manifest"),
     ("Cargo.lock", "the committed resolution"),
     ("LICENSE", "the license text"),
     ("docs/SUPPLY_CHAIN.md", "the release documentation"),
+    (REGISTRY_LICENSES, "the third-party license declarations"),
     (".github/workflows/ci.yml", "the release pipeline"),
 )
 
@@ -53,6 +56,15 @@ SUPPLY_CHAIN_SECTIONS = (
     "SBOM",
     "Provenance attestation",
     "What is not proven",
+)
+
+SUPPLY_CHAIN_PHRASES = (
+    "--locked",
+    "cyclonedx",
+    "unsigned placeholder",
+    "have not been shown to match",
+    "registry-licenses.json",
+    "never invents a license",
 )
 
 SPDX_LICENSES = {
@@ -82,16 +94,6 @@ def flatten(text: str) -> str:
 def load_toml(path: Path) -> dict:
     with path.open("rb") as handle:
         return tomllib.load(handle)
-
-
-def section(text: str, heading: str) -> str:
-    pattern = rf"^##\s+{re.escape(heading)}[^\n]*$"
-    match = re.search(pattern, text, re.MULTILINE)
-    if match is None:
-        return ""
-    rest = text[match.end() :]
-    following = re.search(r"^##\s+", rest, re.MULTILINE)
-    return rest[: following.start()] if following else rest
 
 
 def member_dirs(root: Path, patterns: list[str]) -> tuple[list[Path], list[Path]]:
@@ -126,6 +128,17 @@ def resolve_license(crate_manifest: dict, defaults: dict) -> str | None:
     return value
 
 
+def load_registry_licenses(root: Path) -> dict[str, str]:
+    """Read recorded licenses for packages that live outside the workspace."""
+    try:
+        document = json.loads((root / REGISTRY_LICENSES).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"{REGISTRY_LICENSES}: invalid JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise ValueError(f"{REGISTRY_LICENSES}: expected a JSON object")
+    return {str(key): str(value) for key, value in document.items()}
+
+
 def validate(root: Path) -> list[str]:
     errors: list[str] = []
     for relative, why in REQUIRED_FILES:
@@ -155,9 +168,14 @@ def validate(root: Path) -> list[str]:
     for path in undeclared:
         errors.append(f"crates/{path.name} is not covered by the workspace members")
 
-    lock_text = (root / "Cargo.lock").read_text(encoding="utf-8")
-    lock = tomllib.loads(lock_text)
-    locked = {entry["name"]: entry["version"] for entry in lock.get("package", [])}
+    lock = tomllib.loads((root / "Cargo.lock").read_text(encoding="utf-8"))
+    locked_pairs = [
+        (entry["name"], entry["version"]) for entry in lock.get("package", [])
+    ]
+    if len(locked_pairs) != len(set(locked_pairs)):
+        errors.append("Cargo.lock lists the same package name and version twice")
+    locked_names = {name for name, _ in locked_pairs}
+
     for path in declared:
         crate_manifest_path = path / "Cargo.toml"
         if not crate_manifest_path.exists():
@@ -166,33 +184,43 @@ def validate(root: Path) -> list[str]:
         crate_manifest = load_toml(crate_manifest_path)
         name = crate_manifest.get("package", {}).get("name")
         if name != path.name:
-            errors.append(
-                f"crates/{path.name} declares package name {name!r}"
-            )
+            errors.append(f"crates/{path.name} declares package name {name!r}")
         license_id = resolve_license(crate_manifest, defaults)
         if license_id not in SPDX_LICENSES:
             errors.append(
                 f"crates/{path.name} license {license_id!r} is not a known SPDX id"
             )
-        if name not in locked:
+        if name not in locked_names:
             errors.append(f"crates/{path.name} is missing from Cargo.lock")
 
-    for name, version in sorted(locked.items()):
-        if not (root / "crates" / name / "Cargo.toml").exists():
+    try:
+        registry = load_registry_licenses(root)
+    except ValueError as error:
+        errors.append(str(error))
+        registry = {}
+
+    for name, version in sorted(set(locked_pairs)):
+        if (root / "crates" / name).is_dir():
+            continue
+        recorded = registry.get(f"{name}@{version}") or registry.get(name)
+        if recorded is None:
             errors.append(
-                f"{name}@{version} is in Cargo.lock but has no crate directory, "
-                "so its license cannot be verified"
+                f"{name}@{version} has no recorded license in {REGISTRY_LICENSES}"
+            )
+        elif recorded not in SPDX_LICENSES:
+            errors.append(
+                f"{name}@{version} recorded license {recorded!r} is not a known "
+                "SPDX id"
             )
 
     license_text = (root / "LICENSE").read_text(encoding="utf-8")
-    lowered_license = flatten(license_text)
-    # Check the title line, not the phrase: the body of the AGPL repeats the
-    # name, so a search for the words would pass on a swapped document.
     lines = [line.strip() for line in license_text.splitlines() if line.strip()]
+    # Check the title and its version line, not the words: the body of the AGPL
+    # repeats both, so a search for the phrase would pass on a swapped document.
     if not lines or lines[0].upper() != "GNU AFFERO GENERAL PUBLIC LICENSE":
         errors.append("LICENSE is not the AGPL")
-    if "version 3" not in lowered_license:
-        errors.append("LICENSE does not state version 3")
+    if len(lines) < 2 or lines[1] != "Version 3, 19 November 2007":
+        errors.append("LICENSE does not state the AGPL version 3 title line")
 
     doc = (root / "docs" / "SUPPLY_CHAIN.md").read_text(encoding="utf-8")
     for heading in SUPPLY_CHAIN_SECTIONS:
@@ -201,12 +229,7 @@ def validate(root: Path) -> list[str]:
         ):
             errors.append(f"supply-chain document is missing the {heading} section")
     body = flatten(doc)
-    for phrase in (
-        "--locked",
-        "cyclonedx",
-        "unsigned placeholder",
-        "have not been shown to match",
-    ):
+    for phrase in SUPPLY_CHAIN_PHRASES:
         if phrase not in body:
             errors.append(f"supply-chain document no longer states {phrase!r}")
 
@@ -216,190 +239,326 @@ def validate(root: Path) -> list[str]:
     return errors
 
 
-def _mutated_copy(root: Path) -> Path:
-    tmp = Path(tempfile.mkdtemp(prefix="curbcut-supply-selftest-"))
-    relative_paths = [
-        "Cargo.toml",
-        "Cargo.lock",
-        "LICENSE",
-        "docs/SUPPLY_CHAIN.md",
-        ".github/workflows/ci.yml",
-    ]
+def collected_files(root: Path) -> list[str]:
+    relative = [path for path, _ in REQUIRED_FILES]
     crates = root / "crates"
     if crates.is_dir():
-        relative_paths.extend(
+        relative.extend(
             str(path.relative_to(root)) for path in sorted(crates.glob("*/Cargo.toml"))
         )
-    for relative in relative_paths:
-        source = root / relative
-        if not source.exists():
-            continue
-        target = tmp / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
-    return tmp
+    return relative
 
 
-def _break(document: Path, old: str, new: str) -> None:
-    text = document.read_text(encoding="utf-8")
-    if old not in text:
-        raise SystemExit(f"self-test fixture no longer matches {document.name}: {old!r}")
-    document.write_text(text.replace(old, new, 1), encoding="utf-8")
+def materialize(target: Path, pristine: dict[str, str]) -> None:
+    """Recreate the pristine tree from bytes held in memory."""
+    if target.exists():
+        shutil.rmtree(target)
+    for relative, text in pristine.items():
+        path = target / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
 
 
-Mutation = tuple[str, str, str, str, str]
+# Each case names the files it deletes, the replacements it makes, the files it
+# creates, and the error its own check must produce. ``expect`` of None means
+# the case must produce no error at all.
+Case = dict[str, object]
 
-MUTATIONS: tuple[Mutation, ...] = (
-    ("msrv", "Cargo.toml", 'rust-version = "1.85"', 'msrv = "1.85"', "rust-version"),
-    ("edition", "Cargo.toml", 'edition = "2021"\n', "", "does not declare an edition"),
-    (
-        "unsafe policy",
-        "Cargo.toml",
-        'unsafe_code = "forbid"',
-        'unsafe_code = "allow"',
-        "must forbid unsafe_code",
-    ),
-    (
-        "workspace license",
-        "Cargo.toml",
-        'license = "AGPL-3.0-only"',
-        'license = "Proprietary"',
-        "is not a known SPDX id",
-    ),
-    (
-        "workspace membership",
-        "Cargo.toml",
-        'members = ["crates/*"]',
-        "members = []",
-        "is not covered by the workspace members",
-    ),
-    (
-        "crate package name",
-        "crates/curbcut-core/Cargo.toml",
-        'name = "curbcut-core"',
-        'name = "curbcut-wrong"',
-        "declares package name",
-    ),
-    (
-        "lock drift",
-        "Cargo.lock",
-        '[[package]]\nname = "curbcut-a11y"',
-        '[[package]]\nname = "serde"\nversion = "1.0.0"\n\n'
-        '[[package]]\nname = "curbcut-a11y"',
-        "has no crate directory",
-    ),
-    (
-        "license text",
-        "LICENSE",
-        "GNU AFFERO GENERAL PUBLIC LICENSE",
-        "GNU GENERAL PUBLIC LICENSE",
-        "LICENSE is not the AGPL",
-    ),
-    (
-        "release section",
-        "docs/SUPPLY_CHAIN.md",
-        "## Release recipe",
-        "## Recipe",
-        "missing the Release recipe section",
-    ),
-    (
-        "locked build command",
-        "docs/SUPPLY_CHAIN.md",
-        "cargo build --release --locked",
-        "cargo build --release",
-        "'--locked'",
-    ),
-    (
-        "sbom section",
-        "docs/SUPPLY_CHAIN.md",
-        "## SBOM",
-        "## Inventory",
-        "missing the SBOM section",
-    ),
-    (
-        "sbom format",
-        "docs/SUPPLY_CHAIN.md",
-        "CycloneDX-shaped",
-        "JSON-shaped",
-        "'cyclonedx'",
-    ),
-    (
-        "attestation section",
-        "docs/SUPPLY_CHAIN.md",
-        "## Provenance attestation",
-        "## Attestation placeholder",
-        "missing the Provenance attestation section",
-    ),
-    (
-        "unsigned honesty",
-        "docs/SUPPLY_CHAIN.md",
-        "unsigned\nplaceholder",
-        "pending signature",
-        "'unsigned placeholder'",
-    ),
-    (
-        "unproven section",
-        "docs/SUPPLY_CHAIN.md",
-        "## What is not proven",
-        "## Proven claims",
-        "missing the What is not proven section",
-    ),
-    (
-        "reproducibility claim",
-        "docs/SUPPLY_CHAIN.md",
-        "Two independent builds have not been shown to match by hash",
-        "Two independent builds match by hash",
-        "'have not been shown to match'",
-    ),
-    (
-        "ci sbom job",
-        ".github/workflows/ci.yml",
-        "\n  sbom:",
-        "\n  bom:",
-        "CI has no sbom job",
-    ),
+INSERT_SERDE = (
+    '[[package]]\nname = "serde"\nversion = "1.0.200"\n\n'
+    '[[package]]\nname = "curbcut-a11y"'
+)
+AT_A11Y = '[[package]]\nname = "curbcut-a11y"'
+
+CASES: tuple[Case, ...] = (
+    {
+        "label": "workspace manifest deleted",
+        "delete": ["Cargo.toml"],
+        "expect": "missing Cargo.toml",
+    },
+    {
+        "label": "lockfile deleted",
+        "delete": ["Cargo.lock"],
+        "expect": "missing Cargo.lock",
+    },
+    {
+        "label": "license text deleted",
+        "delete": ["LICENSE"],
+        "expect": "missing LICENSE",
+    },
+    {
+        "label": "supply-chain document deleted",
+        "delete": ["docs/SUPPLY_CHAIN.md"],
+        "expect": "missing docs/SUPPLY_CHAIN.md",
+    },
+    {
+        "label": "registry declaration deleted",
+        "delete": [REGISTRY_LICENSES],
+        "expect": f"missing {REGISTRY_LICENSES}",
+    },
+    {
+        "label": "CI pipeline deleted",
+        "delete": [".github/workflows/ci.yml"],
+        "expect": "missing .github/workflows/ci.yml",
+    },
+    {
+        "label": "crate manifest deleted",
+        "delete": ["crates/curbcut-core/Cargo.toml"],
+        "expect": "crates/curbcut-core has no Cargo.toml",
+    },
+    {
+        "label": "msrv",
+        "edit": [("Cargo.toml", 'rust-version = "1.85"', 'msrv = "1.85"')],
+        "expect": "rust-version",
+    },
+    {
+        "label": "edition",
+        "edit": [("Cargo.toml", 'edition = "2021"\n', "")],
+        "expect": "does not declare an edition",
+    },
+    {
+        "label": "unsafe policy",
+        "edit": [("Cargo.toml", 'unsafe_code = "forbid"', 'unsafe_code = "allow"')],
+        "expect": "must forbid unsafe_code",
+    },
+    {
+        "label": "workspace license",
+        "edit": [
+            ("Cargo.toml", 'license = "AGPL-3.0-only"', 'license = "Proprietary"')
+        ],
+        "expect": "is not a known SPDX id",
+    },
+    {
+        "label": "workspace membership",
+        "edit": [("Cargo.toml", 'members = ["crates/*"]', "members = []")],
+        "expect": "is not covered by the workspace members",
+    },
+    {
+        "label": "crate package name",
+        "edit": [
+            ("crates/curbcut-core/Cargo.toml", 'name = "curbcut-core"', 'name = "curbcut-wrong"')
+        ],
+        "expect": "declares package name",
+    },
+    {
+        "label": "crate license unknown",
+        "edit": [
+            (
+                "crates/curbcut-core/Cargo.toml",
+                "license.workspace = true",
+                'license = "Proprietary"',
+            )
+        ],
+        "expect": "is not a known SPDX id",
+    },
+    {
+        "label": "crate missing from lock",
+        "edit": [
+            (
+                "Cargo.lock",
+                '[[package]]\nname = "curbcut-core"\nversion = "0.1.0"',
+                '[[package]]\nname = "curbcut-moved"\nversion = "0.1.0"',
+            )
+        ],
+        "expect": "is missing from Cargo.lock",
+    },
+    {
+        "label": "duplicate lock entry",
+        "edit": [
+            (
+                "Cargo.lock",
+                'version = 4\n',
+                'version = 4\n\n[[package]]\nname = "curbcut-a11y"\nversion = "0.1.0"\n',
+            )
+        ],
+        "expect": "twice",
+    },
+    {
+        "label": "unregistered external package",
+        "edit": [("Cargo.lock", AT_A11Y, INSERT_SERDE)],
+        "expect": "has no recorded license",
+    },
+    {
+        "label": "external package with an unknown SPDX id",
+        "edit": [
+            ("Cargo.lock", AT_A11Y, INSERT_SERDE),
+            (REGISTRY_LICENSES, "{}", '{"serde": "Not-A-License"}'),
+        ],
+        "expect": "not a known SPDX id",
+    },
+    {
+        "label": "external package with a declared license",
+        "edit": [
+            ("Cargo.lock", AT_A11Y, INSERT_SERDE),
+            (REGISTRY_LICENSES, "{}", '{"serde": "MIT"}'),
+        ],
+        "expect": None,
+    },
+    {
+        "label": "registry file is not an object",
+        "edit": [(REGISTRY_LICENSES, "{}", "[]")],
+        "expect": "expected a JSON object",
+    },
+    {
+        "label": "license text",
+        "edit": [
+            ("LICENSE", "GNU AFFERO GENERAL PUBLIC LICENSE", "GNU GENERAL PUBLIC LICENSE")
+        ],
+        "expect": "LICENSE is not the AGPL",
+    },
+    {
+        "label": "license version line",
+        "edit": [
+            ("LICENSE", "Version 3, 19 November 2007", "Version 2, 19 November 2007")
+        ],
+        "expect": "does not state the AGPL version 3 title line",
+    },
+    {
+        "label": "release section",
+        "edit": [("docs/SUPPLY_CHAIN.md", "## Release recipe", "## Recipe")],
+        "expect": "missing the Release recipe section",
+    },
+    {
+        "label": "locked build command",
+        "edit": [
+            (
+                "docs/SUPPLY_CHAIN.md",
+                "cargo build --release --locked",
+                "cargo build --release",
+            )
+        ],
+        "expect": "'--locked'",
+    },
+    {
+        "label": "sbom section",
+        "edit": [("docs/SUPPLY_CHAIN.md", "## SBOM\n", "## Inventory\n")],
+        "expect": "missing the SBOM section",
+    },
+    {
+        "label": "sbom format",
+        "edit": [("docs/SUPPLY_CHAIN.md", "CycloneDX-shaped", "JSON-shaped")],
+        "expect": "'cyclonedx'",
+    },
+    {
+        "label": "attestation section",
+        "edit": [
+            ("docs/SUPPLY_CHAIN.md", "## Provenance attestation", "## Attestation placeholder")
+        ],
+        "expect": "missing the Provenance attestation section",
+    },
+    {
+        "label": "unsigned honesty",
+        "edit": [
+            ("docs/SUPPLY_CHAIN.md", "unsigned\nplaceholder", "pending signature")
+        ],
+        "expect": "'unsigned placeholder'",
+    },
+    {
+        "label": "registry declaration mention",
+        "edit": [
+            (
+                "docs/SUPPLY_CHAIN.md",
+                "`supply-chain/registry-licenses.json`",
+                "`supply-chain/licenses.json`",
+            )
+        ],
+        "expect": "'registry-licenses.json'",
+    },
+    {
+        "label": "license invention claim",
+        "edit": [
+            (
+                "docs/SUPPLY_CHAIN.md",
+                "the generator never invents a license",
+                "the generator records a best guess",
+            )
+        ],
+        "expect": "'never invents a license'",
+    },
+    {
+        "label": "unproven section",
+        "edit": [
+            ("docs/SUPPLY_CHAIN.md", "## What is not proven", "## Proven claims")
+        ],
+        "expect": "missing the What is not proven section",
+    },
+    {
+        "label": "reproducibility claim",
+        "edit": [
+            (
+                "docs/SUPPLY_CHAIN.md",
+                "Two independent builds have not been shown to match by hash",
+                "Two independent builds match by hash",
+            )
+        ],
+        "expect": "'have not been shown to match'",
+    },
+    {
+        "label": "ci sbom job",
+        "edit": [(".github/workflows/ci.yml", "\n  sbom:", "\n  bom:")],
+        "expect": "CI has no sbom job",
+    },
 )
 
 
 def self_test() -> int:
-    root = _mutated_copy(ROOT)
+    pristine = {
+        relative: (ROOT / relative).read_text(encoding="utf-8")
+        for relative in collected_files(ROOT)
+    }
+    tmp = Path(tempfile.mkdtemp(prefix="curbcut-supply-selftest-"))
     try:
-        if validate(root):
+        materialize(tmp, pristine)
+        if validate(tmp):
             print("SELF-TEST FAILED: a pristine copy did not pass", file=sys.stderr)
             return 1
         print("self-test: the committed files pass")
 
-        documents = sorted({root / relative for _, relative, _, _, _ in MUTATIONS})
-        pristine = {
-            document: document.read_text(encoding="utf-8") for document in documents
-        }
-        for label, relative, old, new, expected in MUTATIONS:
-            for document in documents:
-                document.write_text(pristine[document], encoding="utf-8")
-            _break(root / relative, old, new)
-            errors = validate(root)
-            matched = [error for error in errors if expected in error]
-            if not matched:
+        for case in CASES:
+            materialize(tmp, pristine)
+            for relative in case.get("delete", ()):  # type: ignore[union-attr]
+                (tmp / str(relative)).unlink()
+            for relative, old, new in case.get("edit", ()):  # type: ignore[union-attr]
+                path = tmp / str(relative)
+                text = path.read_text(encoding="utf-8")
+                if old not in text:
+                    print(
+                        f"SELF-TEST FIXTURE BROKEN: {case['label']} cannot find "
+                        f"{old!r} in {relative}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                path.write_text(text.replace(old, new, 1), encoding="utf-8")
+            for relative, content in case.get("create", ()):  # type: ignore[union-attr]
+                path = tmp / str(relative)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(str(content), encoding="utf-8")
+
+            errors = validate(tmp)
+            expected = case["expect"]
+            if expected is None:
+                if errors:
+                    print(
+                        f"SELF-TEST FAILED: {case['label']} should pass but "
+                        f"produced {errors[:2]}",
+                        file=sys.stderr,
+                    )
+                    return 1
+            elif not any(str(expected) in error for error in errors):
                 print(
-                    f"SELF-TEST FAILED: removing {label} was not detected by its "
-                    f"own check ({Path(relative).name}); wanted {expected!r}, "
-                    f"got {errors[:2]}",
+                    f"SELF-TEST FAILED: {case['label']} was not detected by its "
+                    f"own check; wanted {expected!r}, got {errors[:2]}",
                     file=sys.stderr,
                 )
                 return 1
 
-        (root / "Cargo.lock").unlink()
-        if not validate(root):
-            print("SELF-TEST FAILED: a missing lockfile was not reported", file=sys.stderr)
-            return 1
-
         print(
-            f"self-test: {len(MUTATIONS)} named deletions were each detected by "
-            "their own check, and a missing lockfile failed"
+            f"self-test: {len(CASES)} named attacks were each detected by their "
+            "own check"
         )
         return 0
     finally:
-        shutil.rmtree(root, ignore_errors=True)
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def main() -> int:

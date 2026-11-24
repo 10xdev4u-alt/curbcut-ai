@@ -9,15 +9,15 @@ Counts below are computed from the source data, not hand-written.
 | Metric | Count |
 | --- | --- |
 | Epics | 15 |
-| Issues | 129 |
-| Pull requests | 129 |
-| Commits | 338 |
+| Issues | 130 |
+| Pull requests | 130 |
+| Commits | 339 |
 | Root commits | 111 |
-| PR commits | 227 |
-| Review threads | 257 |
-| Approvals | 160 |
-| Reviewer comments | 97 |
-| Files touched (with duplicates) | 330 |
+| PR commits | 228 |
+| Review threads | 260 |
+| Approvals | 162 |
+| Reviewer comments | 98 |
+| Files touched (with duplicates) | 332 |
 
 ## Issues by epic
 
@@ -36,14 +36,14 @@ Counts below are computed from the source data, not hand-written.
 | E11 | Data & Personalization | 6 | 6 | 0 | 4 | 2 | 0 |
 | E12 | Privacy & Security | 11 | 11 | 5 | 6 | 0 | 0 |
 | E13 | Testing & Quality | 9 | 9 | 3 | 4 | 2 | 0 |
-| E14 | Release & Packaging | 8 | 8 | 4 | 3 | 1 | 0 |
+| E14 | Release & Packaging | 9 | 9 | 4 | 4 | 1 | 0 |
 | E15 | Ecosystem & Growth | 7 | 7 | 0 | 0 | 5 | 2 |
 
 ## Issues by type
 
 | Type | Count |
 | --- | --- |
-| chore | 11 |
+| chore | 12 |
 | docs | 6 |
 | feat | 104 |
 | fix | 1 |
@@ -54,7 +54,7 @@ Counts below are computed from the source data, not hand-written.
 | Priority | Count |
 | --- | --- |
 | P0 | 63 |
-| P1 | 50 |
+| P1 | 51 |
 | P2 | 14 |
 | P3 | 2 |
 
@@ -63,7 +63,7 @@ Counts below are computed from the source data, not hand-written.
 | Size | Count |
 | --- | --- |
 | L | 49 |
-| M | 72 |
+| M | 73 |
 | S | 8 |
 
 ## Top labels
@@ -71,9 +71,9 @@ Counts below are computed from the source data, not hand-written.
 | Label | Count |
 | --- | --- |
 | a11y | 18 |
+| security | 16 |
 | render | 16 |
 | adapt | 16 |
-| security | 15 |
 | testing | 14 |
 | core | 14 |
 | vision | 13 |
@@ -81,7 +81,7 @@ Counts below are computed from the source data, not hand-written.
 | privacy | 12 |
 | input | 12 |
 | models | 10 |
-| release | 9 |
+| release | 10 |
 | store | 8 |
 | capture | 8 |
 | tts | 7 |
@@ -95,6 +95,6 @@ Counts below are computed from the source data, not hand-written.
 
 | Verdict | Count |
 | --- | --- |
-| APPROVE | 160 |
-| COMMENT | 97 |
+| APPROVE | 162 |
+| COMMENT | 98 |
 | REQUEST_CHANGES | 0 |

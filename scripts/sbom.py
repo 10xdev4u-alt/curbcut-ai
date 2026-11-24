@@ -7,14 +7,17 @@ are already in the repository, so it needs no network and no third-party
 packages:
 
 * ``Cargo.lock`` names every package in the build graph, including transitive
-  ones, with the exact versions resolved.
-* each crate's ``Cargo.toml`` carries its declared license. Workspace-inherited
-  values are read from the workspace root.
+  ones, with the exact versions resolved;
+* each crate's ``Cargo.toml`` carries its declared license, and
+  workspace-inherited values are read from the workspace root;
+* anything outside the workspace must have its license recorded in
+  ``supply-chain/registry-licenses.json``.
 
 The SBOM is a CycloneDX-shaped document. It deliberately carries **no**
 timestamp and **no** random serial number, so two runs over the same tree
 produce the same bytes; that property is part of the point, and ``--self-test``
-asserts it.
+asserts it. Every dependency edge is a full ``bom-ref``, so the published graph
+resolves to components in the same document.
 
 A dependency whose license cannot be resolved from a manifest is recorded with
 an ``UNKNOWN`` license rather than guessed, and ``--strict`` turns that into a
@@ -43,9 +46,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WORKSPACE_MANIFEST = ROOT / "Cargo.toml"
 LOCKFILE = ROOT / "Cargo.lock"
+REGISTRY_LICENSES = "supply-chain/registry-licenses.json"
 
 SPEC_VERSION = "1.6"
 TOOL_NAME = "curbcut-sbom"
+ROOT_REF = "pkg:cargo/curbcut-ai@workspace"
 
 # Licenses the release process is willing to publish. Anything else is UNKNOWN,
 # never silently mapped.
@@ -78,62 +83,89 @@ def load_toml(path: Path) -> dict:
         return tomllib.load(handle)
 
 
-def workspace_defaults(manifest: dict) -> dict:
-    return manifest.get("workspace", {}).get("package", {})
+def ref(name: str, version: str) -> str:
+    return f"pkg:cargo/{name}@{version}"
 
 
-def workspace_members(manifest: dict) -> list[str]:
-    return list(manifest.get("workspace", {}).get("members", []))
+def parse_lock(text: str) -> list[dict]:
+    """Return one entry per locked package, with its dependency name/version pairs."""
+    document = tomllib.loads(text)
+    packages = document.get("package", [])
+    if not isinstance(packages, list) or not packages:
+        raise SbomError("Cargo.lock has no package table")
+    parsed: list[dict] = []
+    for entry in packages:
+        dependencies = []
+        for dependency in entry.get("dependencies", []):
+            parts = dependency.split(" ", 1)
+            dependencies.append(
+                (parts[0], parts[1] if len(parts) > 1 else None)
+            )
+        parsed.append(
+            {"name": entry["name"], "version": entry["version"], "deps": dependencies}
+        )
+    return parsed
 
 
-def resolve_license(crate_dir: Path, defaults: dict) -> str | None:
-    """Return the declared license for one crate, or ``None`` if absent."""
+def resolve_dependency(
+    name: str, version_hint: str | None, locked: set[tuple[str, str]]
+) -> str:
+    """Turn a lockfile dependency string into a single resolvable bom-ref."""
+    if version_hint is not None and (name, version_hint) in locked:
+        return ref(name, version_hint)
+    matches = sorted(version for pkg, version in locked if pkg == name)
+    if len(matches) == 1:
+        return ref(name, matches[0])
+    raise SbomError(
+        f"dependency {name!r} resolves to {len(matches)} locked versions; "
+        "the lockfile is ambiguous"
+    )
+
+
+def load_registry_licenses(root: Path) -> dict[str, str]:
+    """Read the recorded licenses for packages that live outside the workspace."""
+    path = root / REGISTRY_LICENSES
+    if not path.exists():
+        return {}
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise SbomError(f"{REGISTRY_LICENSES}: invalid JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise SbomError(f"{REGISTRY_LICENSES}: expected an object")
+    return {str(key): str(value) for key, value in document.items()}
+
+
+def registry_license(name: str, version: str, registry: dict[str, str]) -> str | None:
+    return registry.get(f"{name}@{version}") or registry.get(name)
+
+
+def resolve_crate_license(crate_dir: Path, defaults: dict) -> str | None:
+    """Return the declared license for one workspace crate, or ``None``."""
     package = load_toml(crate_dir / "Cargo.toml").get("package", {})
     value = package.get("license")
     if isinstance(value, dict):
         if value.get("workspace"):
             return defaults.get("license")
         value = value.get("file")  # `license = { file = ... }`
-        if value:
-            return f"file:{value}"
+        return f"file:{value}" if value else None
     if value is None:
         value = defaults.get("license")
     return value
 
 
-def cargo_lock_packages(lock_text: str) -> dict[str, str]:
-    """Map package name to version from ``Cargo.lock``."""
-    document = tomllib.loads(lock_text)
-    packages = document.get("package", [])
-    if not isinstance(packages, list):
-        raise SbomError("Cargo.lock has no package table")
-    return {entry["name"]: entry["version"] for entry in packages}
-
-
-def dependency_edges(lock_text: str) -> dict[str, list[str]]:
-    """Map each package to the names it depends on, dropping version suffixes."""
-    document = tomllib.loads(lock_text)
-    edges: dict[str, list[str]] = {}
-    for entry in document.get("package", []):
-        names = []
-        for dependency in entry.get("dependencies", []):
-            names.append(dependency.split(" ", 1)[0])
-        edges[entry["name"]] = sorted(names)
-    return edges
-
-
 def component(name: str, version: str, license_id: str | None) -> dict:
-    licenses = []
-    if license_id is None or license_id not in SPDX_LICENSES:
-        licenses.append({"license": {"name": "UNKNOWN"}})
-    else:
-        licenses.append({"license": {"id": license_id}})
+    licenses = (
+        [{"license": {"id": license_id}}]
+        if license_id in SPDX_LICENSES
+        else [{"license": {"name": "UNKNOWN"}}]
+    )
     return {
         "type": "library",
-        "bom-ref": f"pkg:cargo/{name}@{version}",
+        "bom-ref": ref(name, version),
         "name": name,
         "version": version,
-        "purl": f"pkg:cargo/{name}@{version}",
+        "purl": ref(name, version),
         "licenses": licenses,
     }
 
@@ -142,50 +174,57 @@ def build_sbom(root: Path) -> dict:
     """Build the SBOM for the tree at ``root``."""
     manifest_path = root / WORKSPACE_MANIFEST.relative_to(ROOT)
     lock_path = root / LOCKFILE.relative_to(ROOT)
-    manifest = load_toml(manifest_path)
-    defaults = workspace_defaults(manifest)
-    members = workspace_members(manifest)
-
+    if not manifest_path.exists():
+        raise SbomError(f"missing {WORKSPACE_MANIFEST.relative_to(ROOT)}")
     if not lock_path.exists():
         raise SbomError(f"missing {LOCKFILE.relative_to(ROOT)}")
 
-    lock_text = lock_path.read_text(encoding="utf-8")
-    versions = cargo_lock_packages(lock_text)
-    edges = dependency_edges(lock_text)
+    manifest = load_toml(manifest_path)
+    defaults = manifest.get("workspace", {}).get("package", {})
+    packages = parse_lock(lock_path.read_text(encoding="utf-8"))
+    locked = {(entry["name"], entry["version"]) for entry in packages}
+    registry = load_registry_licenses(root)
 
-    components = [
-        {
-            "type": "application",
-            "bom-ref": "pkg:cargo/curbcut-ai@workspace",
-            "name": "curbcut-ai",
-            "version": defaults.get("version", "unknown"),
-            "purl": f"pkg:cargo/curbcut-ai@{defaults.get('version', 'unknown')}",
-            "licenses": [{"license": {"id": defaults["license"]}}]
-            if defaults.get("license") in SPDX_LICENSES
-            else [{"license": {"name": "UNKNOWN"}}],
-        }
-    ]
-    for name in sorted(versions):
-        crate_dir = root / "crates" / name
-        license_id = (
-            resolve_license(crate_dir, defaults) if crate_dir.is_dir() else None
+    root_component = {
+        "type": "application",
+        "bom-ref": ROOT_REF,
+        "name": "curbcut-ai",
+        "version": defaults.get("version", "unknown"),
+        "purl": ROOT_REF,
+        "licenses": [{"license": {"id": defaults["license"]}}]
+        if defaults.get("license") in SPDX_LICENSES
+        else [{"license": {"name": "UNKNOWN"}}],
+    }
+
+    components = []
+    for entry in sorted(packages, key=lambda item: (item["name"], item["version"])):
+        crate_dir = root / "crates" / entry["name"]
+        if crate_dir.is_dir():
+            license_id = resolve_crate_license(crate_dir, defaults)
+        else:
+            license_id = registry_license(entry["name"], entry["version"], registry)
+        components.append(component(entry["name"], entry["version"], license_id))
+
+    dependencies = []
+    for entry in sorted(packages, key=lambda item: (item["name"], item["version"])):
+        source = ref(entry["name"], entry["version"])
+        targets = sorted(
+            {
+                resolve_dependency(name, version, locked)
+                for name, version in entry["deps"]
+            }
         )
-        components.append(component(name, versions[name], license_id))
-
-    dependencies = [
-        {"ref": "pkg:cargo/curbcut-ai@workspace", "dependsOn": []}
-    ]
-    for name in sorted(versions):
-        ref = f"pkg:cargo/{name}@{versions[name]}"
-        dependencies.append({"ref": ref, "dependsOn": edges.get(name, [])})
+        dependencies.append({"ref": source, "dependsOn": targets})
 
     return {
         "bomFormat": "CycloneDX",
         "specVersion": SPEC_VERSION,
         "version": 1,
         "metadata": {
-            "component": components[0],
-            "tools": [{"name": TOOL_NAME, "version": defaults.get("version", "unknown")}],
+            "component": root_component,
+            "tools": [
+                {"name": TOOL_NAME, "version": defaults.get("version", "unknown")}
+            ],
         },
         "components": components,
         "dependencies": dependencies,
@@ -195,6 +234,14 @@ def build_sbom(root: Path) -> dict:
 def render(sbom: dict) -> str:
     """Serialise with stable key order and a trailing newline."""
     return json.dumps(sbom, indent=2, sort_keys=True) + "\n"
+
+
+def unknown_components(sbom: dict) -> list[str]:
+    return sorted(
+        entry["name"]
+        for entry in sbom["components"]
+        if entry["licenses"][0]["license"].get("name") == "UNKNOWN"
+    )
 
 
 def check_sbom(root: Path, path: Path) -> list[str]:
@@ -207,48 +254,57 @@ def check_sbom(root: Path, path: Path) -> list[str]:
     if not isinstance(recorded, dict):
         return [f"{path.name}: expected a JSON object"]
 
-    if recorded.get("bomFormat") != "CycloneDX":
-        errors.append(f"{path.name}: bomFormat is not CycloneDX")
-    if recorded.get("specVersion") != SPEC_VERSION:
-        errors.append(
-            f"{path.name}: specVersion {recorded.get('specVersion')!r} is not "
-            f"{SPEC_VERSION}"
-        )
+    for field, wanted in (
+        ("bomFormat", "CycloneDX"),
+        ("specVersion", SPEC_VERSION),
+        ("version", 1),
+    ):
+        if recorded.get(field) != wanted:
+            errors.append(
+                f"{path.name}: {field} is {recorded.get(field)!r}, expected {wanted!r}"
+            )
 
     try:
         expected = build_sbom(root)
     except SbomError as error:
         return [f"{path.name}: cannot rebuild the expected SBOM: {error}"]
 
-    expected_components = {entry["name"]: entry for entry in expected["components"]}
-    recorded_components = {
-        entry.get("name"): entry for entry in recorded.get("components", [])
-    }
-    for name in sorted(set(expected_components) - set(recorded_components)):
-        errors.append(f"{path.name}: {name} is missing from the published SBOM")
-    for name in sorted(set(recorded_components) - set(expected_components)):
-        errors.append(f"{path.name}: {name} is not in Cargo.lock")
+    if recorded.get("metadata", {}).get("component") != expected["metadata"]["component"]:
+        errors.append(f"{path.name}: metadata.component differs from the workspace")
 
-    for name in sorted(set(expected_components) & set(recorded_components)):
-        want = expected_components[name]
-        have = recorded_components[name]
-        for field in ("version", "purl", "bom-ref"):
+    expected_components = {entry["bom-ref"]: entry for entry in expected["components"]}
+    recorded_components = {
+        entry.get("bom-ref"): entry for entry in recorded.get("components", [])
+    }
+    for bom_ref in sorted(set(expected_components) - set(recorded_components)):
+        errors.append(f"{path.name}: {bom_ref} is missing from the published SBOM")
+    for bom_ref in sorted(set(recorded_components) - set(expected_components)):
+        errors.append(f"{path.name}: {bom_ref} is not in Cargo.lock")
+
+    for bom_ref in sorted(set(expected_components) & set(recorded_components)):
+        want = expected_components[bom_ref]
+        have = recorded_components[bom_ref]
+        for field in ("type", "name", "version", "purl"):
             if want[field] != have.get(field):
                 errors.append(
-                    f"{path.name}: {name} {field} is {have.get(field)!r}, "
+                    f"{path.name}: {bom_ref} {field} is {have.get(field)!r}, "
                     f"expected {want[field]!r}"
                 )
         if want["licenses"] != have.get("licenses"):
-            errors.append(f"{path.name}: {name} license differs from the manifest")
+            errors.append(f"{path.name}: {bom_ref} license differs from the manifest")
 
     expected_edges = {entry["ref"]: entry["dependsOn"] for entry in expected["dependencies"]}
     recorded_edges = {
         entry.get("ref"): entry.get("dependsOn", [])
         for entry in recorded.get("dependencies", [])
     }
-    for ref in sorted(expected_edges):
-        if recorded_edges.get(ref) != expected_edges[ref]:
-            errors.append(f"{path.name}: dependency edges for {ref} differ")
+    for bom_ref in sorted(set(expected_edges) - set(recorded_edges)):
+        errors.append(f"{path.name}: no dependency entry for {bom_ref}")
+    for bom_ref in sorted(set(recorded_edges) - set(expected_edges)):
+        errors.append(f"{path.name}: unexpected dependency entry for {bom_ref}")
+    for bom_ref in sorted(set(expected_edges) & set(recorded_edges)):
+        if expected_edges[bom_ref] != recorded_edges[bom_ref]:
+            errors.append(f"{path.name}: dependency edges for {bom_ref} differ")
     return errors
 
 
@@ -285,6 +341,28 @@ def build_attestation(root: Path, target: str) -> dict:
     }
 
 
+def _write_workspace(root: Path, *, external: dict[str, str] | None = None) -> None:
+    (root / "crates" / "demo-core").mkdir(parents=True, exist_ok=True)
+    (root / "Cargo.toml").write_text(
+        "[workspace]\nresolver = \"2\"\nmembers = [\"crates/*\"]\n\n"
+        "[workspace.package]\nversion = \"0.1.0\"\nlicense = \"AGPL-3.0-only\"\n",
+        encoding="utf-8",
+    )
+    (root / "crates" / "demo-core" / "Cargo.toml").write_text(
+        "[package]\nname = \"demo-core\"\nversion.workspace = true\n"
+        "license.workspace = true\n\n[dependencies]\n",
+        encoding="utf-8",
+    )
+    (root / "Cargo.lock").write_text(
+        'version = 4\n\n[[package]]\nname = "demo-core"\nversion = "0.1.0"\n',
+        encoding="utf-8",
+    )
+    for name, version in (external or {}).items():
+        entry = f'[[package]]\nname = "{name}"\nversion = "{version}"\n'
+        current = (root / "Cargo.lock").read_text(encoding="utf-8")
+        (root / "Cargo.lock").write_text(current + "\n" + entry, encoding="utf-8")
+
+
 def _self_test() -> int:
     checks = 0
 
@@ -297,73 +375,35 @@ def _self_test() -> int:
 
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        (root / "crates" / "demo-core").mkdir(parents=True)
-        (root / "Cargo.toml").write_text(
-            "[workspace]\nresolver = \"2\"\nmembers = [\"crates/*\"]\n\n"
-            "[workspace.package]\nversion = \"0.1.0\"\nlicense = \"AGPL-3.0-only\"\n",
-            encoding="utf-8",
-        )
-        (root / "crates" / "demo-core" / "Cargo.toml").write_text(
-            "[package]\nname = \"demo-core\"\nversion.workspace = true\n"
-            "license.workspace = true\n\n[dependencies]\n",
-            encoding="utf-8",
-        )
-        (root / "Cargo.lock").write_text(
-            'version = 4\n\n[[package]]\nname = "demo-core"\nversion = "0.1.0"\n\n'
-            '[[package]]\nname = "serde"\nversion = "1.0.200"\n',
-            encoding="utf-8",
+        _write_workspace(root, external={"serde": "1.0.200"})
+        expect(
+            unknown_components(build_sbom(root)) == ["serde"],
+            "a package with no recorded license stays UNKNOWN",
         )
 
         first = render(build_sbom(root))
         second = render(build_sbom(root))
         expect(first == second, "SBOM generation is byte-stable")
+
         document = json.loads(first)
-        components = {entry["name"]: entry for entry in document["components"]}
-        expect("demo-core" in components, "local crate appears in the SBOM")
-        expect("serde" in components, "external crate appears in the SBOM")
         expect(
-            components["serde"]["licenses"][0]["license"]["name"] == "UNKNOWN",
-            "a license the manifests do not declare stays UNKNOWN",
+            [entry["bom-ref"] for entry in document["components"]].count(ROOT_REF) == 0,
+            "the workspace root appears once, in metadata",
         )
         expect(
-            components["demo-core"]["licenses"][0]["license"]["id"]
-            == "AGPL-3.0-only",
-            "a declared license maps to its SPDX id",
+            document["metadata"]["component"]["bom-ref"] == ROOT_REF,
+            "the root bom-ref is unique",
         )
-        expect(
-            document["components"][0]["bom-ref"] == "pkg:cargo/curbcut-ai@workspace",
-            "the root component leads the list",
-        )
+        refs = {entry["bom-ref"] for entry in document["components"]}
+        for entry in document["dependencies"]:
+            for target in entry["dependsOn"]:
+                expect(target in refs, f"edge {target} resolves to a component")
 
-        unknown = [
-            entry["name"]
-            for entry in document["components"]
-            if entry["licenses"][0]["license"].get("name") == "UNKNOWN"
-        ]
-        expect(unknown == ["serde"], "only the undeclared dependency is UNKNOWN")
-
-        # A dependency whose license is declared must resolve.
-        (root / "crates" / "serde").mkdir()
-        (root / "crates" / "serde" / "Cargo.toml").write_text(
-            "[package]\nname = \"serde\"\nversion = \"1.0.200\"\nlicense = \"MIT\"\n",
-            encoding="utf-8",
-        )
-        resolved = json.loads(render(build_sbom(root)))
-        serde = {e["name"]: e for e in resolved["components"]}["serde"]
+        (root / "supply-chain").mkdir()
+        (root / REGISTRY_LICENSES).write_text('{"serde": "MIT"}\n', encoding="utf-8")
         expect(
-            serde["licenses"][0]["license"]["id"] == "MIT",
-            "a declared external license resolves",
-        )
-
-        # Removing a package from the lock must change the SBOM.
-        (root / "Cargo.lock").write_text(
-            'version = 4\n\n[[package]]\nname = "demo-core"\nversion = "0.1.0"\n',
-            encoding="utf-8",
-        )
-        smaller = json.loads(render(build_sbom(root)))
-        expect(
-            [e["name"] for e in smaller["components"]].count("serde") == 0,
-            "a removed dependency disappears from the SBOM",
+            unknown_components(build_sbom(root)) == [],
+            "a recorded registry license resolves",
         )
 
         published = root / "sbom.json"
@@ -371,19 +411,15 @@ def _self_test() -> int:
         expect(check_sbom(root, published) == [], "a generated SBOM round-trips")
 
         tampered = json.loads(published.read_text(encoding="utf-8"))
-        for entry in tampered["components"]:
-            if entry["name"] == "demo-core":
-                entry["version"] = "9.9.9"
+        tampered["components"][0]["version"] = "9.9.9"
         published.write_text(json.dumps(tampered), encoding="utf-8")
         expect(
-            any("demo-core version" in error for error in check_sbom(root, published)),
+            any("version is" in error for error in check_sbom(root, published)),
             "a rewritten version is reported",
         )
 
         tampered = json.loads(published.read_text(encoding="utf-8"))
-        tampered["components"] = [
-            entry for entry in tampered["components"] if entry["name"] != "demo-core"
-        ]
+        tampered["components"] = tampered["components"][1:]
         published.write_text(json.dumps(tampered), encoding="utf-8")
         expect(
             any(
@@ -392,6 +428,60 @@ def _self_test() -> int:
             ),
             "a deleted component is reported",
         )
+
+        tampered = json.loads(published.read_text(encoding="utf-8"))
+        tampered["metadata"]["component"]["licenses"] = [
+            {"license": {"id": "MIT"}}
+        ]
+        published.write_text(json.dumps(tampered), encoding="utf-8")
+        expect(
+            any("metadata.component" in error for error in check_sbom(root, published)),
+            "a swapped root license is reported",
+        )
+
+        tampered = json.loads(published.read_text(encoding="utf-8"))
+        tampered["dependencies"] = tampered["dependencies"][1:]
+        published.write_text(json.dumps(tampered), encoding="utf-8")
+        expect(
+            any(
+                "no dependency entry" in error for error in check_sbom(root, published)
+            ),
+            "a dropped dependency entry is reported",
+        )
+
+        tampered = json.loads(published.read_text(encoding="utf-8"))
+        tampered["dependencies"][0]["dependsOn"] = ["pkg:cargo/not-a-real-crate@0.1.0"]
+        published.write_text(json.dumps(tampered), encoding="utf-8")
+        expect(
+            any("edges for" in error for error in check_sbom(root, published)),
+            "a dangling dependency edge is reported",
+        )
+
+        # Two versions of one crate must both survive, keyed by bom-ref.
+        _write_workspace(root, external={})
+        lock = (root / "Cargo.lock").read_text(encoding="utf-8")
+        lock += '\n[[package]]\nname = "demo-core"\nversion = "0.2.0"\n'
+        (root / "Cargo.lock").write_text(lock, encoding="utf-8")
+        duplicated = build_sbom(root)
+        names = [entry["name"] for entry in duplicated["components"]]
+        expect(names.count("demo-core") == 2, "both locked versions are listed")
+        refs = [entry["bom-ref"] for entry in duplicated["components"]]
+        expect(len(refs) == len(set(refs)), "bom-refs stay unique across versions")
+
+        ambiguous = parse_lock(
+            'version = 4\n\n[[package]]\nname = "demo-core"\nversion = "0.1.0"\n\n'
+            '[[package]]\nname = "demo-core"\nversion = "0.2.0"\n\n'
+            '[[package]]\nname = "app"\nversion = "0.1.0"\ndependencies = '
+            '["demo-core"]\n'
+        )
+        locked = {(entry["name"], entry["version"]) for entry in ambiguous}
+        try:
+            resolve_dependency("demo-core", None, locked)
+        except SbomError:
+            checks += 1
+        else:
+            print("SELF-TEST FAILED: an ambiguous dependency was accepted", file=sys.stderr)
+            raise SystemExit(1)
 
     print(f"self-test: {checks} SBOM checks passed")
     return 0
@@ -418,18 +508,17 @@ def main() -> int:
 
     if args.command == "check":
         errors = check_sbom(ROOT, args.sbom)
-        unknown = sorted(
-            entry["name"]
-            for entry in json.loads(args.sbom.read_text(encoding="utf-8")).get(
-                "components", []
-            )
-            if entry.get("licenses", [{}])[0].get("license", {}).get("name") == "UNKNOWN"
-        ) if args.strict else []
-        if args.strict and unknown:
-            errors.append(
-                f"{args.sbom}: {len(unknown)} component(s) have no resolvable "
-                "license: " + ", ".join(unknown)
-            )
+        if args.strict:
+            try:
+                document = json.loads(args.sbom.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as error:
+                return print(f"FAIL: {args.sbom}: invalid JSON: {error}", file=sys.stderr) or 1
+            unknown = unknown_components(document)
+            if unknown:
+                errors.append(
+                    f"{args.sbom}: {len(unknown)} component(s) have no resolvable "
+                    "license: " + ", ".join(unknown)
+                )
         for message in errors:
             print(f"FAIL: {message}", file=sys.stderr)
         if errors:
@@ -448,18 +537,15 @@ def main() -> int:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
 
-    unknown = sorted(
-        entry["name"]
-        for entry in sbom["components"]
-        if entry["licenses"][0]["license"].get("name") == "UNKNOWN"
-    )
-    if args.strict and unknown:
-        print(
-            f"FAIL: {len(unknown)} component(s) have no resolvable license: "
-            + ", ".join(unknown),
-            file=sys.stderr,
-        )
-        return 1
+    if args.strict:
+        unknown = unknown_components(sbom)
+        if unknown:
+            print(
+                f"FAIL: {len(unknown)} component(s) have no resolvable license: "
+                + ", ".join(unknown),
+                file=sys.stderr,
+            )
+            return 1
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(render(sbom), encoding="utf-8")
