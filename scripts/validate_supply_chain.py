@@ -11,7 +11,8 @@ release builds. This script checks what can be checked from files alone:
 * ``Cargo.lock`` matches the crate set exactly, keyed by name and version;
 * a locked package outside the workspace has a recorded license in
   ``supply-chain/registry-licenses.json`` with a known SPDX id;
-* the root license carries the AGPL title and the version 3 title line;
+* the root license carries the AGPL title, its version 3 title line, and a
+  distinctive sentence from the grant;
 * ``docs/SUPPLY_CHAIN.md`` keeps its four sections and its honest statements,
   including the one that says two independent builds have *not* been shown to
   match;
@@ -66,6 +67,8 @@ SUPPLY_CHAIN_PHRASES = (
     "registry-licenses.json",
     "never invents a license",
 )
+
+LICENSE_BODY_ANCHOR = "Everyone is permitted to copy and distribute verbatim copies"
 
 SPDX_LICENSES = {
     "0BSD",
@@ -221,6 +224,10 @@ def validate(root: Path) -> list[str]:
         errors.append("LICENSE is not the AGPL")
     if len(lines) < 2 or lines[1] != "Version 3, 19 November 2007":
         errors.append("LICENSE does not state the AGPL version 3 title line")
+    # The header alone is easy to keep while the body is replaced, so a
+    # distinctive sentence from the grant is required too.
+    if LICENSE_BODY_ANCHOR not in license_text:
+        errors.append("LICENSE lost its verbatim-distribution permission line")
 
     doc = (root / "docs" / "SUPPLY_CHAIN.md").read_text(encoding="utf-8")
     for heading in SUPPLY_CHAIN_SECTIONS:
@@ -326,7 +333,7 @@ CASES: tuple[Case, ...] = (
         "edit": [
             ("Cargo.toml", 'license = "AGPL-3.0-only"', 'license = "Proprietary"')
         ],
-        "expect": "is not a known SPDX id",
+        "expect": "workspace license 'Proprietary' is not a known SPDX id",
     },
     {
         "label": "workspace membership",
@@ -400,6 +407,11 @@ CASES: tuple[Case, ...] = (
         "expect": "expected a JSON object",
     },
     {
+        "label": "registry file is not valid JSON",
+        "edit": [(REGISTRY_LICENSES, "{}", "{not json")],
+        "expect": "invalid JSON",
+    },
+    {
         "label": "license text",
         "edit": [
             ("LICENSE", "GNU AFFERO GENERAL PUBLIC LICENSE", "GNU GENERAL PUBLIC LICENSE")
@@ -412,6 +424,17 @@ CASES: tuple[Case, ...] = (
             ("LICENSE", "Version 3, 19 November 2007", "Version 2, 19 November 2007")
         ],
         "expect": "does not state the AGPL version 3 title line",
+    },
+    {
+        "label": "license body",
+        "edit": [
+            (
+                "LICENSE",
+                "Everyone is permitted to copy and distribute verbatim copies",
+                "You may not copy this file",
+            )
+        ],
+        "expect": "verbatim-distribution permission line",
     },
     {
         "label": "release section",
@@ -579,18 +602,23 @@ def main() -> int:
             errors.append(f"{args.sbom}: generated SBOM is missing")
         else:
             errors.extend(sbom.check_sbom(ROOT, args.sbom))
-            document = json.loads(args.sbom.read_text(encoding="utf-8"))
-            unknown = sorted(
-                entry["name"]
-                for entry in document.get("components", [])
-                if entry.get("licenses", [{}])[0].get("license", {}).get("name")
-                == "UNKNOWN"
-            )
-            if unknown:
-                errors.append(
-                    f"{args.sbom}: components without a resolvable license: "
-                    + ", ".join(unknown)
+            try:
+                document = json.loads(args.sbom.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"{args.sbom}: invalid JSON: {error}")
+            else:
+                unknown = (
+                    sbom.unknown_components(document)
+                    if isinstance(document, dict)
+                    else []
                 )
+                if not isinstance(document, dict):
+                    errors.append(f"{args.sbom}: expected a JSON object")
+                elif unknown:
+                    errors.append(
+                        f"{args.sbom}: components without a resolvable license: "
+                        + ", ".join(unknown)
+                    )
 
     for message in errors:
         print(f"FAIL: {message}", file=sys.stderr)

@@ -96,7 +96,6 @@ docs/
   DPIA.md                  Privacy impact assessment summary (internal, not legal advice)
   PRIVACY_FINDINGS.md      Findings register with owners, due dates, and tracking
   SUPPLY_CHAIN.md          SBOM, attestation format, and the unmet reproducibility claim
-  supply-chain/registry-licenses.json  Licenses for dependencies outside the workspace
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader
@@ -151,6 +150,8 @@ docs/
   TELEMETRY.md             Counts-only telemetry schema, allowlist, opt-in export
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
+supply-chain/
+  registry-licenses.json   Recorded licenses for dependencies outside the workspace
 backlog/
   data_issues.py           Source data: 15 epics, 124 issues
   data_prs.py              Source data: 124 PRs (derived from issues)

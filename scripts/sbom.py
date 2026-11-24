@@ -237,11 +237,24 @@ def render(sbom: dict) -> str:
 
 
 def unknown_components(sbom: dict) -> list[str]:
-    return sorted(
-        entry["name"]
-        for entry in sbom["components"]
-        if entry["licenses"][0]["license"].get("name") == "UNKNOWN"
-    )
+    """Names of components whose license cannot be resolved.
+
+    A missing or empty ``licenses`` array is treated as unresolved rather than
+    skipped, so ``--strict`` fails instead of passing a component in silence.
+    """
+    unknown = []
+    for entry in sbom.get("components", []):
+        if not isinstance(entry, dict):
+            continue
+        licenses = entry.get("licenses")
+        if not isinstance(licenses, list) or not licenses:
+            unknown.append(str(entry.get("name")))
+            continue
+        first = licenses[0]
+        if isinstance(first, dict) and isinstance(first.get("license"), dict):
+            if first["license"].get("name") == "UNKNOWN":
+                unknown.append(str(entry.get("name")))
+    return sorted(unknown)
 
 
 def check_sbom(root: Path, path: Path) -> list[str]:
@@ -269,13 +282,24 @@ def check_sbom(root: Path, path: Path) -> list[str]:
     except SbomError as error:
         return [f"{path.name}: cannot rebuild the expected SBOM: {error}"]
 
-    if recorded.get("metadata", {}).get("component") != expected["metadata"]["component"]:
+    metadata = recorded.get("metadata")
+    if not isinstance(metadata, dict):
+        errors.append(f"{path.name}: metadata is not an object")
+    elif metadata.get("component") != expected["metadata"]["component"]:
         errors.append(f"{path.name}: metadata.component differs from the workspace")
 
+    def by_ref(entries: object, label: str) -> dict:
+        if not isinstance(entries, list):
+            errors.append(f"{path.name}: {label} is not a list")
+            return {}
+        found: dict = {}
+        for entry in entries:
+            if isinstance(entry, dict) and isinstance(entry.get("bom-ref"), str):
+                found[entry["bom-ref"]] = entry
+        return found
+
     expected_components = {entry["bom-ref"]: entry for entry in expected["components"]}
-    recorded_components = {
-        entry.get("bom-ref"): entry for entry in recorded.get("components", [])
-    }
+    recorded_components = by_ref(recorded.get("components"), "components")
     for bom_ref in sorted(set(expected_components) - set(recorded_components)):
         errors.append(f"{path.name}: {bom_ref} is missing from the published SBOM")
     for bom_ref in sorted(set(recorded_components) - set(expected_components)):
@@ -293,11 +317,18 @@ def check_sbom(root: Path, path: Path) -> list[str]:
         if want["licenses"] != have.get("licenses"):
             errors.append(f"{path.name}: {bom_ref} license differs from the manifest")
 
+    def edges(entries: object) -> dict:
+        if not isinstance(entries, list):
+            errors.append(f"{path.name}: dependencies is not a list")
+            return {}
+        found: dict = {}
+        for entry in entries:
+            if isinstance(entry, dict) and isinstance(entry.get("ref"), str):
+                found[entry["ref"]] = entry.get("dependsOn", [])
+        return found
+
     expected_edges = {entry["ref"]: entry["dependsOn"] for entry in expected["dependencies"]}
-    recorded_edges = {
-        entry.get("ref"): entry.get("dependsOn", [])
-        for entry in recorded.get("dependencies", [])
-    }
+    recorded_edges = edges(recorded.get("dependencies"))
     for bom_ref in sorted(set(expected_edges) - set(recorded_edges)):
         errors.append(f"{path.name}: no dependency entry for {bom_ref}")
     for bom_ref in sorted(set(recorded_edges) - set(expected_edges)):
@@ -457,6 +488,52 @@ def _self_test() -> int:
             "a dangling dependency edge is reported",
         )
 
+        # A malformed published document must be reported, never crash.
+        published.write_text("{not json", encoding="utf-8")
+        expect(
+            any("invalid JSON" in error for error in check_sbom(root, published)),
+            "invalid JSON is reported",
+        )
+        published.write_text("[]", encoding="utf-8")
+        expect(
+            any("expected a JSON object" in error for error in check_sbom(root, published)),
+            "a non-object document is reported",
+        )
+
+        published.write_text(render(build_sbom(root)), encoding="utf-8")
+        tampered = json.loads(published.read_text(encoding="utf-8"))
+        tampered["components"] = "nope"
+        published.write_text(json.dumps(tampered), encoding="utf-8")
+        expect(
+            any("components is not a list" in error for error in check_sbom(root, published)),
+            "a non-list components field is reported",
+        )
+
+        published.write_text(render(build_sbom(root)), encoding="utf-8")
+        tampered = json.loads(published.read_text(encoding="utf-8"))
+        tampered["dependencies"] = "nope"
+        published.write_text(json.dumps(tampered), encoding="utf-8")
+        expect(
+            any("dependencies is not a list" in error for error in check_sbom(root, published)),
+            "a non-list dependencies field is reported",
+        )
+
+        published.write_text(render(build_sbom(root)), encoding="utf-8")
+        tampered = json.loads(published.read_text(encoding="utf-8"))
+        tampered["metadata"] = None
+        published.write_text(json.dumps(tampered), encoding="utf-8")
+        expect(
+            any("metadata is not an object" in error for error in check_sbom(root, published)),
+            "a null metadata field is reported",
+        )
+
+        stripped = build_sbom(root)
+        stripped["components"][0]["licenses"] = []
+        expect(
+            stripped["components"][0]["name"] in unknown_components(stripped),
+            "a component with no licenses counts as unresolved",
+        )
+
         # Two versions of one crate must both survive, keyed by bom-ref.
         _write_workspace(root, external={})
         lock = (root / "Cargo.lock").read_text(encoding="utf-8")
@@ -511,14 +588,18 @@ def main() -> int:
         if args.strict:
             try:
                 document = json.loads(args.sbom.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as error:
-                return print(f"FAIL: {args.sbom}: invalid JSON: {error}", file=sys.stderr) or 1
-            unknown = unknown_components(document)
-            if unknown:
-                errors.append(
-                    f"{args.sbom}: {len(unknown)} component(s) have no resolvable "
-                    "license: " + ", ".join(unknown)
-                )
+            except (OSError, json.JSONDecodeError) as error:
+                errors.append(f"{args.sbom}: invalid JSON: {error}")
+            else:
+                if not isinstance(document, dict):
+                    errors.append(f"{args.sbom}: expected a JSON object")
+                else:
+                    unknown = unknown_components(document)
+                    if unknown:
+                        errors.append(
+                            f"{args.sbom}: {len(unknown)} component(s) have no "
+                            "resolvable license: " + ", ".join(unknown)
+                        )
         for message in errors:
             print(f"FAIL: {message}", file=sys.stderr)
         if errors:
