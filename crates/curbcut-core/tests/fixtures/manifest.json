@@ -1,0 +1,24 @@
+{
+  "name": "curbcut-fixtures",
+  "version": "1.0.0",
+  "license": "CC0-1.0-only",
+  "consent": "not-required",
+  "consent_note": "Every file is synthetic and authored for this repository. No screen capture, screenshot, accessibility string, or personal data is included, so no participant consent is required.",
+  "root": "crates/curbcut-core/tests/fixtures",
+  "files": [
+    {
+      "path": "content_canaries.txt",
+      "bytes": 757,
+      "sha256": "834008eab783c255370f634c0810e9f87e2784db59cb492cd17f4e2ff6e421ea",
+      "role": "Canary corpus: distinctive strings that must never appear in a log, dump, crash report, or any other diagnostic."
+    }
+  ],
+  "benchmark": {
+    "command": "cargo run -q -p curbcut-cli -- bench",
+    "iterations": 100000,
+    "expected_bytes": 4100000,
+    "note": "The byte count is deterministic for a fixed iteration count; elapsed time is the only varying field."
+  },
+  "protocol": "docs/STUDY_PROTOCOL.md",
+  "harness": "scripts/reproduce_benchmark.py"
+}

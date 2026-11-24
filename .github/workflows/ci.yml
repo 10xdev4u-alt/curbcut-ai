@@ -320,3 +320,20 @@ jobs:
         run: cargo test -p curbcut-core --lib hash
       - name: Model pin and signature guard
         run: cargo test -p curbcut-vision --test model_guard -- --nocapture
+
+  dataset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test the dataset validator
+        run: python3 scripts/validate_dataset.py --self-test
+      - name: Validate the published dataset
+        run: python3 scripts/validate_dataset.py
+      - name: Self-test the benchmark harness
+        run: python3 scripts/reproduce_benchmark.py --self-test
+      - name: Reproduce the benchmark
+        run: python3 scripts/reproduce_benchmark.py
