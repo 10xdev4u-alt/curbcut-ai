@@ -2,8 +2,8 @@
 """Fail if the published fixture dataset or its documentation regresses.
 
 CC-116 publishes the fixture corpus, its license and consent status, and the
-deterministic benchmark that consumes it. This script checks the publication
-from files alone:
+deterministic benchmark published alongside it (which reads no corpus file).
+This script checks the publication from files alone:
 
 * ``manifest.json`` parses and every listed file exists with the recorded size
   and SHA-256;
@@ -119,7 +119,11 @@ def validate(root: Path) -> list[str]:
         return errors
 
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        raw_manifest = manifest_path.read_text(encoding="utf-8")
+    except OSError as error:
+        return [f"{MANIFEST.relative_to(ROOT)}: cannot read the manifest: {error}"]
+    try:
+        manifest = json.loads(raw_manifest)
     except json.JSONDecodeError as error:
         return [f"{MANIFEST.relative_to(ROOT)}: invalid JSON: {error}"]
     if not isinstance(manifest, dict):
@@ -169,7 +173,8 @@ def validate(root: Path) -> list[str]:
         digest = sha256_of(path)
         if entry.get("sha256") != digest:
             errors.append(f"{relative} sha256 differs from the manifest")
-        if not str(entry.get("role", "")).strip():
+        role = entry.get("role")
+        if not isinstance(role, str) or not role.strip():
             errors.append(f"{relative} has no recorded role")
 
     present = {
@@ -202,9 +207,14 @@ def validate(root: Path) -> list[str]:
     if not isinstance(benchmark, dict):
         errors.append("manifest has no benchmark block")
     else:
-        if not isinstance(benchmark.get("iterations"), int) or benchmark["iterations"] <= 0:
+        # ``type`` rather than ``isinstance``: a JSON boolean is an int subclass
+        # in Python and would otherwise pass as iterations=1.
+        if type(benchmark.get("iterations")) is not int or benchmark["iterations"] <= 0:
             errors.append("manifest benchmark iterations is not a positive integer")
-        if not isinstance(benchmark.get("expected_bytes"), int) or benchmark["expected_bytes"] <= 0:
+        if (
+            type(benchmark.get("expected_bytes")) is not int
+            or benchmark["expected_bytes"] <= 0
+        ):
             errors.append("manifest benchmark expected_bytes is not a positive integer")
         if benchmark.get("command") != "cargo run -q -p curbcut-cli -- bench":
             errors.append("manifest benchmark command changed")
@@ -483,6 +493,23 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "benchmark iterations invalid",
         "json": [(str(MANIFEST.relative_to(ROOT)), "benchmark.iterations", -1)],
         "expect": "iterations is not a positive integer",
+    },
+    {
+        "label": "benchmark iterations is a boolean",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "benchmark.iterations", True)],
+        "expect": "iterations is not a positive integer",
+    },
+    {
+        "label": "expected byte count is a boolean",
+        "json": [
+            (str(MANIFEST.relative_to(ROOT)), "benchmark.expected_bytes", True)
+        ],
+        "expect": "expected_bytes is not a positive integer",
+    },
+    {
+        "label": "file role is not a string",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "files.0.role", 123)],
+        "expect": "has no recorded role",
     },
     {
         "label": "benchmark command changed",

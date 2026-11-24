@@ -1,7 +1,8 @@
 # CurbCut fixture dataset
 
 `curbcut-fixtures` v1.0.0 — the published fixture corpus of the CurbCut AI
-repository, and the input to its deterministic benchmark.
+repository. A deterministic redaction benchmark is published alongside it; that
+benchmark runs on its own synthetic sample and does not read this corpus.
 
 Machine-readable inventory: [`manifest.json`](manifest.json).
 Researcher-facing page: [`docs/DATASET.md`](../../../../docs/DATASET.md).
