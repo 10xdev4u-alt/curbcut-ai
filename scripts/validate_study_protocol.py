@@ -7,10 +7,12 @@ prose, so this script checks the guarantees that matter:
 
 * ``docs/STUDY_PROTOCOL.md`` keeps its required sections, labels every
   instrument as validated or exploratory, states that recruitment is blocked
-  until ethics approval, and states the design's limits.
-* ``docs/CONSENT_TEXT.md`` offers all five consent layers, each refusable and
-  independently revocable, states what happens on withdrawal, promises payment
-  for completed waves, and lists the content that is never collected.
+  until ethics approval, keeps its explicit no-outcome-claim statement, and
+  states the design's limits.
+* ``docs/CONSENT_TEXT.md`` offers all five consent layers, each with two
+  explicit options, states what happens on withdrawal, promises payment for
+  completed waves, names every layer in the agreement record, and lists the
+  content that is never collected.
 
 Usage::
 
@@ -18,7 +20,10 @@ Usage::
     python3 scripts/validate_study_protocol.py --self-test  # prove it fails
 
 ``--self-test`` copies the two documents into a temporary tree, applies one
-named deletion per guarantee, and requires each to be detected.
+named deletion per guarantee, and requires both that validation fails *and*
+that the failure names the intended check. Every case starts from pristine
+bytes: restoring only the mutated document would let an earlier case's error
+survive and make later cases pass for the wrong reason.
 """
 
 from __future__ import annotations
@@ -61,7 +66,24 @@ CONSENT_LAYERS = (
     "Keeping data after withdrawal",
 )
 
-NEVER_COLLECTED = ("screen content", "OCR text", "keystrokes")
+# Each layer must keep its affirmative and negative option. Layer five words
+# them as delete/keep rather than yes/no.
+LAYER_OPTIONS = {
+    "Study participation": ("**yes", "**no"),
+    "Clinician or carer informant": ("**yes", "**no"),
+    "Usage counters": ("**yes", "**no"),
+    "Future contact": ("**yes", "**no"),
+    "Keeping data after withdrawal": ("**delete", "**keep"),
+}
+
+# (phrase that must survive, label used in the error)
+NEVER_COLLECTED = (
+    ("no screen content", "screen content"),
+    ("no ocr text", "OCR text"),
+    ("no keystrokes", "keystrokes"),
+)
+
+OUTCOME_PHRASES = ("proven to", "will improve", "guarantees", "is effective")
 
 
 def section(text: str, heading: str) -> str:
@@ -78,8 +100,15 @@ def section(text: str, heading: str) -> str:
     return rest[: following.start()] if following else rest
 
 
-def table_rows(text: str) -> list[str]:
-    return [line.strip() for line in text.splitlines() if line.strip().startswith("|")]
+def subsection(text: str, heading: str) -> str:
+    """Return the body of a ``###`` block whose title starts with ``heading``."""
+    pattern = rf"^###\s+(?:\d+\.\s*)?{re.escape(heading)}[^\n]*$"
+    match = re.search(pattern, text, re.MULTILINE)
+    if match is None:
+        return ""
+    rest = text[match.end() :]
+    following = re.search(r"^###\s+", rest, re.MULTILINE)
+    return rest[: following.start()] if following else rest
 
 
 def flatten(text: str) -> str:
@@ -109,22 +138,21 @@ def validate_protocol(text: str) -> list[str]:
         if named.lower() not in instrument.lower():
             errors.append(f"protocol does not name the {named} instrument")
 
-    consent = section(text, "Consent flow")
-    consent_lower = flatten(consent)
-    if "refusable and independently revocable" not in consent_lower:
+    consent = flatten(section(text, "Consent flow"))
+    if "refusable and independently revocable" not in consent:
         errors.append(
             "protocol does not state that each layer is refusable and revocable"
         )
-    if "never treated as a withdrawal" not in consent_lower:
+    if "never treated as a withdrawal" not in consent:
         errors.append("protocol does not protect a refusal from ending the study")
-    if "withdrawal takes effect immediately" not in consent_lower:
+    if "withdrawal takes effect immediately" not in consent:
         errors.append("protocol does not state that withdrawal is immediate")
     for layer in CONSENT_LAYERS:
-        if layer.split(":")[0].lower() not in consent_lower:
+        if layer.lower() not in consent:
             errors.append(f"protocol consent section is missing the {layer} layer")
-    for item in NEVER_COLLECTED:
-        if item.lower() not in consent_lower:
-            errors.append(f"protocol does not forbid collecting {item!r}")
+    for phrase, label in NEVER_COLLECTED:
+        if phrase not in consent:
+            errors.append(f"protocol does not forbid collecting {label!r}")
 
     privacy = flatten(section(text, "Privacy and data handling"))
     if "salted sha-256" not in privacy:
@@ -144,8 +172,12 @@ def validate_protocol(text: str) -> list[str]:
     if "no control group" not in limits:
         errors.append("protocol does not state the lack of a control group")
 
-    # The honest-claims rule: a protocol may not assert an outcome.
-    for phrase in ("curbcut works.", "proven to", "will improve", "guarantees"):
+    # An outcome claim is banned outright. The disclaimer is checked separately
+    # because an honest sentence may legitimately contain a phrase such as
+    # "CurbCut works" while denying it.
+    if "nothing here says curbcut works" not in lowered:
+        errors.append("protocol lost its explicit no-outcome-claim statement")
+    for phrase in OUTCOME_PHRASES:
         if phrase in lowered:
             errors.append(f"protocol makes an outcome claim: {phrase!r}")
     return errors
@@ -163,11 +195,12 @@ def validate_consent(text: str) -> list[str]:
             errors.append(f"consent text is missing the {heading} section")
 
     choices = flatten(section(text, "Layered choices"))
-    if "**yes" not in choices or "**no" not in choices:
-        errors.append("consent choices do not offer explicit yes and no options")
-    for layer in CONSENT_LAYERS:
+    for layer, options in LAYER_OPTIONS.items():
+        block = flatten(subsection(text, layer))
         if layer.lower() not in choices:
             errors.append(f"consent text is missing the {layer} choice")
+        if not all(option in block for option in options):
+            errors.append(f"consent layer {layer} does not offer both explicit options")
 
     intro = flatten(section(text, "Introduction"))
     if "your choice" not in intro or "stop at any time" not in intro:
@@ -185,10 +218,16 @@ def validate_consent(text: str) -> list[str]:
     if "payment" not in stop:
         errors.append("withdrawal section does not address payment")
 
-    if not re.search(r"version:\s*\*\*\d+\.\d+", lowered):
+    record = flatten(section(text, "Agreement record"))
+    for layer in CONSENT_LAYERS:
+        if layer.lower() not in record:
+            errors.append(f"agreement record does not name the {layer} choice")
+
+    marker = re.search(r"version:\s*\*\*(?P<version>\d+\.\d+)\*\*", lowered)
+    if marker is None:
         errors.append("consent text has no version marker")
-    if "1.0" not in text:
-        errors.append("consent text version is not stated")
+    elif marker.group("version") not in section(text, "Agreement record"):
+        errors.append("agreement record does not state the stored version")
     return errors
 
 
@@ -222,52 +261,258 @@ def _break(document: Path, old: str, new: str) -> None:
     document.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
-    ("protocol section", "docs/STUDY_PROTOCOL.md", "## 7. Analysis plan", "## 7. Numbers"),
+# (label, document, find, replace, substring of the error this must produce)
+Mutation = tuple[str, str, str, str, str]
+
+MUTATIONS: tuple[Mutation, ...] = (
+    (
+        "protocol section",
+        "docs/STUDY_PROTOCOL.md",
+        "## 7. Analysis plan",
+        "## 7. Numbers",
+        "protocol is missing the Analysis plan section",
+    ),
+    (
+        "instrument section",
+        "docs/STUDY_PROTOCOL.md",
+        "## 3. Instrument",
+        "## 3. Tools",
+        "protocol is missing the Instrument section",
+    ),
+    (
+        "ethics section",
+        "docs/STUDY_PROTOCOL.md",
+        "## 9. Ethics review",
+        "## 9. Review",
+        "protocol is missing the Ethics review section",
+    ),
     (
         "exploratory label",
         "docs/STUDY_PROTOCOL.md",
         "explicitly **exploratory**",
         "described as exploratory",
+        "does not mark the custom instrument as explicitly exploratory",
     ),
-    ("validated instrument", "docs/STUDY_PROTOCOL.md", "| System Usability Scale (SUS), 10 items |", "| Usability scale, 10 items |"),
+    (
+        "validated SUS",
+        "docs/STUDY_PROTOCOL.md",
+        "| System Usability Scale (SUS), 10 items |",
+        "| Usability scale, 10 items |",
+        "does not name the System Usability Scale instrument",
+    ),
+    (
+        "validated NASA",
+        "docs/STUDY_PROTOCOL.md",
+        "| NASA Task Load Index (NASA-TLX), 6 items |",
+        "| Task load index, 6 items |",
+        "does not name the NASA instrument",
+    ),
     (
         "revocability",
         "docs/STUDY_PROTOCOL.md",
         "refusable and independently revocable",
         "optional",
+        "does not state that each layer is refusable and revocable",
     ),
     (
         "refusal protection",
         "docs/STUDY_PROTOCOL.md",
         "A refusal is a valid outcome and is never treated as a withdrawal",
         "A refusal ends the study and counts as a withdrawal",
+        "does not protect a refusal from ending the study",
     ),
-    ("withdrawal immediacy", "docs/STUDY_PROTOCOL.md", "Withdrawal takes effect immediately.", "Withdrawal is processed in due course."),
-    ("salt handling", "docs/STUDY_PROTOCOL.md", "is never committed, and is", "is stored with the responses, and is"),
-    ("ethics status", "docs/STUDY_PROTOCOL.md", "Status: **not yet submitted.**", "Status: **approved.**"),
-    ("recruitment gate", "docs/STUDY_PROTOCOL.md", "blocked until an", "free to begin before any"),
-    ("control-group limit", "docs/STUDY_PROTOCOL.md", "- No control group, so no causal claim about CurbCut's effect.", "-"),
-    ("outcome claim", "docs/STUDY_PROTOCOL.md", "Primary question:", "CurbCut works. Primary question:"),
-    ("consent section", "docs/CONSENT_TEXT.md", "## What happens if you stop", "## After stopping"),
+    (
+        "withdrawal immediacy",
+        "docs/STUDY_PROTOCOL.md",
+        "Withdrawal takes effect immediately.",
+        "Withdrawal is processed in due course.",
+        "does not state that withdrawal is immediate",
+    ),
+    (
+        "consent layer row",
+        "docs/STUDY_PROTOCOL.md",
+        "| Usage counters | Collect counts-only product telemetry | Yes | Yes, independently |\n",
+        "",
+        "consent section is missing the Usage counters layer",
+    ),
+    (
+        "screen-content forbiddance",
+        "docs/STUDY_PROTOCOL.md",
+        "No screen content, no OCR text,",
+        "Screen content and OCR text,",
+        "does not forbid collecting 'screen content'",
+    ),
+    (
+        "OCR-text forbiddance",
+        "docs/STUDY_PROTOCOL.md",
+        "no OCR text, no accessibility-tree strings",
+        "OCR text and accessibility-tree strings",
+        "does not forbid collecting 'OCR text'",
+    ),
+    (
+        "keystroke forbiddance",
+        "docs/STUDY_PROTOCOL.md",
+        "no keystrokes,",
+        "key logging,",
+        "does not forbid collecting 'keystrokes'",
+    ),
+    (
+        "pseudonymization method",
+        "docs/STUDY_PROTOCOL.md",
+        "reduced to a salted SHA-256 pseudonym",
+        "reduced to a pseudonym",
+        "does not state how identifiers are pseudonymized",
+    ),
+    (
+        "salt handling",
+        "docs/STUDY_PROTOCOL.md",
+        "is never committed, and is",
+        "is stored with the responses, and is",
+        "does not state where the salt lives",
+    ),
+    (
+        "ethics status",
+        "docs/STUDY_PROTOCOL.md",
+        "Status: **not yet submitted.**",
+        "Status: **approved.**",
+        "does not state the ethics review is outstanding",
+    ),
+    (
+        "precondition",
+        "docs/STUDY_PROTOCOL.md",
+        "Approval\nis a precondition, not a formality:",
+        "Enrollment\nmay begin regardless:",
+        "does not call ethics approval a precondition",
+    ),
+    (
+        "recruitment gate",
+        "docs/STUDY_PROTOCOL.md",
+        "Recruitment is blocked until an",
+        "Recruitment is free to begin before any",
+        "does not block recruitment on ethics approval",
+    ),
+    (
+        "control-group limit",
+        "docs/STUDY_PROTOCOL.md",
+        "- No control group, so no causal claim about CurbCut's effect.",
+        "-",
+        "does not state the lack of a control group",
+    ),
+    (
+        "outcome phrase",
+        "docs/STUDY_PROTOCOL.md",
+        "Pre-registered before recruitment, and published with the protocol:",
+        "This protocol shows CurbCut is proven to work. Pre-registered before "
+        "recruitment, and published with the protocol:",
+        "makes an outcome claim",
+    ),
+    (
+        "non-claim statement",
+        "docs/STUDY_PROTOCOL.md",
+        "Nothing here says CurbCut works",
+        "CurbCut works",
+        "lost its explicit no-outcome-claim statement",
+    ),
+    (
+        "consent section",
+        "docs/CONSENT_TEXT.md",
+        "## What happens if you stop",
+        "## After stopping",
+        "consent text is missing the What happens if you stop section",
+    ),
+    (
+        "agreement section",
+        "docs/CONSENT_TEXT.md",
+        "## Agreement record",
+        "## Record",
+        "consent text is missing the Agreement record section",
+    ),
     (
         "consent layer",
         "docs/CONSENT_TEXT.md",
         "### 3. Usage counters\n",
         "",
+        "consent text is missing the Usage counters choice",
     ),
     (
-        "consent layer options",
+        "single-layer options",
         "docs/CONSENT_TEXT.md",
         "- **Yes, collect usage counts.**\n- **No, do not collect them.**",
         "- Collect them.",
+        "consent layer Usage counters does not offer both explicit options",
     ),
-    ("optional participation", "docs/CONSENT_TEXT.md", "Taking part is your choice.", "Taking part is expected."),
-    ("payment promise", "docs/CONSENT_TEXT.md", "You are\npaid for each wave you complete", "You are\nthanked for each wave you complete"),
-    ("no-screen promise", "docs/CONSENT_TEXT.md", "We do not record what is on your screen.", "We may record what is on your screen."),
-    ("withdrawal immediate", "docs/CONSENT_TEXT.md", "We stop collecting\nimmediately.", "We stop collecting\neventually."),
-    ("never-collected keystrokes", "docs/STUDY_PROTOCOL.md", "no keystrokes,", "key logging,"),
-    ("consent version", "docs/CONSENT_TEXT.md", "> Version: **1.0** — 2026-11-24.", ""),
+    (
+        "withdrawal-layer options",
+        "docs/CONSENT_TEXT.md",
+        "- **Delete everything I have given.**\n"
+        "- **Keep it as anonymous totals that cannot be traced to me.**",
+        "- **Delete everything I have given.**",
+        "consent layer Keeping data after withdrawal does not offer both "
+        "explicit options",
+    ),
+    (
+        "optional participation",
+        "docs/CONSENT_TEXT.md",
+        "Taking part is your choice.",
+        "Taking part is expected.",
+        "does not state participation is optional",
+    ),
+    (
+        "payment promise",
+        "docs/CONSENT_TEXT.md",
+        "You are\npaid for each wave you complete",
+        "You are\nthanked for each wave you complete",
+        "does not promise payment for completed waves",
+    ),
+    (
+        "no-screen promise",
+        "docs/CONSENT_TEXT.md",
+        "We do not record what is on your screen.",
+        "We may record what is on your screen.",
+        "does not state that screens are not recorded",
+    ),
+    (
+        "typing promise",
+        "docs/CONSENT_TEXT.md",
+        "We do not record your typing.",
+        "We may record your typing.",
+        "does not state that typing is not recorded",
+    ),
+    (
+        "withdrawal immediate",
+        "docs/CONSENT_TEXT.md",
+        "We stop collecting\nimmediately.",
+        "We stop collecting\neventually.",
+        "does not say collection stops immediately",
+    ),
+    (
+        "withdrawal payment",
+        "docs/CONSENT_TEXT.md",
+        "You keep payment for waves you finished.",
+        "You keep our thanks for waves you finished.",
+        "withdrawal section does not address payment",
+    ),
+    (
+        "agreement layer name",
+        "docs/CONSENT_TEXT.md",
+        "- Clinician or carer informant: yes / no",
+        "- Informant: yes / no",
+        "agreement record does not name the Clinician or carer informant choice",
+    ),
+    (
+        "version marker",
+        "docs/CONSENT_TEXT.md",
+        "> Version: **1.0** — 2026-11-24.",
+        "",
+        "has no version marker",
+    ),
+    (
+        "stored version",
+        "docs/CONSENT_TEXT.md",
+        "we store the version (1.0)",
+        "we store the version",
+        "does not state the stored version",
+    ),
 )
 
 
@@ -279,19 +524,24 @@ def self_test() -> int:
             return 1
         print("self-test: the committed documents pass")
 
-        documents = sorted({root / relative for _, relative, _, _ in MUTATIONS})
+        documents = sorted({root / relative for _, relative, _, _, _ in MUTATIONS})
         pristine = {
             document: document.read_text(encoding="utf-8") for document in documents
         }
-        for label, relative, old, new in MUTATIONS:
-            document = root / relative
-            document.write_text(pristine[document], encoding="utf-8")
-            _break(document, old, new)
+        for label, relative, old, new, expected in MUTATIONS:
+            # Restore every document, not just the one under test. A leftover
+            # edit from an earlier case would otherwise be the reason a later
+            # case passes.
+            for document in documents:
+                document.write_text(pristine[document], encoding="utf-8")
+            _break(root / relative, old, new)
             errors = validate(root)
-            if not errors:
+            matched = [error for error in errors if expected in error]
+            if not matched:
                 print(
-                    f"SELF-TEST FAILED: removing {label} was not detected "
-                    f"({Path(relative).name})",
+                    f"SELF-TEST FAILED: removing {label} was not detected by its "
+                    f"own check ({Path(relative).name}); wanted {expected!r}, "
+                    f"got {errors[:2]}",
                     file=sys.stderr,
                 )
                 return 1
@@ -302,8 +552,8 @@ def self_test() -> int:
             return 1
 
         print(
-            f"self-test: {len(MUTATIONS)} named deletions were each detected, "
-            "and a missing document failed"
+            f"self-test: {len(MUTATIONS)} named deletions were each detected by "
+            "their own check, and a missing document failed"
         )
         return 0
     finally:

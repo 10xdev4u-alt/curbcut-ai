@@ -96,10 +96,10 @@ contact the ethics committee directly.
 At enrollment we show a final screen:
 
 - Study participation: yes / no
-- Clinician/carer informant: yes / no
-- Usage counts: yes / no
+- Clinician or carer informant: yes / no
+- Usage counters: yes / no
 - Future contact: yes / no
-- On withdrawal: delete / keep anonymous totals
+- Keeping data after withdrawal: delete / keep anonymous totals
 
 and we store the version (1.0), the timestamp, and each answer. We give you a
 copy.

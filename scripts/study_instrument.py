@@ -11,9 +11,11 @@ two response files it defines into aggregate numbers:
   attempts, successes, success rate, and median successful time per wave.
 
 Participant identifiers are reduced to a salted SHA-256 prefix before anything
-is written, and the summary carries only waves, tasks, counts, rates, and
-medians. A raw identifier appearing in the output is a failure, so ``--self-test``
-asserts that too.
+is written. The summary carries wave-level aggregates plus per-participant rows
+under those pseudonyms, so paired statistics can be computed without holding
+identifiers. Wave and task labels come from closed sets fixed by the protocol;
+a raw identifier or free-form label appearing in the output is a failure, which
+``--self-test`` asserts.
 
 Usage::
 
@@ -35,6 +37,11 @@ import sys
 from pathlib import Path
 
 SUS_ITEMS = 10
+
+# Fixed by docs/STUDY_PROTOCOL.md §4. Free-form labels here would let an
+# identifier ride into the output as a key.
+WAVES = {"baseline", "week2", "week4", "week8", "week12"}
+TASKS = {"book-doctor", "file-expense", "read-policy"}
 
 
 def hash_participant(identifier: str, salt: str) -> str:
@@ -80,8 +87,21 @@ def _read_jsonl(path: Path) -> list[dict]:
 
 
 def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
-    """Aggregate both response files into a summary that carries no raw ids."""
+    """Aggregate both response files into a summary that carries no raw ids.
+
+    Wave-level aggregates are published. Per-participant rows are retained under
+    salted pseudonyms so the protocol's paired baseline-to-week-12 comparison can
+    be computed; no raw identifier is written.
+    """
+    if not salt:
+        raise ValueError("a non-empty study salt is required")
+
     waves: dict[str, dict] = {}
+    participants: dict[str, dict] = {}
+
+    def person(identifier: str) -> dict:
+        pseudonym = hash_participant(identifier, salt)
+        return participants.setdefault(pseudonym, {})
 
     for row in _read_jsonl(sus_path):
         participant = row.get("participant")
@@ -89,8 +109,8 @@ def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
         answers = row.get("answers")
         if not isinstance(participant, str) or not participant:
             raise ValueError("each SUS row needs a participant identifier")
-        if not isinstance(wave, str) or not wave:
-            raise ValueError("each SUS row needs a wave label")
+        if wave not in WAVES:
+            raise ValueError(f"unknown wave label {wave!r}; expected one of {sorted(WAVES)}")
         if not isinstance(answers, list):
             raise ValueError("each SUS row needs an answers array")
         score = score_sus(answers)
@@ -102,6 +122,9 @@ def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
             bucket["sus_incomplete"] += 1
         else:
             bucket["sus_scores"].append(score)
+        participant_bucket = person(participant).setdefault(wave, {"sus": [], "tasks": {}})
+        if score is not None:
+            participant_bucket["sus"].append(score)
 
     for row in _read_jsonl(tasks_path):
         participant = row.get("participant")
@@ -111,10 +134,10 @@ def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
         elapsed = row.get("elapsed_ms")
         if not isinstance(participant, str) or not participant:
             raise ValueError("each task row needs a participant identifier")
-        if not isinstance(wave, str) or not wave:
-            raise ValueError("each task row needs a wave label")
-        if not isinstance(task, str) or not task:
-            raise ValueError("each task row needs a task id")
+        if wave not in WAVES:
+            raise ValueError(f"unknown wave label {wave!r}; expected one of {sorted(WAVES)}")
+        if task not in TASKS:
+            raise ValueError(f"unknown task id {task!r}; expected one of {sorted(TASKS)}")
         if not isinstance(success, bool):
             raise ValueError("each task row needs a boolean success flag")
         if not isinstance(elapsed, int) or isinstance(elapsed, bool) or elapsed < 0:
@@ -130,8 +153,32 @@ def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
         if success:
             task_stats["successes"] += 1
             task_stats["successful_ms"].append(elapsed)
+        participant_bucket = person(participant).setdefault(wave, {"sus": [], "tasks": {}})
+        personal_task = participant_bucket["tasks"].setdefault(
+            task, {"attempts": 0, "successes": 0, "successful_ms": []}
+        )
+        personal_task["attempts"] += 1
+        if success:
+            personal_task["successes"] += 1
+            personal_task["successful_ms"].append(elapsed)
 
-    summary: dict = {"waves": {}, "identifiers_hashed_only": True}
+    def task_entry(stats: dict) -> dict:
+        times = sorted(stats["successful_ms"])
+        return {
+            "attempts": stats["attempts"],
+            "successes": stats["successes"],
+            "success_rate": (
+                stats["successes"] / stats["attempts"] if stats["attempts"] else None
+            ),
+            "median_successful_ms": statistics.median(times) if times else None,
+        }
+
+    summary: dict = {
+        "identifiers_hashed_only": True,
+        "waves": {},
+        "participants": {},
+        "paired": {},
+    }
     for wave, bucket in sorted(waves.items()):
         entry = {
             "sus_forms": bucket["sus_forms"],
@@ -144,21 +191,53 @@ def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
             "tasks": {},
         }
         for name, stats in sorted(bucket.items()):
-            if not name.startswith("task:"):
-                continue
-            times = sorted(stats["successful_ms"])
-            entry["tasks"][name[len("task:") :]] = {
-                "attempts": stats["attempts"],
-                "successes": stats["successes"],
-                "success_rate": (
-                    stats["successes"] / stats["attempts"]
-                    if stats["attempts"]
-                    else None
-                ),
-                "median_successful_ms": statistics.median(times) if times else None,
-            }
+            if name.startswith("task:"):
+                entry["tasks"][name[len("task:") :]] = task_entry(stats)
         summary["waves"][wave] = entry
+
+    for pseudonym, by_wave in sorted(participants.items()):
+        serialized_waves = {}
+        for wave, bucket in sorted(by_wave.items()):
+            serialized_waves[wave] = {
+                "sus": sorted(bucket["sus"]),
+                "tasks": {
+                    task: task_entry(stats)
+                    for task, stats in sorted(bucket["tasks"].items())
+                },
+            }
+        summary["participants"][pseudonym] = {"waves": serialized_waves}
+
+    summary["paired"]["baseline_to_week12"] = paired_change(participants)
     return summary
+
+
+def paired_change(participants: dict[str, dict]) -> dict:
+    """Paired SUS change from baseline to week 12.
+
+    Only participants with exactly one completed form at each wave are paired.
+    The interval is a normal approximation (mean +/- 1.96 standard errors); with
+    a sample this small it is indicative, not exact, and ``None`` below 2 pairs.
+    """
+    differences: list[float] = []
+    for by_wave in participants.values():
+        baseline = by_wave.get("baseline", {}).get("sus", [])
+        end = by_wave.get("week12", {}).get("sus", [])
+        if len(baseline) == 1 and len(end) == 1:
+            differences.append(end[0] - baseline[0])
+    result: dict = {"count": len(differences)}
+    if not differences:
+        result.update({"mean": None, "sd": None, "ci95": None})
+        return result
+    mean = statistics.fmean(differences)
+    sd = statistics.stdev(differences) if len(differences) > 1 else None
+    result["mean"] = mean
+    result["sd"] = sd
+    if sd is None:
+        result["ci95"] = None
+    else:
+        half = 1.96 * sd / (len(differences) ** 0.5)
+        result["ci95"] = [mean - half, mean + half]
+    return result
 
 
 def _self_test() -> int:
@@ -227,6 +306,14 @@ def _self_test() -> int:
                         {"participant": "participant-c", "wave": "week4",
                          "answers": [3, 3, 3]}
                     ),
+                    json.dumps(
+                        {"participant": "participant-a", "wave": "week12",
+                         "answers": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]}
+                    ),
+                    json.dumps(
+                        {"participant": "participant-b", "wave": "week12",
+                         "answers": [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]}
+                    ),
                 ]
             )
             + "\n",
@@ -255,7 +342,10 @@ def _self_test() -> int:
         summary = summarize(sus, tasks, "test-salt")
         rendered = json.dumps(summary)
         expect("participant-a" not in rendered, "raw identifiers stay out of output")
-        expect(set(summary["waves"]) == {"baseline", "week4"}, "both waves reported")
+        expect(
+            set(summary["waves"]) == {"baseline", "week4", "week12"},
+            "all three waves reported",
+        )
         baseline = summary["waves"]["baseline"]
         expect(baseline["sus_forms"] == 2, "both complete forms counted")
         expect(baseline["sus_median"] == 50.0, "median SUS of 100 and 0 is 50")
@@ -268,10 +358,65 @@ def _self_test() -> int:
         expect(week4["sus_incomplete"] == 1, "incomplete form counted separately")
         expect(week4["sus_median"] is None, "no median without complete forms")
 
-        try:
-            summarize(
-                root / "missing.jsonl", tasks, "test-salt"
+        pseudonym = hash_participant("participant-a", "test-salt")
+        expect(pseudonym in summary["participants"], "pseudonym row exists")
+        personal = summary["participants"][pseudonym]["waves"]
+        expect(personal["baseline"]["sus"] == [100.0], "paired SUS kept per participant")
+        expect(summary["identifiers_hashed_only"] is True, "hashed-only flag set")
+        paired = summary["paired"]["baseline_to_week12"]
+        expect(paired["count"] == 2, "both participants pair baseline to week12")
+        expect(abs(paired["mean"]) < 1e-9, "mean change of -50 and +50 is zero")
+        expect(paired["sd"] is not None and paired["ci95"] is not None,
+               "interval reported for two pairs")
+        expect(abs(paired["ci95"][0] + paired["ci95"][1]) < 1e-9,
+               "interval is centred on the mean")
+
+        bad_wave = root / "bad-wave.jsonl"
+        bad_wave.write_text(
+            json.dumps(
+                {"participant": "x", "wave": "week99", "answers": [3] * 10}
             )
+            + "\n",
+            encoding="utf-8",
+        )
+        for path, label in ((bad_wave, "unknown wave"),):
+            try:
+                summarize(path, tasks, "test-salt")
+            except ValueError as error:
+                expect(label in str(error), "error names the bad wave")
+            else:
+                print(f"SELF-TEST FAILED: {label} was accepted", file=sys.stderr)
+                raise SystemExit(1)
+
+        bad_task = root / "bad-task.jsonl"
+        bad_task.write_text(
+            json.dumps(
+                {"participant": "x", "wave": "baseline", "task": "read-email",
+                 "success": True, "elapsed_ms": 10}
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        empty = root / "empty.jsonl"
+        empty.write_text("", encoding="utf-8")
+        try:
+            summarize(empty, bad_task, "test-salt")
+        except ValueError as error:
+            expect("unknown task id" in str(error), "error names the bad task")
+        else:
+            print("SELF-TEST FAILED: an unknown task was accepted", file=sys.stderr)
+            raise SystemExit(1)
+
+        try:
+            summarize(sus, tasks, "")
+        except ValueError as error:
+            expect("salt" in str(error), "empty salt rejected on the summarize path")
+        else:
+            print("SELF-TEST FAILED: an empty salt reached summarize", file=sys.stderr)
+            raise SystemExit(1)
+
+        try:
+            summarize(root / "missing.jsonl", tasks, "test-salt")
         except FileNotFoundError:
             checks += 1
         else:

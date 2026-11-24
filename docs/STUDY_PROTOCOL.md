@@ -160,6 +160,9 @@ Pre-registered before recruitment, and published with the protocol:
 
 - SUS: median and interquartile range per wave; change from baseline is
   reported with a confidence interval and the number of paired participants.
+  The interval is a normal approximation (`scripts/study_instrument.py`), which
+  is indicative rather than exact at this sample size and is labelled as such in
+  every table. Only participants with exactly one form at each wave are paired.
 - NASA-TLX: median mental-demand score per wave, same denominator discipline.
 - Task battery: success rate and median successful time per task per wave;
   denominators are attempts, not participants.
