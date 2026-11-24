@@ -2,9 +2,9 @@
 
 CurbCut publishes one fixture corpus and one deterministic benchmark. This page
 is the researcher-facing entry point; the corpus itself ships a card at
-[`crates/curbcut-core/tests/fixtures/README.md`](crates/curbcut-core/tests/fixtures/README.md)
+[`crates/curbcut-core/tests/fixtures/README.md`](../crates/curbcut-core/tests/fixtures/README.md)
 and a machine-readable inventory at
-[`crates/curbcut-core/tests/fixtures/manifest.json`](crates/curbcut-core/tests/fixtures/manifest.json).
+[`crates/curbcut-core/tests/fixtures/manifest.json`](../crates/curbcut-core/tests/fixtures/manifest.json).
 `CC-116`.
 
 ## What is published
@@ -31,11 +31,12 @@ cargo run -q -p curbcut-cli -- bench
 # bench iterations=100000 bytes=4100000 elapsed_ns=...
 ```
 
-`bytes` is a checksum over the redacted output. It is deterministic for a fixed
+`bytes` is a sum of the redacted output lengths. It is deterministic for a fixed
 iteration count and is asserted against the manifest on every run, so a change
-in redaction behaviour fails loudly rather than quietly shifting the baseline.
-`elapsed_ns` is wall-clock and varies by machine; the script reports it and does
-not gate on it. To verify a recorded run without building:
+that alters output length fails rather than quietly shifting the baseline; a
+change that preserves length would not be caught. `elapsed_ns` is wall-clock and
+varies by machine; the script reports it and does not gate on it. To verify a
+recorded run without building:
 
 ```bash
 python3 scripts/reproduce_benchmark.py --from build/bench.txt

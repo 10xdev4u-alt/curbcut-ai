@@ -2,10 +2,10 @@
 """Run the published benchmark and check it against the dataset manifest.
 
 CC-116 publishes a deterministic benchmark alongside the fixture corpus. The
-byte count is a checksum over the redacted output, so it is stable across
-machines for a fixed iteration count. This script runs the benchmark, compares
-the result with ``manifest.json``, and reports the environment that produced
-it.
+byte count is a sum of the redacted output lengths, so it is stable across
+machines for a fixed iteration count and detects any change that alters output
+length. This script runs the benchmark, compares the result with
+``manifest.json``, and reports the environment that produced it.
 
 Usage::
 
@@ -15,6 +15,10 @@ Usage::
 
 ``elapsed_ns`` is wall-clock and varies by machine. It is reported, never
 compared to a budget; the acceptance gate is the deterministic byte count.
+
+The benchmark is executed from a fixed argument vector, never through a shell:
+the manifest records the command as documentation, and a manifest that claims
+a different command fails instead of being trusted.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ BENCH_LINE = re.compile(
     r"bench iterations=(?P<iterations>\d+) bytes=(?P<bytes>\d+) "
     r"elapsed_ns=(?P<elapsed>\d+)"
 )
+BENCH_ARGV = ["cargo", "run", "-q", "-p", "curbcut-cli", "--", "bench"]
 
 
 class BenchmarkError(Exception):
@@ -98,11 +103,15 @@ def environment() -> str:
     )
 
 
-def run_benchmark(command: str) -> str:
+def command_matches(manifest_command: object) -> bool:
+    """True only when the manifest records the fixed benchmark invocation."""
+    return isinstance(manifest_command, str) and manifest_command == " ".join(BENCH_ARGV)
+
+
+def run_benchmark(argv: list[str]) -> str:
     try:
         result = subprocess.run(
-            command,
-            shell=True,
+            argv,
             cwd=str(ROOT),
             capture_output=True,
             text=True,
@@ -134,6 +143,11 @@ def _self_test() -> int:
         "bytes": 4100000,
         "elapsed_ns": 42,
     }, "a well-formed line parses")
+    expect(
+        command_matches(" ".join(BENCH_ARGV)) is True,
+        "the manifest's canonical command matches the argument vector",
+    )
+    expect(command_matches("echo hi") is False, "a substituted command is rejected")
     expect(compare({"iterations": 100000, "bytes": 4100000}, good) == [], "a matching run passes")
     expect(
         any("bytes" in error for error in compare({"iterations": 100000, "bytes": 1}, good)),
@@ -170,17 +184,19 @@ def main() -> int:
     if args.self_test:
         return _self_test()
 
-    benchmark = load_manifest().get("benchmark")
-    if not isinstance(benchmark, dict):
-        print(f"FAIL: {MANIFEST.name} has no benchmark block", file=sys.stderr)
-        return 1
-    command = benchmark.get("command", "cargo run -q -p curbcut-cli -- bench")
-
     try:
+        benchmark = load_manifest().get("benchmark")
+        if not isinstance(benchmark, dict):
+            raise BenchmarkError(f"{MANIFEST.name} has no benchmark block")
+        if not command_matches(benchmark.get("command")):
+            raise BenchmarkError(
+                "the manifest records a different benchmark command; refusing "
+                "to run it"
+            )
         output = (
             args.source.read_text(encoding="utf-8")
             if args.source
-            else run_benchmark(command)
+            else run_benchmark(BENCH_ARGV)
         )
         stats = parse_output(output)
         errors = compare(stats, benchmark)

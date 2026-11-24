@@ -4,7 +4,7 @@
 repository, and the input to its deterministic benchmark.
 
 Machine-readable inventory: [`manifest.json`](manifest.json).
-Researcher-facing page: [`docs/DATASET.md`](../../../docs/DATASET.md).
+Researcher-facing page: [`docs/DATASET.md`](../../../../docs/DATASET.md).
 
 ## License
 
@@ -51,9 +51,11 @@ cargo run -q -p curbcut-cli -- bench
 # bench iterations=100000 bytes=4100000 elapsed_ns=...
 ```
 
-`bytes` is a checksum over the redacted output and is stable across machines
-for a fixed iteration count. `elapsed_ns` is wall-clock and varies; it is
-reported, never gated. To parse a previously recorded run instead of building:
+`bytes` is a sum of the redacted output lengths and is stable across machines
+for a fixed iteration count; it detects any change that alters output length,
+but not a change that preserves length. `elapsed_ns` is wall-clock and varies;
+it is reported, never gated. To parse a previously recorded run instead of
+building:
 
 ```bash
 python3 scripts/reproduce_benchmark.py --from build/bench.txt
@@ -62,7 +64,7 @@ python3 scripts/reproduce_benchmark.py --from build/bench.txt
 ## Protocol citation
 
 The evaluation protocol for human studies is
-[`docs/STUDY_PROTOCOL.md`](../../../docs/STUDY_PROTOCOL.md). It is cited here
+[`docs/STUDY_PROTOCOL.md`](../../../../docs/STUDY_PROTOCOL.md). It is cited here
 because the benchmark above is *not* that study: it is a deterministic
 software measurement with no participants. Do not cite the benchmark as
 evidence about users.

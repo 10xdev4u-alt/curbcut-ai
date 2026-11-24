@@ -78,6 +78,8 @@ DOC_PHRASES = (
 
 PUBLISHABLE_LICENSES = {"CC0-1.0-only"}
 CANARY_MARKER = "CC-CANARY-"
+# Sentinel for a self-test case that removes a key from a JSON document.
+DELETE = object()
 
 
 def flatten(text: str) -> str:
@@ -326,10 +328,13 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "benchmark block lost",
-        "edit": [
-            (str(MANIFEST.relative_to(ROOT)), '"expected_bytes": 4100000', '"expected_bytes": -1')
-        ],
-        "expect": "expected_bytes",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "benchmark", DELETE)],
+        "expect": "manifest has no benchmark block",
+    },
+    {
+        "label": "expected byte count invalid",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "benchmark.expected_bytes", -1)],
+        "expect": "expected_bytes is not a positive integer",
     },
     {
         "label": "canary line lost",
@@ -426,7 +431,100 @@ CASES: tuple[dict[str, object], ...] = (
         "edit": [(".github/workflows/ci.yml", "\n  dataset:", "\n  data:")],
         "expect": "CI has no dataset job",
     },
+    {
+        "label": "manifest is an array",
+        "write": [(str(MANIFEST.relative_to(ROOT)), "[]")],
+        "expect": "expected a JSON object",
+    },
+    {
+        "label": "manifest name changed",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "name", "curbcut-wrong")],
+        "expect": "manifest name is not curbcut-fixtures",
+    },
+    {
+        "label": "manifest version empty",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "version", "")],
+        "expect": "manifest has no version",
+    },
+    {
+        "label": "manifest lists no files",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "files", [])],
+        "expect": "manifest lists no files",
+    },
+    {
+        "label": "file entry is not an object",
+        "json": [
+            (str(MANIFEST.relative_to(ROOT)), "files", ["content_canaries.txt"])
+        ],
+        "expect": "file entry that is not an object",
+    },
+    {
+        "label": "file entry has no path",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "files", [{}])],
+        "expect": "file entry with no path",
+    },
+    {
+        "label": "file path escapes the dataset",
+        "json": [
+            (
+                str(MANIFEST.relative_to(ROOT)),
+                "files.0.path",
+                "../evil.txt",
+            )
+        ],
+        "expect": "escapes the dataset",
+    },
+    {
+        "label": "file entry has no role",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "files.0.role", DELETE)],
+        "expect": "has no recorded role",
+    },
+    {
+        "label": "benchmark iterations invalid",
+        "json": [(str(MANIFEST.relative_to(ROOT)), "benchmark.iterations", -1)],
+        "expect": "iterations is not a positive integer",
+    },
+    {
+        "label": "benchmark command changed",
+        "json": [
+            (
+                str(MANIFEST.relative_to(ROOT)),
+                "benchmark.command",
+                "cargo run -q -p curbcut-cli -- other",
+            )
+        ],
+        "expect": "benchmark command changed",
+    },
+    {
+        "label": "canary corpus emptied",
+        "write": [("crates/curbcut-core/tests/fixtures/content_canaries.txt", "")],
+        "expect": "contains no canary lines",
+    },
 )
+
+
+def _apply_json(path: Path, dotted: str, value: object) -> None:
+    """Set or delete a key in a JSON document addressed by a dotted path.
+
+    ``DELETE`` removes the key. The rewrite uses ``json.dumps`` so a case that
+    mutates the manifest never depends on its original formatting.
+    """
+    document = json.loads(path.read_text(encoding="utf-8"))
+    keys = dotted.split(".")
+    node: object = document
+    for key in keys[:-1]:
+        node = node[int(key)] if isinstance(node, list) else node[key]
+    last = keys[-1]
+    if value is DELETE:
+        if isinstance(node, list):
+            del node[int(last)]
+        else:
+            del node[last]
+    elif isinstance(node, list):
+        node[int(last)] = value
+    else:
+        node[last] = value
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
 
 
 def self_test() -> int:
@@ -458,6 +556,12 @@ def self_test() -> int:
                     return 1
                 path.write_text(text.replace(old, new, 1), encoding="utf-8")
             for relative, content in case.get("create", ()):  # type: ignore[union-attr]
+                path = tmp / str(relative)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(str(content), encoding="utf-8")
+            for relative, dotted, value in case.get("json", ()):  # type: ignore[union-attr]
+                _apply_json(tmp / str(relative), str(dotted), value)
+            for relative, content in case.get("write", ()):  # type: ignore[union-attr]
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(str(content), encoding="utf-8")
