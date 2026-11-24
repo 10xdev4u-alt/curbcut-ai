@@ -95,6 +95,8 @@ docs/
   DATA_INVENTORY.md        Data classes, retention rules, provisional lawful bases
   DPIA.md                  Privacy impact assessment summary (internal, not legal advice)
   PRIVACY_FINDINGS.md      Findings register with owners, due dates, and tracking
+  STUDY_PROTOCOL.md        12-week longitudinal outcome study protocol (pre-ethics)
+  CONSENT_TEXT.md          Versioned study consent text with five granular layers
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader
@@ -166,6 +168,8 @@ scripts/
   publish_issues.py        Publish the backlog to GitHub and record the CC-># map
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
+  study_instrument.py        Scores SUS and task responses; counts and pseudonyms only
+  validate_study_protocol.py Checks protocol sections and consent guarantees
 .github/
   ISSUE_TEMPLATE/          Bug, feature, and engineering-task templates
   PULL_REQUEST_TEMPLATE.md PR checklist (privacy, security, a11y, rollback)

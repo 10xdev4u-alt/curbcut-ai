@@ -220,6 +220,20 @@ jobs:
       - name: Validate the data inventory, DPIA, and findings register
         run: python3 scripts/validate_data_inventory.py
 
+  study-instrument:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Self-test the study scoring instrument
+        run: python3 scripts/study_instrument.py --self-test
+      - name: Self-test the study protocol validator
+        run: python3 scripts/validate_study_protocol.py --self-test
+      - name: Validate the study protocol and consent text
+        run: python3 scripts/validate_study_protocol.py
+
   a11y-mapping:
     needs: changes
     if: ${{ needs.changes.outputs.rust == 'true' || github.event_name == 'workflow_dispatch' }}
