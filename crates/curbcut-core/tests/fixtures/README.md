@@ -9,7 +9,7 @@ Researcher-facing page: [`docs/DATASET.md`](../../../../docs/DATASET.md).
 
 ## License
 
-The corpus is dedicated to the public domain under **CC0-1.0-only**
+The corpus is dedicated to the public domain under **CC0-1.0**
 (<https://creativecommons.org/publicdomain/zero/1.0/>). You may copy, modify,
 and redistribute it without asking. The rest of the repository remains under
 `AGPL-3.0-only`; this dedication covers only the files this manifest lists.
@@ -28,11 +28,12 @@ participant, so nothing needed consent.
 | --- | --- | --- | --- |
 | `content_canaries.txt` | 757 | `834008eab783c255` | Canary corpus: strings that must never appear in a diagnostic. |
 
-Three consumers read `content_canaries.txt`:
-
-- `Redactor::canaries()` in `crates/curbcut-core/src/redact.rs`
-- `scripts/check_no_content_logging.py` (the CI no-content-logging test)
-- `crates/curbcut-core/tests/golden_plans.rs` (the canary plan)
+Several components read `content_canaries.txt`: `Redactor::canaries()` in
+`crates/curbcut-core/src/redact.rs`, `scripts/check_no_content_logging.py`,
+`crates/curbcut-core/tests/golden_plans.rs`,
+`crates/curbcut-core/tests/no_content_logging.rs`, `scripts/check_panic_silence.py`,
+`crates/curbcut-core/examples/panic_payload_probe.rs`, and
+`scripts/validate_dataset.py`.
 
 Add a canary by adding a line. Do not remove one without replacing it, or a
 past leak becomes undetectable.
@@ -44,8 +45,9 @@ python3 scripts/reproduce_benchmark.py
 ```
 
 The script builds and runs the CLI benchmark, checks the deterministic byte
-count against `manifest.json`, and prints the environment alongside the
-timings:
+count against `manifest.json`, and prints the environment: the benchmark
+environment for a live run, or the verification environment plus an explicit
+unknown for `--from`.
 
 ```
 cargo run -q -p curbcut-cli -- bench

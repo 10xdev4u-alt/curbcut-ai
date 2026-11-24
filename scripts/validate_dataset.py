@@ -59,14 +59,14 @@ CARD_SECTIONS = (
 )
 
 CARD_PHRASES = (
-    "cc0-1.0-only",
+    "cc0-1.0",
     "synthetic",
     "no screen capture",
     "not-required",
 )
 
 DOC_PHRASES = (
-    "cc0-1.0-only",
+    "cc0-1.0",
     "synthetic",
     "small and synthetic",
     "no screen capture",
@@ -76,7 +76,7 @@ DOC_PHRASES = (
     "--from build/bench.txt",
 )
 
-PUBLISHABLE_LICENSES = {"CC0-1.0-only"}
+PUBLISHABLE_LICENSES = {"CC0-1.0"}
 CANARY_MARKER = "CC-CANARY-"
 # Sentinel for a self-test case that removes a key from a JSON document.
 DELETE = object()
@@ -84,6 +84,18 @@ DELETE = object()
 
 def flatten(text: str) -> str:
     return " ".join(text.lower().split())
+
+
+def read_document(path: Path, label: str) -> str:
+    """Read a publication document or fail with a clean message.
+
+    ``UnicodeDecodeError`` is a ``ValueError``, not an ``OSError``, so both are
+    caught here; an undecodable document must not traceback the validator.
+    """
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise ValueError(f"{label}: cannot read: {error}") from error
 
 
 def sha256_of(path: Path) -> str:
@@ -114,7 +126,7 @@ def validate(root: Path) -> list[str]:
 
     for path, why in REQUIRED_FILES:
         if not (root / path.relative_to(ROOT)).exists():
-            errors.append(f"missing {path.relative_to(ROOT)} ({why})")
+            errors.append(f"missing {path.relative_to(ROOT).as_posix()} ({why})")
     if errors:
         return errors
 
@@ -128,6 +140,15 @@ def validate(root: Path) -> list[str]:
         return [f"{MANIFEST.relative_to(ROOT)}: invalid JSON: {error}"]
     if not isinstance(manifest, dict):
         return [f"{MANIFEST.relative_to(ROOT)}: expected a JSON object"]
+
+    try:
+        card_text = read_document(card, CARD.relative_to(ROOT).as_posix())
+        doc_text = read_document(doc, DATASET_DOC.relative_to(ROOT).as_posix())
+        workflow_text = read_document(
+            workflow, WORKFLOW.relative_to(ROOT).as_posix()
+        )
+    except ValueError as error:
+        return [str(error)]
 
     if manifest.get("name") != "curbcut-fixtures":
         errors.append("manifest name is not curbcut-fixtures")
@@ -187,21 +208,28 @@ def validate(root: Path) -> list[str]:
 
     canary = dataset_dir / "content_canaries.txt"
     if canary.exists():
-        lines = canary.read_text(encoding="utf-8").splitlines()
-        if not any(line.startswith(CANARY_MARKER) for line in lines):
-            errors.append("the canary corpus contains no canary lines")
-        offenders = [
-            line
-            for line in lines
-            if line.strip()
-            and not line.startswith("#")
-            and not line.startswith(CANARY_MARKER)
-        ]
-        if offenders:
-            errors.append(
-                "the canary corpus has a content line that is not a canary: "
-                + offenders[0][:40]
-            )
+        try:
+            lines = read_document(canary, canary.relative_to(root).as_posix())
+        except ValueError as error:
+            errors.append(str(error))
+        else:
+            lines = lines.splitlines()
+            if not any(line.startswith(CANARY_MARKER) for line in lines):
+                errors.append("the canary corpus contains no canary lines")
+            offenders = [
+                number
+                for number, line in enumerate(lines, start=1)
+                if line.strip()
+                and not line.startswith("#")
+                and not line.startswith(CANARY_MARKER)
+            ]
+            if offenders:
+                # Report the location only. Echoing the offending text would
+                # put corpus content into a CI log.
+                errors.append(
+                    f"{canary.relative_to(root).as_posix()}:{offenders[0]}: "
+                    "the canary corpus has a content line that is not a canary"
+                )
 
     benchmark = manifest.get("benchmark")
     if not isinstance(benchmark, dict):
@@ -219,7 +247,6 @@ def validate(root: Path) -> list[str]:
         if benchmark.get("command") != "cargo run -q -p curbcut-cli -- bench":
             errors.append("manifest benchmark command changed")
 
-    card_text = card.read_text(encoding="utf-8")
     for heading in CARD_SECTIONS:
         if not section(card_text, heading):
             errors.append(f"dataset card is missing the {heading} section")
@@ -228,12 +255,12 @@ def validate(root: Path) -> list[str]:
         if phrase not in card_body:
             errors.append(f"dataset card no longer states {phrase!r}")
 
-    doc_body = flatten(doc.read_text(encoding="utf-8"))
+    doc_body = flatten(doc_text)
     for phrase in DOC_PHRASES:
         if phrase not in doc_body:
             errors.append(f"docs/DATASET.md no longer states {phrase!r}")
 
-    if not re.search(r"^  dataset:\s*$", workflow.read_text(encoding="utf-8"), re.MULTILINE):
+    if not re.search(r"^  dataset:\s*$", workflow_text, re.MULTILINE):
         errors.append("CI has no dataset job")
     return errors
 
@@ -251,7 +278,9 @@ def materialize(target: Path, pristine: dict[str, str]) -> None:
     for relative, text in pristine.items():
         path = target / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        # LF regardless of platform: the manifest records sizes and hashes of
+        # the committed LF files.
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 CASES: tuple[dict[str, object], ...] = (
@@ -316,7 +345,7 @@ CASES: tuple[dict[str, object], ...] = (
     {
         "label": "license changed",
         "edit": [
-            (str(MANIFEST.relative_to(ROOT)), '"CC0-1.0-only"', '"Proprietary"')
+            (str(MANIFEST.relative_to(ROOT)), '"CC0-1.0"', '"Proprietary"')
         ],
         "expect": "not one the repository publishes",
     },
@@ -391,8 +420,8 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "card license phrase",
-        "edit": [(str(CARD.relative_to(ROOT)), "CC0-1.0-only", "AGPL-3.0-only")],
-        "expect": "'cc0-1.0-only'",
+        "edit": [(str(CARD.relative_to(ROOT)), "CC0-1.0", "AGPL-3.0-only")],
+        "expect": "'cc0-1.0'",
     },
     {
         "label": "card consent phrase",
@@ -546,9 +575,9 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "doc license phrase",
-        "edit": [("docs/DATASET.md", "CC0-1.0-only", "AGPL-3.0-only")],
+        "edit": [("docs/DATASET.md", "CC0-1.0", "AGPL-3.0-only")],
         "replace_all": True,
-        "expect": "'cc0-1.0-only'",
+        "expect": "'cc0-1.0'",
     },
     {
         "label": "doc loses the synthetic statement",
@@ -592,7 +621,9 @@ def _apply_json(path: Path, dotted: str, value: object) -> None:
         node[int(last)] = value
     else:
         node[last] = value
-    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(document, indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def self_test() -> int:
@@ -627,17 +658,17 @@ def self_test() -> int:
                     if case.get("replace_all")
                     else text.replace(old, new, 1)
                 )
-                path.write_text(replaced, encoding="utf-8")
+                path.write_text(replaced, encoding="utf-8", newline="\n")
             for relative, content in case.get("create", ()):  # type: ignore[union-attr]
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(str(content), encoding="utf-8")
+                path.write_text(str(content), encoding="utf-8", newline="\n")
             for relative, dotted, value in case.get("json", ()):  # type: ignore[union-attr]
                 _apply_json(tmp / str(relative), str(dotted), value)
             for relative, content in case.get("write", ()):  # type: ignore[union-attr]
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(str(content), encoding="utf-8")
+                path.write_text(str(content), encoding="utf-8", newline="\n")
             for relative, content in case.get("bytes", ()):  # type: ignore[union-attr]
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)

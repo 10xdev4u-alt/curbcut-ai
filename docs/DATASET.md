@@ -9,7 +9,7 @@ and a machine-readable inventory at
 
 ## What is published
 
-`curbcut-fixtures` v1.0.0, licensed **CC0-1.0-only**. It contains exactly one
+`curbcut-fixtures` v1.0.0, licensed **CC0-1.0**. It contains exactly one
 file, `content_canaries.txt`: distinctive strings that must never appear in a
 log, dump, crash report, or any other diagnostic. The redactor, the CI
 no-content-logging test, and the golden plan snapshots all read it.

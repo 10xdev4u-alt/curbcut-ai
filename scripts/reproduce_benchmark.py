@@ -200,7 +200,7 @@ def main() -> int:
         )
         stats = parse_output(output)
         errors = compare(stats, benchmark)
-    except (OSError, BenchmarkError) as error:
+    except (OSError, UnicodeError, BenchmarkError) as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
 
@@ -209,7 +209,12 @@ def main() -> int:
         f"elapsed_ns={stats['elapsed_ns']}"
     )
     print(f"expected iterations={benchmark['iterations']} bytes={benchmark['expected_bytes']}")
-    print(f"environment: {environment()}")
+    if args.source:
+        # The timings came from another machine; this machine only verified them.
+        print(f"verification environment: {environment()}")
+        print("benchmark environment: unknown (read from a recorded run)")
+    else:
+        print(f"benchmark environment: {environment()}")
     if errors:
         for message in errors:
             print(f"FAIL: {message}", file=sys.stderr)
