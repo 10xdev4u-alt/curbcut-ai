@@ -918,6 +918,15 @@ Implemented in `crates/curbcut-input/src/consent.rs`. See
 
 ### 11.1 Data inventory
 
+The complete inventory, with every data class, its retention rule, its consent
+gate, and its provisional lawful basis, is
+[`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md). The table below is the summary;
+where the two disagree, the inventory wins and the disagreement is tracked as a
+finding in [`docs/PRIVACY_FINDINGS.md`](PRIVACY_FINDINGS.md).
+`scripts/validate_data_inventory.py` fails CI if a row loses a basis or a
+retention value, if an ID becomes non-sequential, or if a finding link no longer
+resolves.
+
 | Data | Where | Encryption | Retention |
 | --- | --- | --- | --- |
 | Frames | RAM ring buffer | mlock where possible | 2 seconds |
