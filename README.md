@@ -95,6 +95,7 @@ docs/
   DATA_INVENTORY.md        Data classes, retention rules, provisional lawful bases
   DPIA.md                  Privacy impact assessment summary (internal, not legal advice)
   PRIVACY_FINDINGS.md      Findings register with owners, due dates, and tracking
+  SUPPLY_CHAIN.md          SBOM, attestation format, and the unmet reproducibility claim
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader
@@ -166,6 +167,8 @@ scripts/
   publish_issues.py        Publish the backlog to GitHub and record the CC-># map
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
+  sbom.py                    Generates the SBOM and an unsigned attestation placeholder
+  validate_supply_chain.py   Checks release prerequisites and supply-chain claims
 .github/
   ISSUE_TEMPLATE/          Bug, feature, and engineering-task templates
   PULL_REQUEST_TEMPLATE.md PR checklist (privacy, security, a11y, rollback)
