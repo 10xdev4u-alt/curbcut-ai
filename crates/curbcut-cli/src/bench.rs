@@ -1,7 +1,7 @@
 //! The deterministic benchmark.
 //!
 //! The workload is redaction, which the CLI and the diagnostics path share.
-//! `bytes` is a deterministic checksum over the redacted output, so a run can be
+//! `bytes` is a sum of the redacted output lengths, so a run can be
 //! compared across machines. `elapsed_ns` is the only varying field.
 
 use std::fmt;

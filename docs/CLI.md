@@ -58,7 +58,7 @@ asserts neither appears.
 `bench` runs the redaction workload `DEFAULT_ITERATIONS` (100,000) times.
 `bytes` is the sum of the redacted lengths, which is deterministic for a fixed
 iteration count, so two runs can be compared. `elapsed_ns` is wall-clock and
-varies. `the_byte_count_is_deterministic` pins the checksum.
+varies. `the_byte_count_is_deterministic` pins the byte count.
 
 ## The generated accessibility documents
 
