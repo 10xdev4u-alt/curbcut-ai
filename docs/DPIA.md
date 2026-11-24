@@ -37,8 +37,9 @@ content can contain other people's data, which is addressed as R-01.
 
 1. Screen frames are captured into a bounded memory ring and discarded within
    two seconds. They are never written to disk and never leave the device.
-2. Derived values (OCR text, captions, element graphs) stay in memory and are
-   zeroized on drop.
+2. Derived values stay in memory. OCR text and captions use zeroizing buffers;
+   element-graph labels and text are plain memory that lives only for the session
+   and is discarded with it. No derived content is written to disk.
 3. Content is reduced to hashes and counts at the boundary before anything is
    cached or logged.
 4. Persistent classes live in the local store, designed to be encrypted with a

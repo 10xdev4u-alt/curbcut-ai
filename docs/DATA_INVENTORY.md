@@ -32,7 +32,8 @@ outside its vocabulary fails CI rather than silently drifting.
 **Lawful basis (provisional):** `consent`, `contract`, `legitimate-interests`,
 `legal-obligation`, `none-transient`, `undetermined`.
 
-**Leaves device:** `local-only`, `opt-in`, `always`, `never`.
+**Leaves device:** `local-only`, `opt-in`, `always`, `never`, `user-export`
+(the user initiates an export and holds the resulting file).
 
 **Sensitivity:** `yes` (personal or special-category), `derived` (inference
 about the person), `hash-only` (content reduced to a hash or count), `no`.
@@ -47,9 +48,9 @@ Processed in memory and discarded. None of these reaches disk or the network.
 
 | ID | Class | Source | Stored | Retention | Lawful basis | Consent gate | Leaves device | Sensitive | Code status | Finding |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| DC-01 | Raw screen frames | screen capture | RAM ring buffer, best-effort mlock | 2-seconds | contract | screen-recording permission, stopped by the panic key | local-only | yes | in-memory | F-05 |
-| DC-02 | OCR text | OCR model over a frame | RAM secure text plus model cache | session | contract | screen-recording permission | local-only | yes | in-memory | F-05 |
-| DC-03 | Icon captions | caption model over icon crops | RAM secure text | session | contract | screen-recording permission | local-only | yes | in-memory | F-05 |
+| DC-01 | Raw screen frames | screen capture | RAM ring buffer, best-effort mlock | 2-seconds | contract | screen-recording permission, stopped by the panic key | local-only | yes | in-memory | - |
+| DC-02 | OCR text | OCR model over a frame | RAM secure text plus model cache | session | contract | screen-recording permission | local-only | yes | in-memory | - |
+| DC-03 | Icon captions | caption model over icon crops | RAM secure text | session | contract | screen-recording permission | local-only | yes | in-memory | - |
 | DC-04 | Motion signatures | frame sampling | RAM, 32 bytes | frame-to-frame | contract | screen-recording permission | local-only | derived | in-memory | - |
 | DC-05 | Label hashes and stable element ids | accessibility labels hashed at the boundary | RAM | session | contract | accessibility permission | local-only | hash-only | in-memory | F-07 |
 | DC-06 | Element graph | accessibility tree merged with vision detections | RAM | session | contract | accessibility permission, write requires a token | local-only | yes | in-memory | F-05 |
@@ -71,7 +72,7 @@ between "designed" and "shipped" is the subject of F-01.
 | DC-14 | Per-app layout memory | user choice per app and window | SQLite, SQLCipher specified | until-deleted | consent | user makes the choice, reset available | opt-in | derived | planned | F-01, F-09 |
 | DC-15 | Learned simplifications | accept and reject feedback, keyed by content hash | SQLite, SQLCipher specified | until-deleted | consent | user gives feedback, undo bounded | opt-in | derived | planned | F-01, F-09 |
 | DC-16 | Plan cache entries | derived overlay plans keyed by content hash | bounded in-memory LRU today | bounded-lru | contract | none, derived from already-permitted processing | local-only | hash-only | implemented | - |
-| DC-17 | Per-app remembered choices | per-app opt-in memory | in-memory map today | bounded-capacity | consent | explicit per-app enable, forget available | local-only | derived | implemented | - |
+| DC-17 | Per-app remembered choices | per-app opt-in memory | in-memory map today | until-deleted | consent | explicit per-app enable, forget available | local-only | derived | implemented | - |
 | DC-18 | Understanding-result cache | derived understanding results | sealed ciphertext in an LRU | bounded-lru | contract | none, caller-owned payload | local-only | derived | boundary-missing | F-02 |
 | DC-19 | Reading-score cache | reading-level scores keyed by content hash | in-memory FIFO | bounded-capacity | contract | none, derived from already-permitted processing | local-only | hash-only | implemented | - |
 | DC-20 | Provenance panel entries | every adaptation change | RAM panel today | disputed | legitimate-interests | setting values shown to the user, content as hash | local-only | hash-only | in-memory | F-04 |
@@ -89,7 +90,7 @@ between "designed" and "shipped" is the subject of F-01.
 | DC-27 | Crash reports | crash dumps | user-approved upload | never-stored | consent | explicit approval before anything is sent | opt-in | hash-only | planned | F-08 |
 | DC-28 | Backup and encrypted export | user-requested export of profiles and layouts | a user-held file | until-deleted | contract | user initiates export and holds the password | user-export | derived | planned | F-01 |
 | DC-29 | Optional encrypted sync | profiles and settings across devices | remote, end-to-end encrypted | until-deleted | consent | off by default, user-held key | opt-in | derived | planned | F-10 |
-| DC-30 | Update metadata | update checker | RAM and disk | session | legitimate-interests | kill switch denies the channel | always | no | in-memory | F-08 |
+| DC-30 | Update metadata | update checker | RAM today; disk persistence planned | session | legitimate-interests | kill switch denies the channel | always | no | in-memory | F-12 |
 | DC-31 | Model files and release keys | model downloads | disk, pinned by hash and signature | until-deleted | contract | model download is a separate opt-in channel | opt-in | no | implemented | - |
 
 ## D. User-input, biometric, and control classes

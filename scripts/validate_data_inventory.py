@@ -8,11 +8,20 @@ re-reads the three documents and checks the facts that matter:
 
 * ``docs/DATA_INVENTORY.md`` — every class has an ID, a retention value, a
   lawful basis, a consent gate, and a valid code status, all from closed
-  vocabularies, and every finding reference resolves.
-* ``docs/DPIA.md`` — keeps its required sections, states its class count, and
-  keeps the disclaimer that it is internal work rather than legal advice.
+  vocabularies, and every finding reference resolves. References must agree in
+  both directions: a class pointing at a finding whose own class list omits it
+  fails. Ranges in the rationale prose are bounds-checked.
+* ``docs/DPIA.md`` — keeps its required sections, states its class count,
+  validates the R-xx risk table (header, sequential IDs, likelihood and impact
+  vocabularies, resolvable finding links), and keeps the disclaimer that it is
+  internal work rather than legal advice.
 * ``docs/PRIVACY_FINDINGS.md`` — every finding has a severity, a status, a
   class reference, an owner, a due date, and, while open, somewhere to track it.
+
+This checks structure, vocabularies, and cross-references. It cannot tell
+whether a retention value that is still *in* the vocabulary is the right one,
+or whether a consent gate describes what the code actually enforces; those need
+a reader.
 
 Usage::
 
@@ -62,6 +71,11 @@ FINDING_COLUMNS = [
     "Due",
     "Tracking",
 ]
+
+RISK_COLUMNS = ["ID", "Risk", "Likelihood", "Impact", "Mitigation", "Finding"]
+
+LIKELIHOOD = {"low", "medium", "high", "certain"}
+IMPACT = {"severe", "high", "medium", "low"}
 
 RETENTION = {
     "2-seconds",
@@ -164,6 +178,25 @@ def plain(cell: str) -> str:
 CLASS_RANGE_RE = re.compile(r"DC-(\d+)\s+through\s+DC-(\d+)")
 
 
+def expand_classes(cell: str) -> list[str]:
+    """Expand a class cell such as ``DC-01 through DC-03, DC-07`` into IDs.
+
+    Malformed entries are returned as their raw text so the caller can report
+    them rather than silently skipping the check.
+    """
+    expanded: list[str] = []
+    for token in tokens(cell):
+        if token == "-":
+            continue
+        span = CLASS_RANGE_RE.fullmatch(token)
+        if span:
+            first, last = int(span.group(1)), int(span.group(2))
+            expanded.extend(f"DC-{index:02d}" for index in range(first, last + 1))
+        else:
+            expanded.append(token)
+    return expanded
+
+
 def validate_inventory(text: str) -> tuple[list[str], list[str]]:
     """Return (errors, class ids in document order)."""
     errors: list[str] = []
@@ -229,6 +262,18 @@ def validate_inventory(text: str) -> tuple[list[str], list[str]]:
             "inventory IDs must be sequential from DC-01 with no gaps or duplicates; "
             f"found {ids[:3]}...{ids[-3:] if len(ids) > 3 else ''}"
         )
+
+    # Ranges also appear in the lawful-basis rationale prose, where a typo would
+    # silently claim coverage of classes that do not exist.
+    for span in CLASS_RANGE_RE.finditer(text):
+        first, last = int(span.group(1)), int(span.group(2))
+        if last > len(rows):
+            errors.append(
+                f"range {span.group(0)!r} reaches DC-{last:02d} but the inventory "
+                f"has {len(rows)} classes"
+            )
+        elif first > last:
+            errors.append(f"range {span.group(0)!r} is reversed")
     return errors, ids
 
 
@@ -265,24 +310,11 @@ def validate_findings(text: str, class_ids: list[str]) -> list[str]:
             errors.append(f"{finding_id} has an empty summary or owner")
         if not DUE_RE.fullmatch(due):
             errors.append(f"{finding_id} due date {due!r} is not YYYY-MM-DD")
-        for token in tokens(classes):
-            if token == "-":
-                continue
-            span = CLASS_RANGE_RE.fullmatch(token)
-            if span:
-                first, last = int(span.group(1)), int(span.group(2))
-                expanded = [f"DC-{index:02d}" for index in range(first, last + 1)]
-                for class_id in expanded:
-                    if class_id not in class_ids:
-                        errors.append(
-                            f"{finding_id} range {token!r} includes unknown class "
-                            f"{class_id}"
-                        )
-                continue
-            if not CLASS_RE.fullmatch(token):
-                errors.append(f"{finding_id} class reference {token!r} is malformed")
-            elif token not in class_ids:
-                errors.append(f"{finding_id} points at unknown class {token}")
+        for class_id in expand_classes(classes):
+            if not CLASS_RE.fullmatch(class_id):
+                errors.append(f"{finding_id} class reference {class_id!r} is malformed")
+            elif class_id not in class_ids:
+                errors.append(f"{finding_id} points at unknown class {class_id}")
         if tracking != "-" and not re.fullmatch(r"#\d+", tracking):
             errors.append(f"{finding_id} tracking {tracking!r} is not '#<issue>' or '-'")
         if status in {"OPEN", "IN PROGRESS"} and tracking == "-":
@@ -294,7 +326,48 @@ def validate_findings(text: str, class_ids: list[str]) -> list[str]:
     return errors
 
 
-def validate_dpia(text: str, class_count: int) -> list[str]:
+def validate_risks(text: str, known_findings: set[str]) -> list[str]:
+    """Check the R-xx register: it is a claim that exists only in this table."""
+    errors: list[str] = []
+    risk_headers = [header for header in header_rows(text) if header == RISK_COLUMNS]
+    if len(risk_headers) != 1:
+        errors.append(
+            "DPIA needs exactly one risks table with the header "
+            + ", ".join(RISK_COLUMNS)
+        )
+
+    rows = data_rows(text, "R-")
+    ids: list[str] = []
+    for _, row in rows:
+        if len(row) != len(RISK_COLUMNS):
+            errors.append(
+                f"risk row {row[0] if row else '?'} has {len(row)} cells, "
+                f"expected {len(RISK_COLUMNS)}"
+            )
+            continue
+        risk_id, risk, likelihood, impact, mitigation, finding = row
+        ids.append(risk_id)
+        if not risk or not mitigation:
+            errors.append(f"{risk_id} has an empty risk or mitigation cell")
+        if plain(likelihood).lower() not in LIKELIHOOD:
+            errors.append(f"{risk_id} likelihood {likelihood!r} is not in the vocabulary")
+        if plain(impact).lower() not in IMPACT:
+            errors.append(f"{risk_id} impact {impact!r} is not in the vocabulary")
+        for token in tokens(finding):
+            if token == "-":
+                continue
+            if not FINDING_RE.fullmatch(token):
+                errors.append(f"{risk_id} finding reference {token!r} is malformed")
+            elif token not in known_findings:
+                errors.append(f"{risk_id} points at unknown finding {token}")
+
+    expected = [f"R-{index:02d}" for index in range(1, len(rows) + 1)]
+    if ids != expected:
+        errors.append("risk IDs must be sequential from R-01 with no gaps or duplicates")
+    return errors
+
+
+def validate_dpia(text: str, class_count: int, known_findings: set[str]) -> list[str]:
     errors: list[str] = []
     lowered = text.lower()
     for section in DPIA_SECTIONS:
@@ -318,6 +391,7 @@ def validate_dpia(text: str, class_count: int) -> list[str]:
         errors.append("DPIA no longer states that the external audit is outstanding")
     if "does not assert" not in lowered:
         errors.append("DPIA no longer disclaims compliance")
+    errors.extend(validate_risks(text, known_findings))
     return errors
 
 
@@ -342,10 +416,31 @@ def validate(root: Path) -> list[str]:
         f"{FINDINGS.relative_to(ROOT)}: {message}"
         for message in validate_findings(findings_text, class_ids)
     )
+
+    # Both sides of a reference must agree. Checking only that the finding
+    # exists let DC-30 point at F-08 while F-12 described DC-30, and let
+    # DC-01..03 point at a finding whose class list omitted them.
+    finding_classes: dict[str, set[str]] = {}
+    for _, row in data_rows(findings_text, "F-"):
+        if len(row) == len(FINDING_COLUMNS):
+            finding_classes[row[0]] = set(expand_classes(row[3]))
+    for _, row in data_rows(inventory_text, "DC-"):
+        if len(row) != len(INVENTORY_COLUMNS):
+            continue
+        class_id = row[0]
+        for token in tokens(row[10]):
+            if token == "-" or token not in finding_classes:
+                continue
+            if class_id not in finding_classes[token]:
+                errors.append(
+                    f"{INVENTORY.relative_to(ROOT)}: {class_id} points at "
+                    f"{token}, but that finding does not list {class_id}"
+                )
+
     dpia_text = (root / DPIA.relative_to(ROOT)).read_text(encoding="utf-8")
     errors.extend(
         f"{DPIA.relative_to(ROOT)}: {message}"
-        for message in validate_dpia(dpia_text, len(class_ids))
+        for message in validate_dpia(dpia_text, len(class_ids), KNOWN_FINDINGS)
     )
     return errors
 
@@ -394,6 +489,42 @@ MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("open finding untracked", "docs/PRIVACY_FINDINGS.md", "| Security lead | 2027-01-31 | #198 |", "| Security lead | 2027-01-31 | - |"),
     ("finding id sequence", "docs/PRIVACY_FINDINGS.md", "| F-08 | HIGH |", "| F-80 | HIGH |"),
     ("register header", "docs/PRIVACY_FINDINGS.md", "| ID | Severity | Status | Classes | Summary | Owner | Due | Tracking |\n", ""),
+    (
+        "class-finding round trip",
+        "docs/DATA_INVENTORY.md",
+        "| RAM today; disk persistence planned | session | legitimate-interests | kill switch denies the channel | always | no | in-memory | F-12 |",
+        "| RAM today; disk persistence planned | session | legitimate-interests | kill switch denies the channel | always | no | in-memory | F-08 |",
+    ),
+    (
+        "prose class range",
+        "docs/DATA_INVENTORY.md",
+        "DC-01 through DC-06, DC-08",
+        "DC-01 through DC-99, DC-08",
+    ),
+    (
+        "risk likelihood vocabulary",
+        "docs/DPIA.md",
+        "| Medium | High | Explicit consent gates",
+        "| Sometimes | High | Explicit consent gates",
+    ),
+    (
+        "risk finding link",
+        "docs/DPIA.md",
+        "Deletion controls exist for some classes; no cadence | F-10 |",
+        "Deletion controls exist for some classes; no cadence | F-99 |",
+    ),
+    (
+        "risk row deleted",
+        "docs/DPIA.md",
+        "| R-10 | Retained data outlives the reason it was kept | Medium | Medium | Deletion controls exist for some classes; no cadence | F-10 |\n",
+        "",
+    ),
+    (
+        "risk header",
+        "docs/DPIA.md",
+        "| ID | Risk | Likelihood | Impact | Mitigation | Finding |\n",
+        "",
+    ),
 )
 
 
