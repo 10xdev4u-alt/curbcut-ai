@@ -42,7 +42,7 @@ default limit is 64.
 
 ## Privacy
 
-The cache stores scores, counts, and a non-cryptographic content hash. It never
-stores the text, screen content, OCR output, or accessibility strings. The hash
-is an identity key, not a security boundary. The workspace canary scan covers
-this crate.
+The cache stores scores, counts, and a non-cryptographic identity hash. It
+never stores the text, screen content, OCR output, or accessibility strings.
+The hash is an identity key, not a security boundary. See
+[`docs/HASHES.md`](HASHES.md). The workspace canary scan covers this crate.

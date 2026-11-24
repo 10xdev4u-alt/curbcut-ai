@@ -108,7 +108,7 @@ the guard that enforces this is DC-11.
 | R-05 | A retention promise cannot be kept because nothing implements it | High | Medium | Inventory makes the rule explicit; conflicts flagged | F-03, F-04 |
 | R-06 | Diagnostics from a real incident leak content | Medium | Severe | Counts and hashes only, evidence allowlist matched to REDACTION.md | - |
 | R-07 | A crash report or companion message leaves the device without a clear approval step | Medium | High | Opt-in stated; **channel undocumented** | F-08 |
-| R-08 | A hash is treated as stronger than it is | Medium | Medium | Characterization inconsistent across documents | F-07 |
+| R-08 | A hash is treated as stronger than it is | Medium | Medium | `docs/HASHES.md` states each construction once; the consumer documents reference it | F-07 |
 | R-09 | Update traffic happens without a user-facing choice | Certain | Low | Kill switch blocks it by default | F-12 |
 | R-10 | Retained data outlives the reason it was kept | Medium | Medium | Deletion controls exist for some classes; no cadence | F-10 |
 
@@ -121,8 +121,8 @@ After the mitigations that exist today, the residual risks are:
   requirement for physical access to the machine.
 - **Unverified voice pipeline (R-04).** Real until #201 documents and tests it.
 - **Undocumented transmission paths (R-07).** Real until #203 documents them.
-- **Untested public claims (R-05, R-08).** Real until the retention and hash
-  rules are reconciled.
+- **Untested public claims (R-05).** Real until the retention rules are
+  reconciled.
 
 Everything else is controlled by a mechanism that exists and is checked in CI:
 the redaction layer, the canary scan, the socket guard, and the panic-silence

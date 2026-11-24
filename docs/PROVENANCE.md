@@ -11,7 +11,8 @@ to the value it replaced. `CC-065`.
    not representable.
 2. **The original is retained only as far as it is safe.** A setting value is
    kept whole, because settings are user-chosen. Content-derived text is kept
-   as a length and a non-cryptographic identity hash, never as text.
+   as a length and a non-cryptographic identity hash, never as text. See
+   [`docs/HASHES.md`](HASHES.md).
 3. **The panel is log-safe.** `OriginalValue::describe` renders a content-free
    summary, so a debug dump cannot leak what was on screen.
 
@@ -34,6 +35,6 @@ filter without copying.
 
 The panel stores action ids, rule ids, setting keys, timestamps, and either a
 setting value or a content hash. It never stores screen content, OCR text, or
-accessibility strings. `describe` is safe to log; the content hash is an
-identity check, not a security boundary. The workspace canary scan covers this
-crate.
+accessibility strings. `describe` is safe to log; the stored value is an
+identity hash, not a security boundary. See [`docs/HASHES.md`](HASHES.md). The
+workspace canary scan covers this crate.

@@ -76,7 +76,8 @@ observation is assigned the next id from a counter that starts at 1.
 
 ## API
 
-- `label_hash(label) -> u64` — a stable, non-reversible hash of a label.
+- `label_hash(label) -> u64` — a stable, non-cryptographic identity hash of a
+  label. See [`docs/HASHES.md`](HASHES.md).
 - `Observation::{new, rect, label_hash, confidence, aligned_by}`.
 - `similarity(a, b) -> f32`.
 - `TrackedElement::{new, stable_id, rect, label_hash, last_frame, confidence,
@@ -95,5 +96,6 @@ a track's label hash changed; an unknown id is always a change.
 ## Privacy
 
 The tracker stores rects, label hashes, confidences, and frame numbers. A label
-is reduced to a `DefaultHasher` hash at the boundary, so no screen content is
-retained or logged. The workspace canary scan covers this crate.
+is reduced to a `DefaultHasher` identity hash at the boundary, so no screen
+content is retained or logged. It is an identity hash, not a security boundary;
+see [`docs/HASHES.md`](HASHES.md). The workspace canary scan covers this crate.

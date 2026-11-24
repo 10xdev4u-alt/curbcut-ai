@@ -207,6 +207,10 @@ jobs:
         run: python3 scripts/check_panic_silence.py --self-test
       - name: Assert the guarded panic printed nothing
         run: python3 scripts/check_panic_silence.py
+      - name: Self-test the hash-statement validator
+        run: python3 scripts/validate_hashes.py --self-test
+      - name: Check the hash statement and its cross-references
+        run: python3 scripts/validate_hashes.py
 
   privacy-audit:
     runs-on: ubuntu-latest
