@@ -46,7 +46,7 @@ TASKS = {"book-doctor", "file-expense", "read-policy"}
 
 def hash_participant(identifier: str, salt: str) -> str:
     """Return a stable 16-character pseudonym for an identifier."""
-    if not salt:
+    if not salt or not salt.strip():
         raise ValueError("a non-empty study salt is required")
     digest = hashlib.sha256(f"{salt}\0{identifier}".encode("utf-8")).hexdigest()
     return digest[:16]
@@ -93,7 +93,9 @@ def summarize(sus_path: Path, tasks_path: Path, salt: str) -> dict:
     salted pseudonyms so the protocol's paired baseline-to-week-12 comparison can
     be computed; no raw identifier is written.
     """
-    if not salt:
+    # A whitespace-only salt would still hash, but it is guessable, so it is
+    # treated as missing rather than accepted.
+    if not salt or not salt.strip():
         raise ValueError("a non-empty study salt is required")
 
     waves: dict[str, dict] = {}
@@ -407,13 +409,17 @@ def _self_test() -> int:
             print("SELF-TEST FAILED: an unknown task was accepted", file=sys.stderr)
             raise SystemExit(1)
 
-        try:
-            summarize(sus, tasks, "")
-        except ValueError as error:
-            expect("salt" in str(error), "empty salt rejected on the summarize path")
-        else:
-            print("SELF-TEST FAILED: an empty salt reached summarize", file=sys.stderr)
-            raise SystemExit(1)
+        for blank in ("", "   ", "\t"):
+            try:
+                summarize(sus, tasks, blank)
+            except ValueError as error:
+                expect("salt" in str(error), f"{blank!r} salt rejected on summarize")
+            else:
+                print(
+                    f"SELF-TEST FAILED: {blank!r} salt reached summarize",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1)
 
         try:
             summarize(root / "missing.jsonl", tasks, "test-salt")

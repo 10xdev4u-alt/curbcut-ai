@@ -172,13 +172,15 @@ def validate_protocol(text: str) -> list[str]:
     if "no control group" not in limits:
         errors.append("protocol does not state the lack of a control group")
 
-    # An outcome claim is banned outright. The disclaimer is checked separately
-    # because an honest sentence may legitimately contain a phrase such as
-    # "CurbCut works" while denying it.
-    if "nothing here says curbcut works" not in lowered:
+    # An outcome claim is banned outright. The disclaimer is checked separately,
+    # and removed before the scan, because an honest sentence may legitimately
+    # contain a phrase such as "CurbCut works" while denying it.
+    denial = "nothing here says curbcut works"
+    if denial not in lowered:
         errors.append("protocol lost its explicit no-outcome-claim statement")
-    for phrase in OUTCOME_PHRASES:
-        if phrase in lowered:
+    claims = lowered.replace(denial, "")
+    for phrase in ("curbcut works",) + OUTCOME_PHRASES:
+        if phrase in claims:
             errors.append(f"protocol makes an outcome claim: {phrase!r}")
     return errors
 
@@ -404,6 +406,14 @@ MUTATIONS: tuple[Mutation, ...] = (
         "Pre-registered before recruitment, and published with the protocol:",
         "This protocol shows CurbCut is proven to work. Pre-registered before "
         "recruitment, and published with the protocol:",
+        "makes an outcome claim",
+    ),
+    (
+        "bare outcome claim",
+        "docs/STUDY_PROTOCOL.md",
+        "Primary question: for adults with cognitive or learning disabilities, does",
+        "CurbCut works. Primary question: for adults with cognitive or learning "
+        "disabilities, does",
         "makes an outcome claim",
     ),
     (
