@@ -120,7 +120,7 @@ def validate(root: Path) -> list[str]:
 
     try:
         raw_manifest = manifest_path.read_text(encoding="utf-8")
-    except OSError as error:
+    except (OSError, UnicodeError) as error:
         return [f"{MANIFEST.relative_to(ROOT)}: cannot read the manifest: {error}"]
     try:
         manifest = json.loads(raw_manifest)
@@ -527,6 +527,47 @@ CASES: tuple[dict[str, object], ...] = (
         "write": [("crates/curbcut-core/tests/fixtures/content_canaries.txt", "")],
         "expect": "contains no canary lines",
     },
+    {
+        "label": "manifest is not valid UTF-8",
+        "bytes": [(str(MANIFEST.relative_to(ROOT)), b'{"name":\xff}')],
+        "expect": "cannot read the manifest",
+    },
+    {
+        "label": "card loses the synthetic statement",
+        "edit": [
+            (
+                str(CARD.relative_to(ROOT)),
+                "synthetic",
+                "authored",
+            )
+        ],
+        "replace_all": True,
+        "expect": "'synthetic'",
+    },
+    {
+        "label": "doc license phrase",
+        "edit": [("docs/DATASET.md", "CC0-1.0-only", "AGPL-3.0-only")],
+        "replace_all": True,
+        "expect": "'cc0-1.0-only'",
+    },
+    {
+        "label": "doc loses the synthetic statement",
+        "edit": [("docs/DATASET.md", "synthetic", "authored")],
+        "replace_all": True,
+        "expect": "'synthetic'",
+    },
+    {
+        "label": "doc protocol citation renamed",
+        "edit": [("docs/DATASET.md", "STUDY_PROTOCOL.md", "RESEARCH.md")],
+        "replace_all": True,
+        "expect": "'study_protocol.md'",
+    },
+    {
+        "label": "doc harness name changed",
+        "edit": [("docs/DATASET.md", "reproduce_benchmark.py", "benchmark.py")],
+        "replace_all": True,
+        "expect": "'reproduce_benchmark.py'",
+    },
 )
 
 
@@ -581,7 +622,12 @@ def self_test() -> int:
                         file=sys.stderr,
                     )
                     return 1
-                path.write_text(text.replace(old, new, 1), encoding="utf-8")
+                replaced = (
+                    text.replace(old, new)
+                    if case.get("replace_all")
+                    else text.replace(old, new, 1)
+                )
+                path.write_text(replaced, encoding="utf-8")
             for relative, content in case.get("create", ()):  # type: ignore[union-attr]
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -592,6 +638,10 @@ def self_test() -> int:
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(str(content), encoding="utf-8")
+            for relative, content in case.get("bytes", ()):  # type: ignore[union-attr]
+                path = tmp / str(relative)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(bytes(content))
 
             errors = validate(tmp)
             expected = case["expect"]

@@ -61,7 +61,7 @@ def parse_output(text: str) -> dict:
 def load_manifest() -> dict:
     try:
         document = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise BenchmarkError(f"cannot read {MANIFEST.name}: {error}") from error
     if not isinstance(document, dict):
         raise BenchmarkError(f"{MANIFEST.name} is not a JSON object")

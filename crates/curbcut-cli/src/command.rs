@@ -210,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    fn bench_exits_zero_and_prints_a_checksum() {
+    fn bench_exits_zero_and_prints_the_byte_count() {
         let (code, out, err) = outputs(&["bench"]);
         assert_eq!(code, EXIT_OK);
         assert!(err.is_empty(), "{err}");
