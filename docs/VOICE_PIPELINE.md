@@ -7,7 +7,8 @@ closed the "undocumented" half only; enforcement is tracked in #217.
 ## Status
 
 The capture path is **planned**. There is no microphone capture, no audio
-buffer, no ASR call, and no clock-based expiry in any of the 14 crates. The
+buffer, no ASR call, and no clock-based audio-buffer expiry in any of the 14
+crates. The
 `< 1 s` figure in `docs/THREAT_MODEL.md` and `<1-second` in
 `docs/DATA_INVENTORY.md` (DC-32) are declared contracts, not enforced
 behaviour. F-06 and DPIA R-04 remain open.
@@ -16,7 +17,8 @@ behaviour. F-06 and DPIA R-04 remain open.
 
 1. **Capture** (planned): a push-to-talk gate admits audio only while the user
    holds the key. `PushToTalk` in `crates/curbcut-tts/src/command.rs` exists
-   today as a two-state `Idle`/`Listening` gate with press and release counters.
+   today as a two-state `Idle`/`Listening` gate with press and transition
+   counters.
    It is not a clock and it never sees audio.
 2. **Bounded buffer** (planned): raw samples would live in RAM for at most
    `< 1 s` and be discarded on release. No such buffer exists today.

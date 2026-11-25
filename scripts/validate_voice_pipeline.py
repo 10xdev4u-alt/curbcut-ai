@@ -50,7 +50,14 @@ DOCUMENTS = (
     WORKFLOW,
 )
 
-CONSUMERS = (INVENTORY, THREAT, MODELS, SPEECH, VOICE_COMMANDS, DPIA)
+CONSUMERS = {
+    INVENTORY: "not implemented today",
+    THREAT: "no code enforces",
+    MODELS: "planned",
+    SPEECH: "planned",
+    VOICE_COMMANDS: "planned",
+    DPIA: "unenforced",
+}
 
 SECTIONS = (
     "Status",
@@ -138,17 +145,21 @@ def validate(root: Path) -> list[str]:
         if phrase in body:
             errors.append(f"VOICE_PIPELINE.md overclaims {phrase!r}")
 
-    for relative in CONSUMERS:
-        if "](VOICE_PIPELINE.md)" not in documents[relative]:
+    for relative, phrase in CONSUMERS.items():
+        text = documents[relative]
+        if "](VOICE_PIPELINE.md)" not in text:
             errors.append(f"{relative} no longer links to docs/VOICE_PIPELINE.md")
+        if phrase not in flatten(text):
+            errors.append(f"{relative} no longer states {phrase!r}")
 
-    dc32 = table_cells(documents[INVENTORY], "DC-32")
-    if dc32 is None:
-        errors.append("DATA_INVENTORY.md has no DC-32 row")
-    elif len(dc32) < 10:
-        errors.append("DC-32 row is truncated")
-    elif dc32[9] != "planned":
-        errors.append(f"DC-32 code status is {dc32[9]!r}, not 'planned'")
+    for dc, expected in (("DC-32", "planned"), ("DC-33", "planned"), ("DC-34", "in-memory")):
+        row = table_cells(documents[INVENTORY], dc)
+        if row is None:
+            errors.append(f"DATA_INVENTORY.md has no {dc} row")
+        elif len(row) < 10:
+            errors.append(f"{dc} row is truncated")
+        elif row[9] != expected:
+            errors.append(f"{dc} code status is {row[9]!r}, not {expected!r}")
 
     threat_row = row_containing(documents[THREAT], "| Voice audio |")
     if not threat_row:
@@ -165,6 +176,8 @@ def validate(root: Path) -> list[str]:
         errors.append("R-04 no longer states the bound is unenforced")
     if "#217" not in documents[DPIA]:
         errors.append("DPIA.md no longer tracks enforcement in #217")
+    if "real until #217" not in flatten(documents[DPIA]):
+        errors.append("DPIA residual risk no longer tracks #217")
 
     f06 = table_cells(documents[FINDINGS], "F-06")
     if f06 is None:
@@ -242,6 +255,43 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "threat model bound removed",
         "edit": [(THREAT, "| Voice audio | RAM | < 1 s |", "| Voice audio | RAM | session |")],
         "expect": "voice row lost the < 1 s bound",
+    },
+    {
+        "label": "DC-33 marked implemented",
+        "edit": [
+            (
+                INVENTORY,
+                "| mic permission for recognition | local-only | yes | planned |",
+                "| mic permission for recognition | local-only | yes | implemented |",
+            )
+        ],
+        "expect": "DC-33 code status",
+    },
+    {
+        "label": "DC-34 marked planned",
+        "edit": [
+            (
+                INVENTORY,
+                "| push to talk, utterance not retained | local-only | yes | in-memory |",
+                "| push to talk, utterance not retained | local-only | yes | planned |",
+            )
+        ],
+        "expect": "DC-34 code status",
+    },
+    {
+        "label": "speech loses its planned wording",
+        "edit": [(SPEECH, "is planned and separate; see", "is implemented; see")],
+        "expect": "SPEECH.md no longer states 'planned'",
+    },
+    {
+        "label": "a clock rule appears in push-to-talk",
+        "edit": [(COMMAND_RS, "pub enum PushToTalkMode {", "pub enum PushToTalkMode { // Duration")],
+        "expect": "invents a clock rule",
+    },
+    {
+        "label": "residual risk drops the tracker",
+        "edit": [(DPIA, "Real\n  until #217 implements", "Real\n  until enforcement lands")],
+        "expect": "DPIA residual risk no longer tracks #217",
     },
     {
         "label": "voice commands drops the link",
