@@ -93,7 +93,7 @@ docs/
   ROLE_MAPPING.md          Platform role/state compatibility tables (generated)
   REDACTION.md             Redaction layer, canary fixture, no-content CI test
   DATA_INVENTORY.md        Data classes, retention rules, provisional lawful bases
-  DPIA.md                  Privacy impact assessment summary (internal, not legal advice)
+  DPIA.md                  Privacy impact assessment summary (internal, not audited; §Audit status)
   PRIVACY_FINDINGS.md      Findings register with owners, due dates, and tracking
   STUDY_PROTOCOL.md        12-week longitudinal outcome study protocol (pre-ethics)
   CONSENT_TEXT.md          Versioned study consent text with five granular layers
@@ -181,6 +181,7 @@ scripts/
   validate_transmission_paths.py Checks off-device paths have no invented channels
   validate_network_policy.py Checks the update-check exception and its controls
   validate_until_deleted.py Checks deletion controls, cadence, and cross-references
+  validate_privacy_audit.py Checks the audit-status statement and its cross-references
   validate_telemetry_retention.py Checks the never-stored rule and its summaries
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder
