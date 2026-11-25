@@ -9,6 +9,7 @@
 //! non-UTF-8 input reaches the parser and becomes a usage error.
 
 use std::fmt;
+use std::fmt::Write as _;
 
 use crate::bench;
 use crate::dump::DumpGraph;
@@ -35,6 +36,8 @@ pub enum Command {
     Dump,
     /// Deterministic benchmark.
     Bench,
+    /// Delete process-local layouts supplied on stdin.
+    ForgetLayouts,
     /// Draft VPAT, generated from the mapping data.
     Vpat,
     /// The published limitations, generated from the mapping data.
@@ -64,6 +67,7 @@ impl Command {
             "status" => Ok(Self::Status),
             "dump" => Ok(Self::Dump),
             "bench" => Ok(Self::Bench),
+            "forget-layouts" => Ok(Self::ForgetLayouts),
             "vpat" => Ok(Self::Vpat),
             "limitations" => Ok(Self::Limitations),
             "panic" => Ok(Self::Panic),
@@ -79,6 +83,20 @@ impl Command {
     /// [`Command::Panic`] panics with a fixed, content-free message. Every
     /// other command returns normally.
     pub fn execute(&self, out: &mut dyn fmt::Write) -> i32 {
+        let mut err = String::new();
+        self.execute_with_input(out, &mut err, "")
+    }
+
+    /// Runs the command with input for stdin-driven commands.
+    ///
+    /// Errors go to `err`; output goes to `out`. Only [`Command::ForgetLayouts`]
+    /// reads `input`; every other command ignores it.
+    pub fn execute_with_input(
+        &self,
+        out: &mut dyn fmt::Write,
+        err: &mut dyn fmt::Write,
+        input: &str,
+    ) -> i32 {
         match self {
             Self::Status => {
                 let _ = writeln!(out, "status ok");
@@ -95,6 +113,7 @@ impl Command {
                 let _ = writeln!(out, "{}", stats);
                 EXIT_OK
             }
+            Self::ForgetLayouts => crate::forget::forget_layouts(input, out, err),
             Self::Vpat => {
                 let _ = write!(out, "{}", vpat::draft_vpat());
                 EXIT_OK
@@ -130,8 +149,9 @@ commands:
   status    content-free status line
   dump      redacted debug dump (lengths and hashes only)
   bench     deterministic redaction benchmark
-  vpat      draft VPAT for our own UI, from the mapping data
-  limitations  the published limitations, from the same data
+  forget-layouts  delete stdin layouts (RAM only)
+  vpat      draft VPAT for our UI
+  limitations  published limitations
   panic     panic on purpose, to check the panic path
   help      this text
 
@@ -149,15 +169,31 @@ exit codes:
 /// # Panics
 ///
 /// Panics for [`Command::Panic`], like [`run`] does.
-pub fn run_to(args: &[String], out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
+pub fn run_with_input_to(
+    args: &[String],
+    out: &mut dyn fmt::Write,
+    err: &mut dyn fmt::Write,
+    input: &str,
+) -> i32 {
     match Command::parse(args) {
-        Ok(command) => command.execute(out),
+        Ok(command) => command.execute_with_input(out, err, input),
         Err(message) => {
             let _ = writeln!(err, "error: {message}");
             let _ = write!(err, "{}", usage());
             EXIT_USAGE
         }
     }
+}
+
+/// Runs the CLI with caller-supplied sinks and returns the exit code.
+///
+/// Parse errors go to `err`; command output goes to `out`.
+///
+/// # Panics
+///
+/// Panics for [`Command::Panic`], like [`run`] does.
+pub fn run_to(args: &[String], out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
+    run_with_input_to(args, out, err, "")
 }
 
 /// Runs the CLI against stdout and stderr and returns the exit code.
@@ -169,7 +205,19 @@ pub fn run_to(args: &[String], out: &mut dyn fmt::Write, err: &mut dyn fmt::Writ
 pub fn run(args: &[String]) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
-    let code = run_to(args, &mut out, &mut err);
+    let code = match Command::parse(args) {
+        Ok(Command::ForgetLayouts) => {
+            let mut buffer = String::new();
+            match std::io::Read::read_to_string(&mut std::io::stdin(), &mut buffer) {
+                Ok(_) => run_with_input_to(args, &mut out, &mut err, &buffer),
+                Err(_) => {
+                    let _ = writeln!(err, "error: stdin is not valid UTF-8");
+                    EXIT_USAGE
+                }
+            }
+        }
+        _ => run_with_input_to(args, &mut out, &mut err, ""),
+    };
     print!("{out}");
     eprint!("{err}");
     code

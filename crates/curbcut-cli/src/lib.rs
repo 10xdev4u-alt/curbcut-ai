@@ -19,9 +19,10 @@ pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub mod bench;
 pub mod command;
 pub mod dump;
+pub mod forget;
 pub mod vpat;
 
-pub use command::{run, run_to, usage, Command, EXIT_OK, EXIT_USAGE};
+pub use command::{run, run_to, run_with_input_to, usage, Command, EXIT_OK, EXIT_USAGE};
 
 #[cfg(test)]
 mod tests {

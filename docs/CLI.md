@@ -16,6 +16,7 @@ than panicking in the argument iterator.
 | `status` | `status ok`, `crate=…`, `version=…` | 0 |
 | `dump` | redacted graph dump | 0 |
 | `bench` | `bench iterations=… bytes=… elapsed_ns=…` | 0 |
+| `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, `scope=process-local RAM only` | 0 |
 | `vpat` | the draft VPAT for our own UI | 0 |
 | `limitations` | the numbered limitations list | 0 |
 | `panic` | a panic message | 101 |
@@ -24,6 +25,29 @@ than panicking in the argument iterator.
 Bad arguments print `error: …` and the usage text, and exit 2. An unknown
 command names itself. No argument path panics: parsing happens before dispatch
 and every malformed input is a usage error.
+
+## Process-local deletion
+
+`forget-layouts` reads `<user:u64> <app-slug> <window:u64>` lines from stdin,
+builds an in-memory `LayoutMemory`, and calls `LayoutMemory::reset_all`:
+
+```bash
+printf '1 mail 7\n2 mail 8\n' | cargo run -q --bin curbcut-cli -- forget-layouts
+# deleted layouts=2
+# remaining layouts=0
+# scope=process-local RAM only
+```
+
+Blank lines are skipped; duplicate keys collapse, so `N` counts distinct
+layouts, not input lines. At most 4096 non-blank lines are accepted; this is a
+semantic cap, not a memory guard against an arbitrarily large stdin. A malformed line
+reports its line number only and exits 2; identifiers are never echoed.
+
+This is a **process-local, RAM-only** affordance for DC-14. It cannot reach a
+running app's memory, reads and writes no file, and does not delete any other
+class. It is not an in-app deletion control, sets no maximum lifetime, and does
+not close F-10. See [`DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
+classes.
 
 ## Exit codes
 

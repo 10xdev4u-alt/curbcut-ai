@@ -73,4 +73,6 @@ and on `LayoutMemory`, so it prints slugs and counts, never screen content. A
 caller that stored content in a choice would print it, so the choice must stay
 content-free; the workspace canary scan covers this crate. Deletion for DC-14
 is described in [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
-classes.
+classes. The CLI `forget-layouts` command calls `reset_all` on a process-local
+memory built from stdin; it cannot reach a running app's RAM and no store file
+exists today.

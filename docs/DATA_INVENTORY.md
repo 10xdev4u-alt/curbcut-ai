@@ -153,8 +153,11 @@ either one; introducing a row that does is a signal, not a failure.
 
 Six classes are recorded as `until-deleted`. There is **no maximum lifetime**
 and no timer-driven deletion for any of them, and **no user-facing deletion
-control** exists today: four have in-memory library methods with no UI or CLI
-caller, profiles have only a baseline reset, and two have no code. The table
+control in the app** exists today: three have in-memory library methods with no
+UI or CLI caller (DC-14 now has a process-local CLI caller), profiles have only
+a baseline reset, and two have no code.
+The CLI `forget-layouts` command is a process-local, RAM-only affordance for
+DC-14 alone; the other five classes have no user-facing control. The table
 names the control that exists or the manual path owed when persistence ships.
 **F-10 stays OPEN** because a documented cadence is not a control. #223 tracks
 user-facing controls and #224 tracks the maximum-lifetime decision.
@@ -162,7 +165,7 @@ user-facing controls and #224 tracks the maximum-lifetime decision.
 | Class | Declared rule | Deletion control today | Review cadence | Finding |
 | --- | --- | --- | --- | --- |
 | Profiles (DC-13) | until-deleted | No delete API; `ProfileGraph::reset` restores the baseline only. User must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
-| Per-app layouts (DC-14) | until-deleted | `LayoutMemory::{forget, reset_app, reset_user, reset_all}` are in-memory library methods, not wired to UI or CLI; user must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
+| Per-app layouts (DC-14) | until-deleted | CLI `forget-layouts` calls `LayoutMemory::reset_all` on a process-local memory built from stdin; `forget`, `reset_app`, and `reset_user` remain in-memory library methods, not wired to UI or CLI; user must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
 | Learned simplifications (DC-15) | until-deleted | `FeedbackLog::clear` and `LearnedSimplification::clear` exist in memory, not wired to UI or CLI; user must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
 | Interruption inbox (DC-24) | until-deleted | `Inbox::remove` and `Inbox::clear` are in-memory methods, not wired to UI or CLI; the list is RAM only, so there is no file to delete. | Each DPIA review | F-10 |
 | Backup and encrypted export (DC-28) | until-deleted | No export or backup code exists; a user-held file is outside the app and the user deletes it manually. | Each DPIA review | F-10 |

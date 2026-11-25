@@ -32,6 +32,8 @@ LAYOUT_DOC = "docs/LAYOUT_MEMORY.md"
 FEEDBACK_DOC = "docs/LEARNED_SIMPLIFICATIONS.md"
 INBOX_DOC = "docs/INTERRUPTION_INBOX.md"
 TRANSMISSION_DOC = "docs/TRANSMISSION_PATHS.md"
+CLI_RS = "crates/curbcut-cli/src/command.rs"
+CLI_DOC = "docs/CLI.md"
 PROFILE_RS = "crates/curbcut-adapt/src/profile.rs"
 LAYOUT_RS = "crates/curbcut-store/src/layout_memory.rs"
 FEEDBACK_RS = "crates/curbcut-store/src/feedback.rs"
@@ -50,6 +52,8 @@ DOCUMENTS = (
     FEEDBACK_DOC,
     INBOX_DOC,
     TRANSMISSION_DOC,
+    CLI_RS,
+    CLI_DOC,
     PROFILE_RS,
     LAYOUT_RS,
     FEEDBACK_RS,
@@ -63,7 +67,13 @@ DOCUMENTS = (
 HEADER = "| Class | Declared rule | Deletion control today | Review cadence | Finding |"
 CLASSES = {
     "Profiles (DC-13)": ("no delete api", "reset", "manually"),
-    "Per-app layouts (DC-14)": ("reset_app", "reset_all", "not wired", "manually"),
+    "Per-app layouts (DC-14)": (
+        "reset_app",
+        "reset_all",
+        "not wired",
+        "manually",
+        "forget-layouts",
+    ),
     "Learned simplifications (DC-15)": ("clear", "not wired", "manually"),
     "Interruption inbox (DC-24)": ("remove", "clear", "ram", "no file"),
     "Backup and encrypted export (DC-28)": ("no export", "manually"),
@@ -139,7 +149,12 @@ def validate(root: Path) -> list[str]:
     block = section(inventory, "Until-deleted classes", "What this inventory does not cover")
     if HEADER not in block:
         errors.append("the until-deleted table header changed")
-    for phrase in ("no maximum lifetime", "f-10 stays open", "no user-facing deletion control"):
+    for phrase in (
+        "no maximum lifetime",
+        "f-10 stays open",
+        "no user-facing deletion control",
+        "process-local",
+    ):
         if phrase not in flatten(block):
             errors.append(f"the until-deleted section lost {phrase!r}")
     for phrase in OVERCLAIMS:
@@ -189,6 +204,15 @@ def validate(root: Path) -> list[str]:
             errors.append(f"{relative} no longer references Until-deleted classes")
         if dc.lower() not in body:
             errors.append(f"{relative} no longer mentions {dc}")
+
+    cli_rs = documents[CLI_RS]
+    if '"forget-layouts" =>' not in cli_rs:
+        errors.append("CLI no longer parses forget-layouts")
+    cli_doc = flatten(documents[CLI_DOC])
+    if "forget-layouts" not in cli_doc:
+        errors.append("CLI.md no longer documents forget-layouts")
+    if "process-local, ram-only" not in cli_doc:
+        errors.append("CLI.md no longer states the deletion is process-local")
 
     f10 = table_cells(documents[FINDINGS], "F-10")
     if f10 is None:
@@ -312,6 +336,11 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "a delete API appears",
         "edit": [(PROFILE_RS, "pub fn reset(&mut self) -> Vec<PreviewEvent>", "pub fn delete(&mut self) -> Vec<PreviewEvent>")],
         "expect": "profile.rs invents a delete API",
+    },
+    {
+        "label": "CLI forget command removed",
+        "edit": [(CLI_RS, '"forget-layouts" =>', '"forget-everything" =>')],
+        "expect": "CLI no longer parses forget-layouts",
     },
     {
         "label": "readme drops the validator",

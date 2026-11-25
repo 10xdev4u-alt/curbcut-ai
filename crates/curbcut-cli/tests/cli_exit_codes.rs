@@ -4,7 +4,8 @@
 //! non-UTF-8 argument path, which the in-process tests cannot reach.
 
 use std::ffi::OsStr;
-use std::process::{Command, Output};
+use std::io::Write;
+use std::process::{Command, Output, Stdio};
 
 fn binary() -> &'static str {
     env!("CARGO_BIN_EXE_curbcut-cli")
@@ -19,6 +20,90 @@ fn run(args: &[&OsStr]) -> Output {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
+fn stdout(output: &Output) -> String {
+    String::from_utf8_lossy(&output.stdout).into_owned()
+}
+
+fn run_with_bytes(args: &[&OsStr], input: &[u8]) -> Output {
+    let mut child = Command::new(binary())
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the binary should spawn");
+    child
+        .stdin
+        .take()
+        .expect("stdin should be piped")
+        .write_all(input)
+        .expect("input should be written");
+    child.wait_with_output().expect("the child should finish")
+}
+
+fn run_with_input(args: &[&OsStr], input: &str) -> Output {
+    run_with_bytes(args, input.as_bytes())
+}
+
+#[test]
+fn forget_layouts_deletes_keys_from_stdin() {
+    let output = run_with_input(
+        &[OsStr::new("forget-layouts")],
+        "1 mail 7\n2 mail 8\n3 chat 9\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("deleted layouts=3"), "{text}");
+    assert!(text.contains("remaining layouts=0"), "{text}");
+    for token in ["mail", "chat"] {
+        assert!(!text.contains(token), "{text}");
+    }
+}
+
+#[test]
+fn forget_layouts_rejects_invalid_utf8_without_claiming_success() {
+    let input = [
+        b'1', b' ', b'm', b'a', b'i', b'l', b' ', b'7', b'\n', 0xff, b'\n',
+    ];
+    let output = run_with_bytes(&[OsStr::new("forget-layouts")], &input);
+    assert_eq!(output.status.code(), Some(2));
+    let err = stderr(&output);
+    assert!(err.contains("stdin is not valid UTF-8"), "{err}");
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn forget_layouts_with_empty_stdin_deletes_zero() {
+    let output = run_with_input(&[OsStr::new("forget-layouts")], "");
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("deleted layouts=0"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn forget_layouts_reports_a_bad_line_number_only() {
+    let output = run_with_input(&[OsStr::new("forget-layouts")], "1 mail 7\nnope mail 8\n");
+    assert_eq!(output.status.code(), Some(2));
+    let err = stderr(&output);
+    assert!(err.contains("line 2"), "{err}");
+    assert!(!err.contains("nope"), "{err}");
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn help_lists_forget_layouts() {
+    let output = run(&[OsStr::new("--help")]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("forget-layouts"),
+        "{}",
+        stdout(&output)
+    );
 }
 
 #[test]
