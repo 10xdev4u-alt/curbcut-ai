@@ -9,6 +9,7 @@
 //! version = 1
 //! active_profile = "focus"
 //! hot_reload = true
+//! update_check = false
 //! panic_key = ["ctrl", "shift", "esc"]
 //!
 //! [profile.focus]
@@ -540,6 +541,10 @@ pub struct Config {
     pub profiles: BTreeMap<ProfileId, ProfileSettings>,
     /// Whether hot reload is enabled.
     pub hot_reload: bool,
+    /// Whether a config-built kill switch may check for updates.
+    ///
+    /// Persisted state only: no shipped binary reads this value yet.
+    pub update_check: bool,
     /// The panic shortcut.
     pub panic_key: Shortcut,
 }
@@ -560,6 +565,7 @@ impl Default for Config {
             active_profile: ProfileId::focus(),
             profiles,
             hot_reload: true,
+            update_check: false,
             panic_key: Shortcut::default(),
         }
     }
@@ -618,6 +624,7 @@ impl Config {
                     config.active_profile = profile_id_from_key(slug)?;
                 }
                 "hot_reload" => config.hot_reload = value.as_bool("hot_reload")?,
+                "update_check" => config.update_check = value.as_bool("update_check")?,
                 "panic_key" => config.panic_key = shortcut_from_toml(value)?,
                 "profile" => {
                     let table = value.as_table("profile")?;
@@ -932,6 +939,7 @@ mod tests {
 version = 1
 active_profile = "focus"
 hot_reload = true
+update_check = false
 panic_key = ["ctrl", "shift", "esc"]
 
 [profile.focus]
@@ -964,6 +972,7 @@ confirm_actions = true
         assert_eq!(config.active_profile, ProfileId::focus());
         assert_eq!(config.profiles.len(), 4);
         assert!(config.hot_reload);
+        assert!(!config.update_check);
         assert_eq!(config.panic_key.keys, vec!["ctrl", "shift", "esc"]);
         config.validate().expect("the default config must validate");
     }
@@ -1023,6 +1032,7 @@ confirm_actions = true
     fn parses_the_documented_example() {
         let config = Config::from_toml(EXAMPLE).expect("example is valid");
         assert_eq!(config.active_profile, ProfileId::focus());
+        assert!(!config.update_check);
         let focus = config.profiles.get(&ProfileId::focus()).expect("focus");
         assert!(focus.dim.enabled);
         assert!((focus.dim.opacity - 0.75).abs() < 1e-6);

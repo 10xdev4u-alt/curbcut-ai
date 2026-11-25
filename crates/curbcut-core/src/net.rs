@@ -207,6 +207,23 @@ impl KillSwitch {
         Self::new(NetworkPolicy::offline())
     }
 
+    /// Builds a switch from a persisted config document.
+    ///
+    /// A false `update_check` leaves the switch engaged. A true one starts a
+    /// fresh engaged switch over [`NetworkPolicy::updates_only`] and releases
+    /// it, so only [`NetworkFeature::UpdateCheck`] can dial. The value is read
+    /// once, when the switch is built; later config changes are not live.
+    /// No shipped binary calls this constructor.
+    pub fn from_config(config: &crate::config::Config) -> Self {
+        if config.update_check {
+            let mut switch = Self::new(NetworkPolicy::updates_only());
+            switch.release();
+            switch
+        } else {
+            Self::engaged()
+        }
+    }
+
     /// Blocks every channel, whatever the policy says.
     pub fn engage(&mut self) {
         self.engaged = true;
@@ -346,6 +363,24 @@ pub mod update {
             return Err(NetworkError::Blocked);
         }
         TcpStream::connect(addr).map_err(NetworkError::ConnectFailed)
+    }
+
+    /// Dials the update channel using a switch built from a config document.
+    ///
+    /// This delegates to [`dial`], so the classification and the switch check
+    /// live in one place. No shipped binary or UI calls this helper.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`NetworkError::Blocked`] when the config-built switch denies
+    /// the channel, and [`NetworkError::ConnectFailed`] when the socket fails.
+    // Keep the delegation on one line: the policy validator pins this call.
+    #[rustfmt::skip]
+    pub fn dial_from_config<A: ToSocketAddrs>(
+        config: &crate::config::Config,
+        addr: A,
+    ) -> Result<TcpStream, NetworkError> {
+        dial(&KillSwitch::from_config(config), NetworkFeature::UpdateCheck, addr)
     }
 }
 

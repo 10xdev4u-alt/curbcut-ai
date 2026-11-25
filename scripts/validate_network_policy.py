@@ -3,10 +3,12 @@
 
 Issue #205 found a published opt-in promise that the code does not keep:
 `UpdateCheck` is compiled into every build and denied by a default-engaged
-internal kill switch, but no per-user setting exists. `docs/NETWORK_POLICY.md`
-now records it as a deliberate exception. This validator checks that the
-document, its consumers, the findings register, and the code-level gate stay
-consistent with that statement.
+internal kill switch. `docs/NETWORK_POLICY.md` records it as a deliberate
+exception. A persisted root `update_check` key and a config-built dial path now
+exist, but no shipped binary or UI calls them, so #221 stays open. This
+validator checks that the document, its consumers, the findings register, the
+code-level gates, the schema row, and the integration test stay consistent with
+that statement.
 
 Run ``--self-test`` to apply every named mutation to a pristine copy and
 require detection. Every mutation source is preflighted, so a stale fixture
@@ -31,6 +33,9 @@ FINDINGS = "docs/PRIVACY_FINDINGS.md"
 SECURITY = "SECURITY.md"
 THREAT = "docs/THREAT_MODEL.md"
 NET_RS = "crates/curbcut-core/src/net.rs"
+CONFIG_RS = "crates/curbcut-core/src/config.rs"
+OPT_IN_TEST = "crates/curbcut-core/tests/network_opt_in.rs"
+CONFIG_SCHEMA = "docs/CONFIG_SCHEMA.md"
 README = "README.md"
 WORKFLOW = ".github/workflows/ci.yml"
 
@@ -42,6 +47,9 @@ DOCUMENTS = (
     SECURITY,
     THREAT,
     NET_RS,
+    CONFIG_RS,
+    OPT_IN_TEST,
+    CONFIG_SCHEMA,
     README,
     WORKFLOW,
 )
@@ -64,9 +72,11 @@ REQUIRED_PHRASES = (
     "#205",
     "#221",
     "deliberate exception",
-    "no per-user opt-in",
     "starts engaged",
-    "no shipped code path calls release",
+    "no shipped binary calls",
+    "no shipped binary releases a switch",
+    "no ui to inspect or revoke",
+    "persisted setting",
     "version only",
     "no screen content",
     "update::dial",
@@ -76,6 +86,7 @@ REQUIRED_PHRASES = (
 OVERCLAIMS = (
     "user has opted in",
     "user-facing opt-in exists",
+    "per-user opt-in exists",
     "off by default until the user",
     "fully offline",
     "kill switch is a user control",
@@ -90,6 +101,27 @@ CODE_INVARIANTS = (
     "if !switch.allows(feature)",
     "engaged: true",
     "matches!(self, Self::UpdateCheck)",
+)
+
+CONFIG_INVARIANTS = (
+    "pub update_check: bool",
+    "update_check: false,",
+    '"update_check" => config.update_check = value.as_bool("update_check")?,',
+)
+
+FROM_CONFIG_INVARIANTS = (
+    "NetworkPolicy::updates_only()",
+    "dial(&KillSwitch::from_config",
+)
+
+SCHEMA_ROW = "| `update_check` | boolean | `false` |"
+
+TEST_NAMES = (
+    "fn absent_update_check_key_denies_the_dial()",
+    "fn explicit_false_denies_the_dial()",
+    "fn true_allows_only_update_check_and_reaches_loopback()",
+    "fn non_boolean_update_check_is_rejected()",
+    "fn removing_the_key_revokes_the_choice()",
 )
 
 
@@ -173,12 +205,25 @@ def validate(root: Path) -> list[str]:
         errors.append("R-09 no longer points at F-12")
 
     net = documents[NET_RS]
-    for phrase in CODE_INVARIANTS:
+    for phrase in CODE_INVARIANTS + FROM_CONFIG_INVARIANTS:
         if phrase not in net:
             errors.append(f"net.rs no longer contains {phrase!r}")
     checks = net.count("if !switch.allows(feature)")
     if checks != 2:
         errors.append(f"net.rs has {checks} switch checks, expected 2")
+
+    config_rs = documents[CONFIG_RS]
+    for phrase in CONFIG_INVARIANTS:
+        if phrase not in config_rs:
+            errors.append(f"config.rs no longer contains {phrase!r}")
+
+    if SCHEMA_ROW not in documents[CONFIG_SCHEMA]:
+        errors.append("CONFIG_SCHEMA.md has no update_check root-key row")
+
+    opt_in_test = documents[OPT_IN_TEST]
+    for name in TEST_NAMES:
+        if name not in opt_in_test:
+            errors.append(f"network_opt_in.rs no longer contains {name!r}")
 
     readme = flatten(documents[README])
     if "network_policy.md" not in readme:
@@ -219,12 +264,18 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "opt-in invented",
-        "edit": [(POLICY, "no per-user opt-in", "a user-facing opt-in")],
-        "expect": "'no per-user opt-in'",
+        "replace": [(POLICY, "no shipped binary calls", "a shipped binary calls")],
+        "expect": "'no shipped binary calls'",
     },
     {
         "label": "user consent overclaim",
-        "edit": [(POLICY, "There is **no per-user opt-in**", "The user has opted in to updates")],
+        "edit": [
+            (
+                POLICY,
+                "there is **no UI to inspect or revoke**",
+                "The user has opted in to updates",
+            )
+        ],
         "expect": "overclaims 'user has opted in'",
     },
     {
@@ -234,12 +285,18 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "shipped release caller invented",
-        "edit": [(POLICY, "No shipped code path calls\nrelease()", "A shipped code path calls\nrelease()")],
-        "expect": "no shipped code path calls release",
+        "replace": [
+            (
+                POLICY,
+                "No shipped binary releases a switch",
+                "A shipped binary releases a switch",
+            )
+        ],
+        "expect": "'no shipped binary releases a switch'",
     },
     {
         "label": "issue reference changed",
-        "edit": [(POLICY, "#205", "#999")],
+        "replace": [(POLICY, "#205", "#999")],
         "expect": "'#205'",
     },
     {
@@ -260,7 +317,13 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "R-09 loses the exception",
-        "edit": [(DPIA, "documented exception in [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); no per-user opt-in (#221)", "no user choice")],
+        "edit": [
+            (
+                DPIA,
+                "documented exception in [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); persisted `update_check`",
+                "no user choice",
+            )
+        ],
         "expect": "R-09 mitigation does not name the documented exception",
     },
     {
@@ -278,6 +341,49 @@ CASES: tuple[dict[str, object], ...] = (
             )
         ],
         "expect": "net.rs has 1 switch checks",
+    },
+    {
+        "label": "config default flipped to true",
+        "edit": [(CONFIG_RS, "update_check: false,", "update_check: true,")],
+        "expect": "config.rs no longer contains 'update_check: false,'",
+    },
+    {
+        "label": "config parse arm deleted",
+        "edit": [
+            (
+                CONFIG_RS,
+                '"update_check" => config.update_check = value.as_bool("update_check")?,',
+                "",
+            )
+        ],
+        "expect": "config.rs no longer contains '\"update_check\" =>",
+    },
+    {
+        "label": "from_config widened to online",
+        "edit": [
+            (
+                NET_RS,
+                "let mut switch = Self::new(NetworkPolicy::updates_only());",
+                "let mut switch = Self::new(NetworkPolicy::online());",
+            )
+        ],
+        "expect": "net.rs no longer contains 'NetworkPolicy::updates_only()'",
+    },
+    {
+        "label": "opt-in integration test deleted",
+        "edit": [
+            (
+                OPT_IN_TEST,
+                "fn true_allows_only_update_check_and_reaches_loopback()",
+                "fn allows_update_check()",
+            )
+        ],
+        "expect": "network_opt_in.rs no longer contains 'fn true_allows_only_update_check_and_reaches_loopback()'",
+    },
+    {
+        "label": "config schema row removed",
+        "edit": [(CONFIG_SCHEMA, SCHEMA_ROW, "| `update_check` | boolean | `true` |")],
+        "expect": "CONFIG_SCHEMA.md has no update_check root-key row",
     },
     {
         "label": "security guide invents user consent",

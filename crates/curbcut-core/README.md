@@ -11,7 +11,9 @@ opt-in: `net` is the compiled gate (`default = []`), so a plain build
 has no optional transport module at all, and
 `net::transport_available` reports which build is running.
 `net::KillSwitch` is the runtime gate and starts engaged, and
-`net::NetworkPolicy` defaults to offline. Only `net::update::dial`
+`net::NetworkPolicy` defaults to offline. `KillSwitch::from_config`
+can release it only when the root `update_check` preference is true;
+no shipped binary calls that path yet. Only `net::update::dial`
 exists without the feature, it takes the feature it dials and refuses
 anything but `UpdateCheck`, and it still consults the switch. The
 `socket-guard` CI job runs `scripts/socket_guard.py` over the

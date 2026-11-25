@@ -61,7 +61,7 @@ use curbcut_core::net::{KillSwitch, NetworkFeature, NetworkPolicy};
 let mut switch = KillSwitch::new(NetworkPolicy::updates_only());
 assert!(!switch.allows(NetworkFeature::Sync));
 
-// No shipped caller releases it; this is a test/example call only.
+// This example releases the switch by hand, as a test would.
 switch.release();
 assert!(switch.allows(NetworkFeature::UpdateCheck));
 assert!(!switch.allows(NetworkFeature::Sync));
@@ -74,6 +74,8 @@ assert!(!switch.allows(NetworkFeature::UpdateCheck));
 `transport::dial` (compiled only with the `net` feature) and `update::dial`
 consult the switch at the boundary, so a caller cannot forget the gate. Both
 return `NetworkError::Blocked` without dialling when the switch refuses.
+`update::dial_from_config` builds its switch from the persisted `update_check`
+value and delegates to `update::dial`; no shipped binary calls it.
 
 ## The update-check exception
 
@@ -85,16 +87,23 @@ by a check for a newer build. `docs/DATA_INVENTORY.md` DC-30 records the basis
 R-09 tracks the user-facing gap as F-12. Recorded for issue #205.
 
 The control that exists is the runtime switch: it **starts engaged**, so a
-fresh build denies the dial; `update::dial` rechecks it on every call; and
-`release()` hands the decision to the policy. No shipped code path calls
-release() — only tests and an example do — so an update check can only be
-attempted when a caller explicitly releases the switch in memory.
+fresh switch denies the dial even under an online policy; `update::dial`
+rechecks it on every call; and `release()` hands the decision to the policy.
+`KillSwitch::from_config` now builds a fresh engaged switch over
+`NetworkPolicy::updates_only()` when the root `update_check` value is true and
+releases that switch; `update::dial_from_config` delegates to `update::dial`.
+That is a persisted setting and an enforcement point, not a shipped user
+control: **no shipped binary calls** `from_config` or `dial_from_config`, and
+there is **no UI to inspect or revoke** the setting.
+No shipped binary releases a switch; the only library `release()` call is
+inside `from_config`. #221 remains OPEN for that control.
 
-There is **no per-user opt-in**: no persisted setting, no UI, and no way to
-inspect or revoke the permission. "Off by default" describes the switch, not
-a user choice. The class is update metadata (**version only**), with
-**no screen content**; this crate defines the class but builds no payload. The channel is
-local to update metadata (DC-30). #221 tracks a real setting. This exception is the limit of the promise in README principle 1.
+An absent `update_check` key means false, so a document that never mentions it
+keeps the switch engaged. The class is update metadata (**version only**), with
+**no screen content**; this crate defines the class but builds no payload. The
+channel is local to update metadata (DC-30). #205 recorded the exception; #221
+tracks the missing control. This exception is the limit of the promise in
+README principle 1.
 
 ## Which build is running
 
@@ -148,8 +157,11 @@ the machine.
 - The compiled gate is per crate feature, not per profile. A user who wants no
   network code at all builds without `net`; a profile cannot remove code, only
   refuse it.
-- The switch is in-memory. A process restart resets it to engaged, which is the
-  safe direction.
+- The switch is in-memory. A process restart resets a hand-built switch to
+  engaged, which is the safe direction; only a caller that rebuilds a switch
+  through `from_config` can release it from persisted state.
+- `from_config` reads `update_check` when the switch is built, not live on every
+  dial. Editing the config later does not change a switch already in hand.
 - The socket guard observes `connect(2)` only. A platform transport that
   resolves a name but never connects, or that uses a raw socket path the guard
   cannot see, is out of scope for this script; the build-time feature gate is

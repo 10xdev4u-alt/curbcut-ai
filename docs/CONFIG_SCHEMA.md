@@ -13,6 +13,7 @@ Schema version: **1**.
 version = 1
 active_profile = "focus"
 hot_reload = true
+update_check = false
 panic_key = ["ctrl", "shift", "esc"]
 
 [profile.focus]
@@ -52,6 +53,7 @@ confirm_actions = true
 | `version` | integer | `1` | Must equal `1`. Other values are rejected. |
 | `active_profile` | string | `"focus"` | Must name a configured profile. |
 | `hot_reload` | boolean | `true` | Reserved for the file watcher. `ConfigSlot::apply_toml` is the explicit reload path and does not consult it. |
+| `update_check` | boolean | `false` | Persisted value for `KillSwitch::from_config` and `update::dial_from_config`; absent means false. No shipped binary or UI calls them. See [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md). |
 | `panic_key` | array of strings, or a `+`- or `-`-separated string | `["ctrl","shift","esc"]` | At least one recognized key. |
 | `profile` | table | the four built-ins | One sub-table per profile. |
 
