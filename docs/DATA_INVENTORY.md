@@ -129,7 +129,8 @@ implemented today.
 
 The two proposed off-device paths DC-27 and DC-29 are documented in
 [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md); both are planned and not
-implemented today.
+implemented today. The compiled-in update check is a documented exception in
+[`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); see DC-30.
 
 ## Lawful-basis rationale (provisional)
 

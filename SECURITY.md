@@ -32,7 +32,9 @@ Out of scope:
 
 ## Our security model, in one paragraph
 
-Frames are captured locally, processed in memory, never written to disk in raw form, and zeroized on drop. Nothing is sent to a server. Accessibility semantics are read-only by default; writing values requires an explicit user request, a per-session capability, and is logged. Models are pinned by hash and signature-verified. The store and caches are encrypted with keys in the OS keychain.
+Frames are captured locally, processed in memory, never written to disk in raw form, and zeroized on drop. Nothing is sent to a server except the documented
+compiled-in update check, which is denied by default until an internal switch
+is released; see [`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md). Accessibility semantics are read-only by default; writing values requires an explicit user request, a per-session capability, and is logged. Models are pinned by hash and signature-verified. The store and caches are encrypted with keys in the OS keychain.
 
 ## Hard guarantees we test
 

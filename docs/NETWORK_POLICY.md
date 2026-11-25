@@ -61,7 +61,7 @@ use curbcut_core::net::{KillSwitch, NetworkFeature, NetworkPolicy};
 let mut switch = KillSwitch::new(NetworkPolicy::updates_only());
 assert!(!switch.allows(NetworkFeature::Sync));
 
-// The user turns on updates in the profile.
+// No shipped caller releases it; this is a test/example call only.
 switch.release();
 assert!(switch.allows(NetworkFeature::UpdateCheck));
 assert!(!switch.allows(NetworkFeature::Sync));
@@ -74,6 +74,27 @@ assert!(!switch.allows(NetworkFeature::UpdateCheck));
 `transport::dial` (compiled only with the `net` feature) and `update::dial`
 consult the switch at the boundary, so a caller cannot forget the gate. Both
 return `NetworkError::Blocked` without dialling when the switch refuses.
+
+## The update-check exception
+
+`UpdateCheck` is the one channel the compiled gate keeps: `update::dial` is in
+every build, while the other four channels live behind the `net` feature. This
+is a **deliberate exception**, not an oversight: a broken install is repaired
+by a check for a newer build. `docs/DATA_INVENTORY.md` DC-30 records the basis
+(`legitimate-interests`) and the control (the kill switch denies the channel), and DPIA
+R-09 tracks the user-facing gap as F-12. Recorded for issue #205.
+
+The control that exists is the runtime switch: it **starts engaged**, so a
+fresh build denies the dial; `update::dial` rechecks it on every call; and
+`release()` hands the decision to the policy. No shipped code path calls
+release() — only tests and an example do — so an update check can only be
+attempted when a caller explicitly releases the switch in memory.
+
+There is **no per-user opt-in**: no persisted setting, no UI, and no way to
+inspect or revoke the permission. "Off by default" describes the switch, not
+a user choice. The class is update metadata (**version only**), with
+**no screen content**; this crate defines the class but builds no payload. The channel is
+local to update metadata (DC-30). #221 tracks a real setting. This exception is the limit of the promise in README principle 1.
 
 ## Which build is running
 

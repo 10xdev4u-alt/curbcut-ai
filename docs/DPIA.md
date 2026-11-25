@@ -46,7 +46,8 @@ content can contain other people's data, which is addressed as R-01.
    key in the OS keychain. That encryption is not implemented yet (F-01).
 5. The only outbound paths are opt-in: model downloads, voice downloads,
    encrypted sync, crash reports, and telemetry export. Update checks are the
-   one exception (F-12).
+   one exception (F-12), documented in
+   [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md).
 
 There is no server-side processing, no analytics warehouse, and no recipient to
 name, because none exists.
@@ -109,7 +110,7 @@ the guard that enforces this is DC-11.
 | R-06 | Diagnostics from a real incident leak content | Medium | Severe | Counts and hashes only, evidence allowlist matched to REDACTION.md | - |
 | R-07 | A crash report or companion message leaves the device without a clear approval step | Medium | High | Opt-in stated; **channel undocumented**; see [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md) | F-08 |
 | R-08 | A hash is treated as stronger than it is | Medium | Medium | `docs/HASHES.md` states each construction once; the consumer documents reference it | F-07 |
-| R-09 | Update traffic happens without a user-facing choice | Certain | Low | Kill switch blocks it by default | F-12 |
+| R-09 | Update traffic happens without a user-facing choice | Certain | Low | Kill switch blocks it by default; documented exception in [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); no per-user opt-in (#221) | F-12 |
 | R-10 | Retained data outlives the reason it was kept | Medium | Medium | Deletion controls exist for some classes; no cadence | F-10 |
 
 ## Residual risk

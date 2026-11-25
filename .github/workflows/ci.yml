@@ -239,6 +239,10 @@ jobs:
         run: python3 scripts/validate_transmission_paths.py --self-test
       - name: Check the transmission paths and their cross-references
         run: python3 scripts/validate_transmission_paths.py
+      - name: Self-test the network-policy validator
+        run: python3 scripts/validate_network_policy.py --self-test
+      - name: Check the update-check exception and its controls
+        run: python3 scripts/validate_network_policy.py
 
   study-instrument:
     runs-on: ubuntu-latest
