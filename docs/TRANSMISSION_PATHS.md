@@ -66,3 +66,6 @@ a transport.
 - CC-114 is the planned mobile companion; no such crate file exists today.
 - When either path lands, update this document, the inventory, the DPIA, and
   `scripts/validate_transmission_paths.py` together.
+- DC-28 and DC-29 are also `until-deleted` classes: see
+  [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted classes. `F-10`
+  stays OPEN; no deletion control or maximum lifetime exists.

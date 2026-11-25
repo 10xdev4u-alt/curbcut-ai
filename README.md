@@ -180,6 +180,7 @@ scripts/
   validate_voice_pipeline.py Checks the voice path has no retention overclaims
   validate_transmission_paths.py Checks off-device paths have no invented channels
   validate_network_policy.py Checks the update-check exception and its controls
+  validate_until_deleted.py Checks deletion controls, cadence, and cross-references
   validate_telemetry_retention.py Checks the never-stored rule and its summaries
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder

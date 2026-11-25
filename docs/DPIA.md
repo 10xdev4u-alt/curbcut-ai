@@ -143,6 +143,12 @@ probe.
 - **Review cadence:** after any SEV1 or SEV2 incident, when a new data class is
   added, and at least annually. A new class must be added to the inventory with
   a basis and a retention rule before it merges; the validator enforces this.
+- **Until-deleted review:** at every scheduled review the reviewer opens
+  [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted classes and
+  checks each of DC-13, DC-14, DC-15, DC-24, DC-28 and DC-29: the named code
+  control must still exist, or the statement that the user deletes it manually
+  must still be the honest one. This sets no maximum lifetime. F-10 stays OPEN
+  until a user-facing control exists.
 
 ## What would change this assessment
 

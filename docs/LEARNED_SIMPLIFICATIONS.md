@@ -86,4 +86,5 @@ the device through it. The workspace canary scan covers this crate.
 
 The acceptance rate is a reported number. The dogfood study that would test
 whether it improves by 10% over two weeks is `CC-120`; this module supplies the
-counter, not the claim.
+counter, not the claim. Deletion for DC-15 is described in
+[`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted classes.

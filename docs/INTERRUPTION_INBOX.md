@@ -43,4 +43,6 @@ inbox's.
 ## Privacy
 
 An entry holds an app slug, a kind, a rectangle, and a flag. It holds no label
-or text, so an inbox dump cannot leak what was on screen.
+or text, so an inbox dump cannot leak what was on screen. Deletion for DC-24 is
+described in [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
+classes.

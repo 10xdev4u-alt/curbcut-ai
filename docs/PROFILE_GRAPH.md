@@ -166,3 +166,5 @@ Settings are user-authored configuration, not screen content. A profile name,
 description, region name, or voice identifier is a config token and may appear
 in logs and dumps. Screen content, OCR text, and raw accessibility strings are
 never part of the graph. The workspace canary scan covers this crate.
+Deletion for DC-13 is described in [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md)
+§Until-deleted classes.
