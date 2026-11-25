@@ -358,6 +358,11 @@ CASES: tuple[dict[str, object], ...] = (
         "expect": "still says three hash constructions",
     },
     {
+        "label": "readme hash count inflated",
+        "edit": [(README, "The four hash constructions", "The five hash constructions")],
+        "expect": "no longer states four hash constructions",
+    },
+    {
         "label": "CI drops the self-test",
         "edit": [(WORKFLOW, "scripts/validate_hashes.py --self-test", "scripts/check_no_content_logging.py")],
         "expect": "no longer self-tests the hash-statement validator",

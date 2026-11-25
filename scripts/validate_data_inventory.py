@@ -476,8 +476,8 @@ MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("lawful basis vocabulary", "docs/DATA_INVENTORY.md", "| until-deleted | consent | none required to author", "| until-deleted | because | none required to author"),
     ("consent gate", "docs/DATA_INVENTORY.md", "| contract | screen-recording permission, stopped by the panic key |", "| contract |  |"),
     ("leaves-device vocabulary", "docs/DATA_INVENTORY.md", "| local-only | yes | in-memory | F-05 |", "| local-only | sometimes | in-memory | F-05 |"),
-    ("sensitivity vocabulary", "docs/DATA_INVENTORY.md", "| opt-in | derived | planned | F-01, F-09 |", "| opt-in | very | planned | F-01, F-09 |"),
-    ("code-status vocabulary", "docs/DATA_INVENTORY.md", "| derived | planned | F-01, F-09 |", "| derived | someday | F-01, F-09 |"),
+    ("sensitivity vocabulary", "docs/DATA_INVENTORY.md", "| none required to author, sync is separately opt-in | opt-in | derived | planned | F-01, F-09 |", "| none required to author, sync is separately opt-in | opt-in | very | planned | F-01, F-09 |"),
+    ("code-status vocabulary", "docs/DATA_INVENTORY.md", "| user makes the choice, reset available | opt-in | derived | planned | F-01, F-09 |", "| user makes the choice, reset available | opt-in | derived | someday | F-01, F-09 |"),
     ("duplicate class id", "docs/DATA_INVENTORY.md", "| DC-02 | OCR text", "| DC-01 | OCR text"),
     (
         "dangling finding",
