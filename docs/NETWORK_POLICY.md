@@ -96,7 +96,9 @@ That is a persisted setting and an enforcement point, not a shipped user
 control: **no shipped binary calls** `from_config` or `dial_from_config`, and
 there is **no UI to inspect or revoke** the setting.
 No shipped binary releases a switch; the only library `release()` call is
-inside `from_config`. #221 remains OPEN for that control.
+inside `from_config`. Tests and the `net_probe` example still release one by
+hand, which is why the socket guard keeps that example in both builds. #221
+remains OPEN for that control.
 
 An absent `update_check` key means false, so a document that never mentions it
 keeps the switch engaged. The class is update metadata (**version only**), with

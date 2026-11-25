@@ -374,13 +374,15 @@ pub mod update {
     ///
     /// Returns [`NetworkError::Blocked`] when the config-built switch denies
     /// the channel, and [`NetworkError::ConnectFailed`] when the socket fails.
-    // Keep the delegation on one line: the policy validator pins this call.
-    #[rustfmt::skip]
     pub fn dial_from_config<A: ToSocketAddrs>(
         config: &crate::config::Config,
         addr: A,
     ) -> Result<TcpStream, NetworkError> {
-        dial(&KillSwitch::from_config(config), NetworkFeature::UpdateCheck, addr)
+        dial(
+            &KillSwitch::from_config(config),
+            NetworkFeature::UpdateCheck,
+            addr,
+        )
     }
 }
 

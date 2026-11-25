@@ -109,10 +109,7 @@ CONFIG_INVARIANTS = (
     '"update_check" => config.update_check = value.as_bool("update_check")?,',
 )
 
-FROM_CONFIG_INVARIANTS = (
-    "NetworkPolicy::updates_only()",
-    "dial(&KillSwitch::from_config",
-)
+FROM_CONFIG_INVARIANTS = ("NetworkPolicy::updates_only()",)
 
 SCHEMA_ROW = "| `update_check` | boolean | `false` |"
 
@@ -208,6 +205,9 @@ def validate(root: Path) -> list[str]:
     for phrase in CODE_INVARIANTS + FROM_CONFIG_INVARIANTS:
         if phrase not in net:
             errors.append(f"net.rs no longer contains {phrase!r}")
+    compact = re.sub(r"\s+", "", net)
+    if "dial(&KillSwitch::from_config(config)" not in compact:
+        errors.append("net.rs no longer delegates to dial(&KillSwitch::from_config")
     checks = net.count("if !switch.allows(feature)")
     if checks != 2:
         errors.append(f"net.rs has {checks} switch checks, expected 2")
@@ -368,6 +368,11 @@ CASES: tuple[dict[str, object], ...] = (
             )
         ],
         "expect": "net.rs no longer contains 'NetworkPolicy::updates_only()'",
+    },
+    {
+        "label": "delegation removed",
+        "replace": [(NET_RS, "KillSwitch::from_config(config)", "KillSwitch::engaged()")],
+        "expect": "no longer delegates to dial(&KillSwitch::from_config",
     },
     {
         "label": "opt-in integration test deleted",
