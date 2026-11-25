@@ -174,6 +174,10 @@ def validate(root: Path) -> list[str]:
         errors.append("README.md no longer indexes docs/HASHES.md")
     if "validate_hashes.py" not in readme:
         errors.append("README.md no longer indexes scripts/validate_hashes.py")
+    if "four hash constructions" not in readme:
+        errors.append("README.md no longer states four hash constructions")
+    if "three hash constructions" in readme:
+        errors.append("README.md still says three hash constructions")
 
     workflow = documents[WORKFLOW]
     if "scripts/validate_hashes.py --self-test" not in workflow:
@@ -347,6 +351,16 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "readme drops the script",
         "edit": [(README, "validate_hashes.py", "validate_removed.py")],
         "expect": "no longer indexes scripts/validate_hashes.py",
+    },
+    {
+        "label": "readme hash count reverts",
+        "edit": [(README, "The four hash constructions", "The three hash constructions")],
+        "expect": "still says three hash constructions",
+    },
+    {
+        "label": "readme hash count inflated",
+        "edit": [(README, "The four hash constructions", "The five hash constructions")],
+        "expect": "no longer states four hash constructions",
     },
     {
         "label": "CI drops the self-test",
