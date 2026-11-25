@@ -54,6 +54,29 @@ placeholder. Filling those fields is a release-job step performed with a
 maintainer key; this repository cannot create or verify a real signature, so no
 artifact here is claimed to be signed.
 
+## Two-build measurement (one machine)
+
+Two isolated release builds of revision
+`2c771b94dc363c028b9846bf785e04d7323bd431` were recorded on 2026-11-25 with
+`cargo build --release --locked -p curbcut-cli`:
+
+| Build | Source path | Target directory | Bytes | SHA-256 |
+| --- | --- | --- | --- | --- |
+| A | `/tmp/opencode/repro-a` | `/tmp/opencode/repro-a-target` | 376816 | `d7b9c351b03a1cc3b3c33c8bb526820ce99f68301ea7c397c33db59341bbeec1` |
+| B | `/tmp/opencode/repro-b` | `/tmp/opencode/repro-b-target` | 376816 | `d7b9c351b03a1cc3b3c33c8bb526820ce99f68301ea7c397c33db59341bbeec1` |
+
+Environment for both: Linux 7.2.8-9-omarchy x86_64, rustc 1.99.1
+(`58cf8f9c35b355199727627d07ae34a4e2846d67`, 2026-10-13), host target
+`x86_64-unknown-linux-gnu`. The raw record is in
+`supply-chain/reproducibility.json`.
+
+The digests match, so the recipe is path-independent on this machine with this
+toolchain. That is **not** the two-independent-environments comparison CC-119
+asks for: the kernel, compiler patch version, and CPU were the same. Only the
+source and target paths differed. The exact compiler patch is still not pinned
+by the recipe. #208 stays OPEN until a second machine or CI runner records the
+same revision and publishes its digest.
+
 ## What is not proven
 
 - **Two independent builds have not been shown to match by hash.** Byte-identical

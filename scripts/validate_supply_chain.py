@@ -443,6 +443,7 @@ CASES: tuple[Case, ...] = (
     },
     {
         "label": "locked build command",
+        "replace_all": True,
         "edit": [
             (
                 "docs/SUPPLY_CHAIN.md",
@@ -551,7 +552,12 @@ def self_test() -> int:
                         file=sys.stderr,
                     )
                     return 1
-                path.write_text(text.replace(old, new, 1), encoding="utf-8")
+                path.write_text(
+                    text.replace(old, new)
+                    if case.get("replace_all")
+                    else text.replace(old, new, 1),
+                    encoding="utf-8",
+                )
             for relative, content in case.get("create", ()):  # type: ignore[union-attr]
                 path = tmp / str(relative)
                 path.parent.mkdir(parents=True, exist_ok=True)

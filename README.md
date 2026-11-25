@@ -186,6 +186,7 @@ scripts/
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder
   validate_supply_chain.py   Checks release prerequisites and supply-chain claims
+  validate_reproducibility.py Checks the two-build record and its honest limit
   validate_dataset.py        Checks the published corpus, manifest, and license
   reproduce_benchmark.py     Runs the benchmark and asserts its byte count
   study_instrument.py        Scores SUS and task responses; counts and pseudonyms only

@@ -306,6 +306,10 @@ jobs:
       - name: Validate release prerequisites
         run: >-
           python3 scripts/validate_supply_chain.py --sbom build/sbom.json
+      - name: Self-test the reproducibility record
+        run: python3 scripts/validate_reproducibility.py --self-test
+      - name: Check the two-build measurement report
+        run: python3 scripts/validate_reproducibility.py
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
