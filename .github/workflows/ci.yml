@@ -235,6 +235,10 @@ jobs:
         run: python3 scripts/validate_voice_pipeline.py --self-test
       - name: Check the voice path and its cross-references
         run: python3 scripts/validate_voice_pipeline.py
+      - name: Self-test the transmission-path validator
+        run: python3 scripts/validate_transmission_paths.py --self-test
+      - name: Check the transmission paths and their cross-references
+        run: python3 scripts/validate_transmission_paths.py
 
   study-instrument:
     runs-on: ubuntu-latest
