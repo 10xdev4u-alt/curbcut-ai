@@ -49,6 +49,29 @@ DOCUMENTS = (
 
 CONSUMERS = (INVENTORY, DPIA, FINDINGS, INCIDENT, NETWORK_POLICY, THREAT)
 
+# The inventory's retention section legitimately says "Enforced today", so
+# that phrase is checked only in the canonical document. These claims are
+# always false for the two off-device paths.
+CONSUMER_OVERCLAIMS = (
+    "is implemented",
+    "user can revoke today",
+    "wcag compliant",
+    "ada compliant",
+    "makes apps accessible",
+    "channels exist",
+    "crash reports are sent",
+    "text is sent to a phone",
+)
+
+CONSUMER_PHRASES = {
+    INVENTORY: "both are planned and not implemented today",
+    DPIA: "channel undocumented",
+    FINDINGS: "no channel or revocation control exists",
+    INCIDENT: "neither crash-report upload nor companion read-aloud is a channel today",
+    NETWORK_POLICY: "crash reports and companion read-aloud are not channels today",
+    THREAT: "not an implemented channel",
+}
+
 SECTIONS = (
     "Status",
     "Crash reports",
@@ -134,8 +157,16 @@ def validate(root: Path) -> list[str]:
             errors.append(f"TRANSMISSION_PATHS.md overclaims {phrase!r}")
 
     for relative in CONSUMERS:
-        if "](TRANSMISSION_PATHS.md)" not in documents[relative]:
+        text = documents[relative]
+        if "](TRANSMISSION_PATHS.md)" not in text:
             errors.append(f"{relative} no longer links to docs/TRANSMISSION_PATHS.md")
+        lowered = flatten(text)
+        required = CONSUMER_PHRASES[relative]
+        if required not in lowered:
+            errors.append(f"{relative} no longer states {required!r}")
+        for phrase in CONSUMER_OVERCLAIMS:
+            if phrase in lowered:
+                errors.append(f"{relative} overclaims {phrase!r}")
 
     for dc in ("DC-27", "DC-29"):
         row = table_cells(documents[INVENTORY], dc)
@@ -275,6 +306,38 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "incident plan drops the link",
         "edit": [(INCIDENT, "[`TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md)", "the transmission doc")],
         "expect": "INCIDENT_RESPONSE.md no longer links",
+    },
+    {
+        "label": "incident plan forgets there is no channel",
+        "edit": [
+            (
+                INCIDENT,
+                "Neither crash-report upload nor companion read-aloud is a channel today",
+                "Both crash-report upload and companion read-aloud are live channels",
+            )
+        ],
+        "expect": "INCIDENT_RESPONSE.md no longer states",
+    },
+    {
+        "label": "network policy forgets there is no channel",
+        "edit": [
+            (
+                NETWORK_POLICY,
+                "Crash reports and companion read-aloud are not channels today",
+                "Crash reports and companion read-aloud are live channels today",
+            )
+        ],
+        "expect": "NETWORK_POLICY.md no longer states",
+    },
+    {
+        "label": "threat model invents an implemented channel",
+        "edit": [(THREAT, "not an implemented channel", "an implemented channel")],
+        "expect": "THREAT_MODEL.md no longer states",
+    },
+    {
+        "label": "incident plan claims channels exist",
+        "edit": [(INCIDENT, "process failure, not a success.", "process failure, not a success. Crash channels exist.")],
+        "expect": "INCIDENT_RESPONSE.md overclaims 'channels exist'",
     },
     {
         "label": "a sixth network channel is invented",

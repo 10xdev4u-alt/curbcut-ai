@@ -26,6 +26,9 @@ No network call exists for either path today. F-08 and DPIA R-07 remain open.
 
 - **What is sent:** nothing today. `EngineKind::Remote` exists in
   `crates/curbcut-tts/src/engine.rs` but is never used by the fallback chain.
+- **Class note:** `DC-29` in the inventory is the companion's optional encrypted
+  sync class (`F-10`); remote read-aloud has no separate data class. Issue #203
+  and `F-08` use "mobile companion" as shorthand for both flows.
 - **When:** only after an explicit opt-in, off by default.
 - **Channel:** none today. Any future phone transport must be a `NetworkFeature`,
   compiled behind `net`, gated by the `KillSwitch`, and off by default.
