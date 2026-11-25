@@ -9,10 +9,12 @@ inventory and its summaries and checks the facts that matter:
 * ``docs/DATA_INVENTORY.md`` records DC-25 as ``never-stored``.
 * The telemetry rows in ``docs/ARCHITECTURE.md`` and ``docs/THREAT_MODEL.md``
   agree with it and no longer publish a bare "90 days".
-* ``docs/TELEMETRY.md`` states the RAM-only rule, the absence of disk/network
-  primitives, and links the canonical inventory.
+* ``docs/TELEMETRY.md`` states that counters live in RAM only, that there is no
+  time-based expiry, and that no disk or network primitive exists, and links
+  the canonical inventory.
 * ``docs/PRIVACY_FINDINGS.md`` keeps F-03 mitigated.
-* No file in ``crates/curbcut-telemetry/src`` uses a disk or network primitive.
+* No file in ``crates/curbcut-telemetry/src`` uses a disk, network, or clock
+  primitive.
 * ``README.md`` indexes this script and CI runs it.
 
 This checks prose and a boundary-level code invariant; the schema itself is
@@ -55,7 +57,9 @@ DOCUMENTS = (
     *SOURCES,
 )
 
-CODE_PRIMITIVES = re.compile(r"std::fs|File::open|TcpStream|UdpSocket|std::net")
+CODE_PRIMITIVES = re.compile(
+    r"std::fs|File::open|TcpStream|UdpSocket|std::net|std::time|Instant|SystemTime|Duration|sleep"
+)
 
 
 def flatten(text: str) -> str:
@@ -123,9 +127,12 @@ def validate(root: Path) -> list[str]:
             errors.append(f"{label}: telemetry row still promises 90 days")
         if "never-stored" not in row:
             errors.append(f"{label}: telemetry row lost the never-stored rule")
+        if "RAM only" not in row:
+            errors.append(f"{label}: telemetry row lost the RAM-only location")
 
     telemetry = flatten(documents[TELEMETRY_DOC])
     for phrase in (
+        "counters live in ram only",
         "never-stored",
         "there is no disk write, no network call, and no time-based expiry",
         "nothing is written to disk, and no network call exists in this crate",
@@ -139,14 +146,17 @@ def validate(root: Path) -> list[str]:
         errors.append("PRIVACY_FINDINGS.md has no F-03 row")
     elif len(f03) < 3:
         errors.append("F-03 row is truncated")
-    elif f03[2] in {"OPEN", "IN PROGRESS"}:
-        errors.append("F-03 is OPEN; the telemetry claim is still unreconciled")
+    elif f03[2] != "MITIGATED":
+        errors.append(f"F-03 status is {f03[2]!r}, not MITIGATED")
 
+    if not SOURCES:
+        errors.append("no telemetry source files were found")
     for relative in SOURCES:
         match = CODE_PRIMITIVES.search(documents[relative])
         if match:
             errors.append(
-                f"{relative} uses a disk or network primitive ({match.group(0)})"
+                f"{relative} uses a disk, network, or clock primitive "
+                f"({match.group(0)})"
             )
 
     readme = flatten(documents[README])
@@ -198,6 +208,17 @@ CASES: tuple[dict[str, object], ...] = (
         "expect": "ARCHITECTURE.md: telemetry row still promises 90 days",
     },
     {
+        "label": "architecture summary invents disk storage",
+        "edit": [
+            (
+                ARCHITECTURE,
+                "| Telemetry | RAM only | n/a | never-stored (opt-in export) |",
+                "| Telemetry | disk | n/a | never-stored (opt-in export) |",
+            )
+        ],
+        "expect": "ARCHITECTURE.md: telemetry row lost the RAM-only location",
+    },
+    {
         "label": "threat model reverts to 90 days",
         "edit": [
             (
@@ -207,6 +228,11 @@ CASES: tuple[dict[str, object], ...] = (
             )
         ],
         "expect": "THREAT_MODEL.md: telemetry row still promises 90 days",
+    },
+    {
+        "label": "retention section loses the RAM-only statement",
+        "edit": [(TELEMETRY_DOC, "Counters live in RAM only.", "Counters live until export.")],
+        "expect": "counters live in ram only",
     },
     {
         "label": "retention section loses never-stored",
@@ -243,7 +269,17 @@ CASES: tuple[dict[str, object], ...] = (
     {
         "label": "finding reopened",
         "edit": [(FINDINGS, "| F-03 | MEDIUM | MITIGATED |", "| F-03 | MEDIUM | OPEN |")],
-        "expect": "F-03 is OPEN",
+        "expect": "not MITIGATED",
+    },
+    {
+        "label": "finding accepted instead of mitigated",
+        "edit": [(FINDINGS, "| F-03 | MEDIUM | MITIGATED |", "| F-03 | MEDIUM | ACCEPTED |")],
+        "expect": "not MITIGATED",
+    },
+    {
+        "label": "finding closed as wontfix",
+        "edit": [(FINDINGS, "| F-03 | MEDIUM | MITIGATED |", "| F-03 | MEDIUM | WONTFIX |")],
+        "expect": "not MITIGATED",
     },
     {
         "label": "a disk primitive appears in the telemetry crate",
@@ -254,7 +290,18 @@ CASES: tuple[dict[str, object], ...] = (
                 "//! The opt-in telemetry exporter. std::fs::write",
             )
         ],
-        "expect": "disk or network primitive",
+        "expect": "disk, network, or clock primitive",
+    },
+    {
+        "label": "a clock primitive appears in the telemetry crate",
+        "edit": [
+            (
+                "crates/curbcut-telemetry/src/exporter.rs",
+                "//! The opt-in telemetry exporter.",
+                "//! The opt-in telemetry exporter. std::time::Instant",
+            )
+        ],
+        "expect": "disk, network, or clock primitive",
     },
     {
         "label": "readme drops the validator",
@@ -276,8 +323,6 @@ CASES: tuple[dict[str, object], ...] = (
 
 
 def _apply(tmp: Path, case: dict[str, object]) -> None:
-    for relative in case.get("delete", ()):  # type: ignore[union-attr]
-        (tmp / str(relative)).unlink(missing_ok=True)
     for relative, old, new in case.get("edit", ()):  # type: ignore[union-attr]
         path = tmp / str(relative)
         text = path.read_text(encoding="utf-8")
