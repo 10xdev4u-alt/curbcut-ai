@@ -71,4 +71,6 @@ is refused rather than silently misread.
 number, an app slug, and a window number. `Debug` is derived on both containers
 and on `LayoutMemory`, so it prints slugs and counts, never screen content. A
 caller that stored content in a choice would print it, so the choice must stay
-content-free; the workspace canary scan covers this crate.
+content-free; the workspace canary scan covers this crate. Deletion for DC-14
+is described in [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
+classes.
