@@ -173,6 +173,7 @@ scripts/
   publish_issues.py        Publish the backlog to GitHub and record the CC-># map
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
+  validate_retention.py      Reconciles enforced rules and planned retention targets
   validate_telemetry_retention.py Checks the never-stored rule and its summaries
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder

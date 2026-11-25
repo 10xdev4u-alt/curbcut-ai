@@ -379,7 +379,7 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "residual risk re-lists the hash claim",
-        "edit": [(DPIA, "- **Untested public claims (R-05).**", "- **Untested public claims (R-05, R-08).**")],
+        "edit": [(DPIA, "- **Planned persistence (R-05).**", "- **Planned persistence (R-05, R-08).**")],
         "expect": "residual risk still lists R-08",
     },
 )
@@ -417,7 +417,13 @@ def self_test() -> int:
 
         for case in CASES:
             materialize(tmp, pristine)
-            _apply(tmp, case)
+            try:
+                _apply(tmp, case)
+            except AssertionError as error:
+                print(
+                    f"SELF-TEST FAILED: {case['label']}: {error}", file=sys.stderr
+                )
+                return 1
             errors = validate(tmp)
             expected = str(case["expect"])
             if not any(expected.lower() in error.lower() for error in errors):

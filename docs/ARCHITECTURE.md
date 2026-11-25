@@ -936,7 +936,7 @@ resolves.
 | Profiles/settings | SQLite | SQLCipher | until deleted |
 | App layouts | SQLite | SQLCipher | until deleted |
 | Learned simplifications | SQLite | SQLCipher | until deleted |
-| Logs | disk | redacted | 7 days, no content |
+| Logs | stderr/caller sink today; disk planned | redacted | 7-days planned target, not enforced; see [DATA_INVENTORY.md](DATA_INVENTORY.md) §Retention decisions |
 | Telemetry | RAM only | n/a | never-stored (opt-in export) |
 
 ### 11.2 Rules

@@ -47,7 +47,10 @@ implements `WriteSink`.
 
 A record never holds screen content, OCR text, or a raw accessibility string.
 The target is a numeric id, the action and outcome are enum names, and the
-sequence is a counter. The crate's no-content-logging canary enforces this.
+sequence is a counter. Retention is `bounded-records` (4096), not a day rule:
+the oldest record is dropped and the count is reported. See
+[DATA_INVENTORY.md](DATA_INVENTORY.md) §Retention decisions. The crate's
+no-content-logging canary enforces this.
 
 ## Tests
 

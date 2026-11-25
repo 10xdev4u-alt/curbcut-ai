@@ -75,8 +75,8 @@ between "designed" and "shipped" is the subject of F-01.
 | DC-17 | Per-app remembered choices | per-app opt-in memory | in-memory map today | until-deleted | consent | explicit per-app enable, forget available | local-only | derived | implemented | - |
 | DC-18 | Understanding-result cache | derived understanding results | sealed ciphertext in an LRU | bounded-lru | contract | none, caller-owned payload | local-only | derived | boundary-missing | F-02 |
 | DC-19 | Reading-score cache | reading-level scores keyed by content hash | in-memory FIFO | bounded-capacity | contract | none, derived from already-permitted processing | local-only | hash-only | implemented | - |
-| DC-20 | Provenance panel entries | every adaptation change | RAM panel today | disputed | legitimate-interests | setting values shown to the user, content as hash | local-only | hash-only | in-memory | F-04 |
-| DC-21 | Action log | destructive-action outcomes | RAM log today, SQLCipher specified | disputed | legitimate-interests | per-action opt-in to Act mode | local-only | hash-only | in-memory | F-04 |
+| DC-20 | Provenance panel entries | every adaptation change | RAM panel today | session | legitimate-interests | setting values shown to the user, content as hash | local-only | hash-only | in-memory | F-04 |
+| DC-21 | Action log | destructive-action outcomes | RAM log today, SQLCipher specified | session | legitimate-interests | per-action opt-in to Act mode | local-only | hash-only | in-memory | F-04 |
 | DC-22 | Write-attempt log | every allowed or denied write to another app | RAM ring | bounded-records | legitimate-interests | write requires a scoped capability token | local-only | no | in-memory | - |
 | DC-23 | Consent records | action class, target role, outcome | RAM ring | bounded-records | legal-obligation | the record proves the consent that was asked for | local-only | no | in-memory | - |
 | DC-24 | Interruption inbox entries | interruptions filed for later review | RAM list | until-deleted | consent | filed by user choice, no timer, removal available | local-only | no | in-memory | - |
@@ -92,6 +92,23 @@ between "designed" and "shipped" is the subject of F-01.
 | DC-29 | Optional encrypted sync | profiles and settings across devices | remote, end-to-end encrypted | until-deleted | consent | off by default, user-held key | opt-in | derived | planned | F-10 |
 | DC-30 | Update metadata | update checker | RAM today; disk persistence planned | session | legitimate-interests | kill switch denies the channel | always | no | in-memory | F-12 |
 | DC-31 | Model files and release keys | model downloads | disk, pinned by hash and signature | until-deleted | contract | model download is a separate opt-in channel | opt-in | no | implemented | - |
+
+## Retention decisions
+
+This section is canonical for what is enforced today; the Retention column
+above gives each class its single rule. A day count is a **planned target**,
+not current behaviour, until a mechanism exists. `CC-200`.
+
+| Class | Inventory rule | Enforced today | Planned target | Finding |
+| --- | --- | --- | --- | --- |
+| Provenance panel (DC-20) | session | RAM panel lifetime and `ProvenancePanel::clear`; `changed_at_ms` is stored but never expires an entry | none | F-04 |
+| Action log (DC-21) | session | RAM `ActionLog` lifetime and `ActionLog::clear`; no timestamp and no purge | 30-days in a SQLCipher store; **not implemented** | F-04 |
+| Write-attempt log (DC-22) | bounded-records | `MAX_RETAINED_RECORDS = 4096`; oldest record dropped and count reported | none | - |
+| Diagnostic logs (DC-26) | 7-days | none: redacted lines go to stderr or a caller sink; no disk sink and no expiry | the 7-days rule applies to the planned disk log store | F-04 |
+
+`7-days` stays in DC-26's Retention cell because it is the declared rule for
+that planned class; the "Enforced today" column states that nothing enforces it
+yet. Telemetry (DC-25) is separately `never-stored`; see `docs/TELEMETRY.md`.
 
 ## D. User-input, biometric, and control classes
 
