@@ -140,7 +140,7 @@ data, not a second inventory.
 | Voice transcripts | never stored | n/a | n/a | never |
 | Action log | SQLite | 30 days | SQLCipher | action type only |
 | Crash reports | user-approved | on send | in transit | redacted |
-| Telemetry | local | 90 days | n/a | opt-in, no identifiers |
+| Telemetry | RAM only | never-stored | n/a | opt-in, no identifiers |
 | Update metadata | RAM/disk | session | signed | version only |
 
 ---

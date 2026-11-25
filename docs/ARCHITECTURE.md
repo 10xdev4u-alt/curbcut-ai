@@ -937,7 +937,7 @@ resolves.
 | App layouts | SQLite | SQLCipher | until deleted |
 | Learned simplifications | SQLite | SQLCipher | until deleted |
 | Logs | disk | redacted | 7 days, no content |
-| Telemetry | local only | n/a | opt-in, 90 days |
+| Telemetry | RAM only | n/a | never-stored (opt-in export) |
 
 ### 11.2 Rules
 

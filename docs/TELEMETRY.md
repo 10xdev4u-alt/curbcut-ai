@@ -94,6 +94,14 @@ Nothing is written to disk, and no network call exists in this crate.
   take_snapshot}`.
 - `TelemetryError`, `SCHEMA_VERSION`.
 
+## Retention
+
+Counters live in RAM only. The canonical rule for DC-25 is `never-stored`:
+there is no disk write, no network call, and no time-based expiry. `opt_out`
+clears the snapshot and process exit discards it. The old "90 days" line in the
+summary tables was a promise with no mechanism and is gone; see
+[`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) DC-25.
+
 ## Privacy
 
 The schema is a fixed set of counters. A rejected key is dropped without being

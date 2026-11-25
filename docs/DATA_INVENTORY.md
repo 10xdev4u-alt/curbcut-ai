@@ -80,7 +80,7 @@ between "designed" and "shipped" is the subject of F-01.
 | DC-22 | Write-attempt log | every allowed or denied write to another app | RAM ring | bounded-records | legitimate-interests | write requires a scoped capability token | local-only | no | in-memory | - |
 | DC-23 | Consent records | action class, target role, outcome | RAM ring | bounded-records | legal-obligation | the record proves the consent that was asked for | local-only | no | in-memory | - |
 | DC-24 | Interruption inbox entries | interruptions filed for later review | RAM list | until-deleted | consent | filed by user choice, no timer, removal available | local-only | no | in-memory | - |
-| DC-25 | Telemetry counters and snapshots | instrumented counters | RAM only | 90-days | consent | opt-in export, no identifiers | opt-in | no | in-memory | F-03 |
+| DC-25 | Telemetry counters and snapshots | instrumented counters | RAM only | never-stored | consent | opt-in export, no identifiers | opt-in | no | in-memory | F-03 |
 
 ## C. Diagnostic, export, and network classes
 
