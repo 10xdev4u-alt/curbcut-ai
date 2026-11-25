@@ -33,6 +33,7 @@ FINDINGS = "docs/PRIVACY_FINDINGS.md"
 CONFIRM_RS = "crates/curbcut-adapt/src/confirm.rs"
 PROVENANCE_RS = "crates/curbcut-adapt/src/provenance.rs"
 WRITE_GUARD_RS = "crates/curbcut-a11y/src/write_guard.rs"
+REDACT_RS = "crates/curbcut-core/src/redact.rs"
 README = "README.md"
 WORKFLOW = ".github/workflows/ci.yml"
 
@@ -48,6 +49,7 @@ DOCUMENTS = (
     CONFIRM_RS,
     PROVENANCE_RS,
     WRITE_GUARD_RS,
+    REDACT_RS,
     README,
     WORKFLOW,
 )
@@ -145,6 +147,16 @@ def validate(root: Path) -> list[str]:
         if dc == "DC-21" and "not implemented" not in flatten(cells[3]):
             errors.append("DC-21 planned target lost its not-implemented label")
 
+    dc26 = table_cells(inventory, "DC-26")
+    if dc26 is None:
+        errors.append("inventory has no DC-26 row")
+    elif len(dc26) < 5:
+        errors.append("inventory DC-26 row is truncated")
+    elif dc26[4] != "7-days":
+        errors.append(f"DC-26 retention {dc26[4]!r} is not '7-days'")
+    if "stays in DC-26's Retention cell" not in inventory:
+        errors.append("the explanation for DC-26's planned 7-days is missing")
+
     for dc in ("DC-20", "DC-21"):
         row = table_cells(inventory, dc)
         if row is None:
@@ -210,7 +222,7 @@ def validate(root: Path) -> list[str]:
     if "Untested public claims (R-05)" in documents[DPIA]:
         errors.append("DPIA residual risk still lists unreconciled public claims")
 
-    for relative in (CONFIRM_RS, PROVENANCE_RS):
+    for relative in (CONFIRM_RS, PROVENANCE_RS, WRITE_GUARD_RS, REDACT_RS):
         match = CLOCK_PRIMITIVE.search(documents[relative])
         if match:
             errors.append(f"{relative} invents a time-based rule ({match.group(0)})")
@@ -328,6 +340,28 @@ CASES: tuple[dict[str, object], ...] = (
         "expect": "DC-21 planned target lost its not-implemented label",
     },
     {
+        "label": "DC-26 inventory cell changed",
+        "edit": [
+            (
+                INVENTORY,
+                "| disk, redacted | 7-days | legitimate-interests",
+                "| disk, redacted | session | legitimate-interests",
+            )
+        ],
+        "expect": "DC-26 retention 'session' is not '7-days'",
+    },
+    {
+        "label": "DC-26 explanation removed",
+        "edit": [
+            (
+                INVENTORY,
+                "`7-days` stays in DC-26's Retention cell because it is the declared rule for",
+                "The declared rule for",
+            )
+        ],
+        "expect": "explanation for DC-26's planned 7-days is missing",
+    },
+    {
         "label": "finding reopened",
         "edit": [(FINDINGS, "| F-04 | MEDIUM | MITIGATED |", "| F-04 | MEDIUM | OPEN |")],
         "expect": "F-04 status",
@@ -345,6 +379,22 @@ CASES: tuple[dict[str, object], ...] = (
     {
         "label": "a clock rule appears in the action log",
         "edit": [(CONFIRM_RS, "/// Drops every record.", "/// Drops every record after Duration::from_secs(30).")],
+        "expect": "time-based rule",
+    },
+    {
+        "label": "a clock rule appears in the write guard",
+        "edit": [
+            (
+                WRITE_GUARD_RS,
+                "pub const MAX_RETAINED_RECORDS: usize = 4096;",
+                "pub const MAX_RETAINED_RECORDS: usize = Duration::from_secs(30);",
+            )
+        ],
+        "expect": "time-based rule",
+    },
+    {
+        "label": "a clock rule appears in the diagnostics layer",
+        "edit": [(REDACT_RS, "pub struct Logger {", "pub struct Logger { // std::time::Instant")],
         "expect": "time-based rule",
     },
     {
