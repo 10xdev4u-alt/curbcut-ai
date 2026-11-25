@@ -16,7 +16,7 @@ than panicking in the argument iterator.
 | `status` | `status ok`, `crate=…`, `version=…` | 0 |
 | `dump` | redacted graph dump | 0 |
 | `bench` | `bench iterations=… bytes=… elapsed_ns=…` | 0 |
-| `forget-layouts` | `deleted layouts=N`, `remaining layouts=0` | 0 |
+| `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, `scope=process-local RAM only` | 0 |
 | `vpat` | the draft VPAT for our own UI | 0 |
 | `limitations` | the numbered limitations list | 0 |
 | `panic` | a panic message | 101 |
@@ -35,10 +35,12 @@ builds an in-memory `LayoutMemory`, and calls `LayoutMemory::reset_all`:
 printf '1 mail 7\n2 mail 8\n' | cargo run -q --bin curbcut-cli -- forget-layouts
 # deleted layouts=2
 # remaining layouts=0
+# scope=process-local RAM only
 ```
 
 Blank lines are skipped; duplicate keys collapse, so `N` counts distinct
-layouts, not input lines. At most 4096 lines are accepted. A malformed line
+layouts, not input lines. At most 4096 non-blank lines are accepted; this is a
+semantic cap, not a memory guard against an arbitrarily large stdin. A malformed line
 reports its line number only and exits 2; identifiers are never echoed.
 
 This is a **process-local, RAM-only** affordance for DC-14. It cannot reach a

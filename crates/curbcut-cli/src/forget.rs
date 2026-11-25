@@ -19,9 +19,9 @@ pub const MAX_LINES: usize = 4096;
 
 /// Deletes the layouts described by `input` from a process-local memory.
 ///
-/// Each nonblank line is `<user:u64> <app-slug> <window:u64>`. Malformed input
-/// reports a line number to `err` and exits with [`EXIT_USAGE`]; it never
-/// echoes the offending text. A duplicate key collapses to one layout, so the
+/// Each nonblank line is `<user:u64> <app-slug> <window:u64>`. At most 4096
+/// non-blank lines are accepted. Malformed input reports a line number to
+/// `err` and exits with [`EXIT_USAGE`]; it never echoes the offending text. A duplicate key collapses to one layout, so the
 /// reported count is the number of distinct layouts deleted.
 pub fn forget_layouts(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
     let mut memory = LayoutMemory::new();
@@ -39,7 +39,7 @@ pub fn forget_layouts(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::
         }
         let number = index + 1;
         let fields: Vec<&str> = line.split_whitespace().collect();
-        if fields.len() != 3 || fields[1].is_empty() {
+        if fields.len() != 3 {
             let _ = writeln!(err, "error: malformed layout line {number}");
             return EXIT_USAGE;
         }
@@ -64,6 +64,7 @@ pub fn forget_layouts(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::
     let deleted = memory.reset_all();
     let _ = writeln!(out, "deleted layouts={deleted}");
     let _ = writeln!(out, "remaining layouts=0");
+    let _ = writeln!(out, "scope=process-local RAM only");
     EXIT_OK
 }
 

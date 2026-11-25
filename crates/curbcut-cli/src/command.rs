@@ -9,6 +9,7 @@
 //! non-UTF-8 input reaches the parser and becomes a usage error.
 
 use std::fmt;
+use std::fmt::Write as _;
 
 use crate::bench;
 use crate::dump::DumpGraph;
@@ -202,17 +203,21 @@ pub fn run_to(args: &[String], out: &mut dyn fmt::Write, err: &mut dyn fmt::Writ
 /// Panics for [`Command::Panic`]. The Rust runtime turns that into exit code
 /// [`EXIT_PANIC`].
 pub fn run(args: &[String]) -> i32 {
-    let input = match Command::parse(args) {
-        Ok(Command::ForgetLayouts) => {
-            let mut buffer = String::new();
-            let _ = std::io::Read::read_to_string(&mut std::io::stdin(), &mut buffer);
-            buffer
-        }
-        _ => String::new(),
-    };
     let mut out = String::new();
     let mut err = String::new();
-    let code = run_with_input_to(args, &mut out, &mut err, &input);
+    let code = match Command::parse(args) {
+        Ok(Command::ForgetLayouts) => {
+            let mut buffer = String::new();
+            match std::io::Read::read_to_string(&mut std::io::stdin(), &mut buffer) {
+                Ok(_) => run_with_input_to(args, &mut out, &mut err, &buffer),
+                Err(_) => {
+                    let _ = writeln!(err, "error: stdin is not valid UTF-8");
+                    EXIT_USAGE
+                }
+            }
+        }
+        _ => run_with_input_to(args, &mut out, &mut err, ""),
+    };
     print!("{out}");
     eprint!("{err}");
     code

@@ -153,8 +153,9 @@ either one; introducing a row that does is a signal, not a failure.
 
 Six classes are recorded as `until-deleted`. There is **no maximum lifetime**
 and no timer-driven deletion for any of them, and **no user-facing deletion
-control in the app** exists today: four have in-memory library methods with no
-UI or CLI caller, profiles have only a baseline reset, and two have no code.
+control in the app** exists today: three have in-memory library methods with no
+UI or CLI caller (DC-14 now has a process-local CLI caller), profiles have only
+a baseline reset, and two have no code.
 The CLI `forget-layouts` command is a process-local, RAM-only affordance for
 DC-14 alone; the other five classes have no user-facing control. The table
 names the control that exists or the manual path owed when persistence ships.

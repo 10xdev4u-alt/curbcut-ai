@@ -26,7 +26,7 @@ fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
-fn run_with_input(args: &[&OsStr], input: &str) -> Output {
+fn run_with_bytes(args: &[&OsStr], input: &[u8]) -> Output {
     let mut child = Command::new(binary())
         .args(args)
         .stdin(Stdio::piped())
@@ -38,9 +38,13 @@ fn run_with_input(args: &[&OsStr], input: &str) -> Output {
         .stdin
         .take()
         .expect("stdin should be piped")
-        .write_all(input.as_bytes())
+        .write_all(input)
         .expect("input should be written");
     child.wait_with_output().expect("the child should finish")
+}
+
+fn run_with_input(args: &[&OsStr], input: &str) -> Output {
+    run_with_bytes(args, input.as_bytes())
 }
 
 #[test]
@@ -56,6 +60,18 @@ fn forget_layouts_deletes_keys_from_stdin() {
     for token in ["mail", "chat"] {
         assert!(!text.contains(token), "{text}");
     }
+}
+
+#[test]
+fn forget_layouts_rejects_invalid_utf8_without_claiming_success() {
+    let input = [
+        b'1', b' ', b'm', b'a', b'i', b'l', b' ', b'7', b'\n', 0xff, b'\n',
+    ];
+    let output = run_with_bytes(&[OsStr::new("forget-layouts")], &input);
+    assert_eq!(output.status.code(), Some(2));
+    let err = stderr(&output);
+    assert!(err.contains("stdin is not valid UTF-8"), "{err}");
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
 }
 
 #[test]

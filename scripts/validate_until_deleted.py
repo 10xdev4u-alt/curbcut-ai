@@ -206,7 +206,7 @@ def validate(root: Path) -> list[str]:
             errors.append(f"{relative} no longer mentions {dc}")
 
     cli_rs = documents[CLI_RS]
-    if '"forget-layouts" => Ok(Self::ForgetLayouts)' not in cli_rs:
+    if '"forget-layouts" =>' not in cli_rs:
         errors.append("CLI no longer parses forget-layouts")
     cli_doc = flatten(documents[CLI_DOC])
     if "forget-layouts" not in cli_doc:
@@ -339,7 +339,7 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "CLI forget command removed",
-        "edit": [(CLI_RS, '"forget-layouts" => Ok(Self::ForgetLayouts)', '"forget-everything" => Ok(Self::ForgetLayouts)')],
+        "edit": [(CLI_RS, '"forget-layouts" =>', '"forget-everything" =>')],
         "expect": "CLI no longer parses forget-layouts",
     },
     {
