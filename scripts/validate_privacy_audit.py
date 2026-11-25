@@ -117,6 +117,10 @@ def validate(root: Path) -> list[str]:
     for phrase in OVERCLAIMS:
         if phrase in body:
             errors.append(f"DPIA.md §Audit status overclaims {phrase!r}")
+    for relative in (DPIA, FINDINGS, README):
+        for phrase in OVERCLAIMS:
+            if phrase in flatten(documents[relative]):
+                errors.append(f"{relative} overclaims {phrase!r}")
 
     for heading in ("Status", "Consultation and review"):
         part = section(dpia, heading, "Scope" if heading == "Status" else "Audit status")
@@ -227,6 +231,17 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "finding closed early",
         "edit": [(FINDINGS, "| F-11 | HIGH | OPEN |", "| F-11 | HIGH | MITIGATED |")],
         "expect": "F-11 status",
+    },
+    {
+        "label": "finding claims an audit happened",
+        "edit": [
+            (
+                FINDINGS,
+                "§Audit status records the scope",
+                "§Audit status records the scope; this DPIA has been audited",
+            )
+        ],
+        "expect": "PRIVACY_FINDINGS.md overclaims 'has been audited'",
     },
     {
         "label": "finding drops the cross-reference",
