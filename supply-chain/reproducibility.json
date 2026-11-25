@@ -1,0 +1,33 @@
+{
+  "schema": "curbcut-reproducibility-v1",
+  "revision": "2c771b94dc363c028b9846bf785e04d7323bd431",
+  "date": "2026-11-25",
+  "command": "cargo build --release --locked -p curbcut-cli",
+  "artifact": "curbcut-cli",
+  "environment": {
+    "os": "Linux 7.2.8-9-omarchy x86_64",
+    "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "rustc_commit": "58cf8f9c35b355199727627d07ae34a4e2846d67",
+    "host_target": "x86_64-unknown-linux-gnu"
+  },
+  "builds": [
+    {
+      "label": "A",
+      "source": "/tmp/opencode/repro-a",
+      "target_dir": "/tmp/opencode/repro-a-target",
+      "bytes": 376816,
+      "sha256": "d7b9c351b03a1cc3b3c33c8bb526820ce99f68301ea7c397c33db59341bbeec1"
+    },
+    {
+      "label": "B",
+      "source": "/tmp/opencode/repro-b",
+      "target_dir": "/tmp/opencode/repro-b-target",
+      "bytes": 376816,
+      "sha256": "d7b9c351b03a1cc3b3c33c8bb526820ce99f68301ea7c397c33db59341bbeec1"
+    }
+  ],
+  "digests_match": true,
+  "independent_environments": false,
+  "claim": "Path-independent on one machine with one toolchain; the two-independent-environments comparison remains unmet (#208).",
+  "tracking": "#208"
+}
