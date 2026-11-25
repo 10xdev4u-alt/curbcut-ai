@@ -214,8 +214,10 @@ LICENSE                    AGPL-3.0
 6. **Small, sharp, composable.** One process does one thing. Crates are small. The overlay is a plugin, not a monolith.
 
 One documented exception to principle 1: the update check is compiled into
-every build and denied by default by an internal switch, with no per-user
-opt-in yet (#221). See [`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md).
+every build and denied by default by an internal switch. A persisted
+`update_check` setting and a gated dial path exist, but no shipped binary or UI
+uses them, so this is not a shipped user control yet (#221). See
+[`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md).
 
 ---
 

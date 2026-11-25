@@ -130,7 +130,9 @@ implemented today.
 The two proposed off-device paths DC-27 and DC-29 are documented in
 [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md); both are planned and not
 implemented today. The compiled-in update check is a documented exception in
-[`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); see DC-30.
+[`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); see DC-30. The persisted
+`update_check` root key can build a gated switch for that channel, but no
+shipped binary or UI uses it.
 
 ## Lawful-basis rationale (provisional)
 
