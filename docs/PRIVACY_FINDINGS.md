@@ -25,7 +25,7 @@ exist fails CI, so a closed issue cannot be silently dropped from this table.
 | F-09 | HIGH | MITIGATED | DC-01 through DC-37 | No lawful basis was recorded anywhere in the repository. Every inventory row now carries a provisional basis and a rationale section states what is still owed. | Legal counsel | 2026-11-23 | - |
 | F-10 | MEDIUM | OPEN | DC-13, DC-14, DC-15, DC-24, DC-28, DC-29 | Several classes are retained "until deleted" with no review cadence, no maximum lifetime, and no documented deletion affordance. | Security lead | 2027-01-31 | #198 |
 | F-11 | HIGH | OPEN | DC-01 through DC-37 | CC-096 asks for an external privacy audit. The inventory and DPIA are internal work and no external party has reviewed them. | Legal counsel | 2027-03-31 | #204 |
-| F-12 | MEDIUM | OPEN | DC-30 | `UpdateCheck` is compiled into every build and gated only by the runtime kill switch, which is weaker than the opt-in promise made elsewhere. | Platform maintainer | 2027-02-15 | #205 |
+| F-12 | MEDIUM | MITIGATED | DC-30 | `UpdateCheck` is compiled into every build and gated only by a default-engaged internal kill switch. The documented exception is recorded in [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md) with its basis and control, and the promise in README principle 1 is qualified. This is documentation reconciliation only: no per-user opt-in exists, and #221 tracks a real setting. | Platform maintainer | 2027-02-15 | #205 |
 
 ## How findings move
 

@@ -39,6 +39,9 @@
   - Models pinned by hash and signed; no remote model download at runtime.
   - Minimal permissions: no microphone unless voice control is on; no camera ever.
 
+The compiled-in update check is the one documented exception to the opt-in
+promise; see [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md).
+
 ### T2. Persistent storage leakage
 
 - **Threat:** the SQLite store or cache is read from disk or from a backup.

@@ -99,6 +99,7 @@ docs/
   CONSENT_TEXT.md          Versioned study consent text with five granular layers
   SUPPLY_CHAIN.md          SBOM, attestation format, and the unmet reproducibility claim
   DATASET.md               Published fixture corpus, license, and benchmark reproduction
+  NETWORK_POLICY.md        Network channels, kill switch, and the update-check exception
   SECURE_BUFFERS.md        Zeroizing byte/text buffers: guard byte, drop counter
   GOLDEN_TESTS.md          Golden plan snapshots: per-OS files, reviewable diffs
   DIFFERENTIAL_TESTS.md    Reading-order/role baseline vs a screen reader
@@ -178,6 +179,7 @@ scripts/
   validate_retention.py      Reconciles enforced rules and planned retention targets
   validate_voice_pipeline.py Checks the voice path has no retention overclaims
   validate_transmission_paths.py Checks off-device paths have no invented channels
+  validate_network_policy.py Checks the update-check exception and its controls
   validate_telemetry_retention.py Checks the never-stored rule and its summaries
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder
@@ -207,6 +209,10 @@ LICENSE                    AGPL-3.0
 4. **Measure, don't marketed.** Every claim in the README must be reproducible from a benchmark or a usability session in this repo.
 5. **Design with users, not for them.** Paid advisory panel of users with cognitive and learning disabilities. Their feedback is a release gate, not a blog post.
 6. **Small, sharp, composable.** One process does one thing. Crates are small. The overlay is a plugin, not a monolith.
+
+One documented exception to principle 1: the update check is compiled into
+every build and denied by default by an internal switch, with no per-user
+opt-in yet (#221). See [`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md).
 
 ---
 
