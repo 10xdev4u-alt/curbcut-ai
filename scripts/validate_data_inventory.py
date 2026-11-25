@@ -490,7 +490,7 @@ MUTATIONS: tuple[tuple[str, str, str, str], ...] = (
     ("dpia section", "docs/DPIA.md", "## Residual risk", "## What is left"),
     ("dpia disclaimer", "docs/DPIA.md", "Not legal advice.", "Legal advice."),
     ("finding severity", "docs/PRIVACY_FINDINGS.md", "| F-03 | MEDIUM | OPEN |", "| F-03 | SERIOUS | OPEN |"),
-    ("finding status", "docs/PRIVACY_FINDINGS.md", "| F-07 | LOW | OPEN |", "| F-07 | LOW | MAYBE |"),
+    ("finding status", "docs/PRIVACY_FINDINGS.md", "| F-07 | LOW | MITIGATED |", "| F-07 | LOW | MAYBE |"),
     ("finding due date", "docs/PRIVACY_FINDINGS.md", "| Founding engineer | 2027-03-15 | #202 |", "| Founding engineer | soon | #202 |"),
     ("finding class reference", "docs/PRIVACY_FINDINGS.md", "| DC-05, DC-07, DC-20 |", "| DC-05, DC-07, DC-99 |"),
     ("open finding untracked", "docs/PRIVACY_FINDINGS.md", "| Security lead | 2027-01-31 | #198 |", "| Security lead | 2027-01-31 | - |"),

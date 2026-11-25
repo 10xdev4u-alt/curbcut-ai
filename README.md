@@ -105,7 +105,7 @@ docs/
   PROPERTY_TESTS.md        Seeded property tests and parser fuzzing: harness and suites
   CHAOS_TESTS.md           Failure injection: permission, cache, huge screen, remote desktop
   MODEL_GUARD.md           Model hash pinning and release signature keys
-  HASHES.md                The three hash constructions: what each protects and does not
+  HASHES.md                The four hash constructions: what each protects and does not
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
   RULES_ENGINE.md          Forward-chaining rules: facts, priority, conflict, toggles
   CLI.md                   Headless CLI: commands, exit codes, redacted dump
