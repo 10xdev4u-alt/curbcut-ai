@@ -37,6 +37,14 @@ NOT_PROVEN = "Two independent builds have not been shown to match by hash"
 REVISION = "2c771b94dc363c028b9846bf785e04d7323bd431"
 DIGEST = "d7b9c351b03a1cc3b3c33c8bb526820ce99f68301ea7c397c33db59341bbeec1"
 BYTES = 376816
+COMMAND = "cargo build --release --locked -p curbcut-cli"
+DATE = "2026-11-25"
+RUSTC = "rustc 1.99.1 (58cf8f9c3 2026-10-13)"
+RUSTC_COMMIT = "58cf8f9c35b355199727627d07ae34a4e2846d67"
+HOST_TARGET = "x86_64-unknown-linux-gnu"
+SOURCES = ("/tmp/opencode/repro-a", "/tmp/opencode/repro-b")
+TARGETS = ("/tmp/opencode/repro-a-target", "/tmp/opencode/repro-b-target")
+CLAIM = "Path-independent on one machine with one toolchain"
 
 DOC_PHRASES = (
     NOT_PROVEN,
@@ -94,6 +102,24 @@ def validate(root: Path) -> list[str]:
         errors.append("the reproducibility record has an unknown schema")
     if record.get("revision") != REVISION:
         errors.append("the recorded revision is not the measured revision")
+    if record.get("command") != COMMAND:
+        errors.append("the recorded build command changed")
+    if record.get("date") != DATE:
+        errors.append("the recorded measurement date changed")
+    environment = record.get("environment")
+    if not isinstance(environment, dict):
+        errors.append("the record has no environment block")
+    else:
+        for field, expected in (
+            ("rustc", RUSTC),
+            ("rustc_commit", RUSTC_COMMIT),
+            ("host_target", HOST_TARGET),
+        ):
+            if environment.get(field) != expected:
+                errors.append(f"the recorded {field} changed")
+    claim = record.get("claim")
+    if not isinstance(claim, str) or CLAIM not in claim or "#208" not in claim:
+        errors.append("the recorded claim no longer states the one-machine limit")
     if record.get("tracking") != "#208":
         errors.append("the record no longer tracks #208")
     if record.get("digests_match") is not True:
@@ -107,7 +133,13 @@ def validate(root: Path) -> list[str]:
     else:
         if [build.get("label") for build in builds] != ["A", "B"]:
             errors.append("the builds are not labelled A and B")
-        for build in builds:
+        for index, build in enumerate(builds):
+            if build.get("label") != ("A", "B")[index]:
+                errors.append(f"build {index} has the wrong label")
+            if build.get("source") != SOURCES[index]:
+                errors.append(f"build {index} has an unrecorded source path")
+            if build.get("target_dir") != TARGETS[index]:
+                errors.append(f"build {index} has an unrecorded target directory")
             if build.get("bytes") != BYTES:
                 errors.append(f"build {build.get('label')} has an unrecorded byte count")
             digest = build.get("sha256")
@@ -175,6 +207,16 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "tracker changed",
         "edit": [(RECORD, '"tracking": "#208"', '"tracking": "#999"')],
         "expect": "no longer tracks #208",
+    },
+    {
+        "label": "recorded claim overstated",
+        "edit": [(RECORD, "Path-independent on one machine with one toolchain; the two-independent-environments comparison remains unmet (#208).", "Reproducible across two independent environments; #208 CLOSED.")],
+        "expect": "recorded claim no longer states",
+    },
+    {
+        "label": "recorded command lost --locked",
+        "edit": [(RECORD, '"command": "cargo build --release --locked -p curbcut-cli"', '"command": "cargo build --release -p curbcut-cli"')],
+        "expect": "recorded build command changed",
     },
     {
         "label": "measurement section renamed",
