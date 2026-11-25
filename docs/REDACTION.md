@@ -101,6 +101,13 @@ once, with a cycle guard.
 The `privacy` CI job runs the self-test, scans the repository, and runs
 `cargo test -p curbcut-core --test no_content_logging`.
 
+## Retention
+
+Diagnostics are session-only today: redacted lines go to stderr or a caller
+sink, with no disk sink and no expiry. The `7-days` rule for DC-26 is a planned
+target for the disk log store, not current behaviour. See
+[DATA_INVENTORY.md](DATA_INVENTORY.md) §Retention decisions.
+
 ## Auditing real artifacts
 
 Point the script at a directory of real dumps or logs before a release:

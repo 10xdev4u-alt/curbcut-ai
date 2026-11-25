@@ -138,7 +138,7 @@ data, not a second inventory.
 | Learned simplifications | SQLite | until deleted | SQLCipher | never |
 | Voice audio | RAM | < 1 s | n/a | never |
 | Voice transcripts | never stored | n/a | n/a | never |
-| Action log | SQLite | 30 days | SQLCipher | action type only |
+| Action log | RAM today; SQLite planned | session (RAM); 30-days is a planned target, not enforced | SQLCipher planned | type + rule + outcome, no content; see [DATA_INVENTORY.md](DATA_INVENTORY.md) §Retention decisions |
 | Crash reports | user-approved | on send | in transit | redacted |
 | Telemetry | RAM only | never-stored | n/a | opt-in, no identifiers |
 | Update metadata | RAM/disk | session | signed | version only |

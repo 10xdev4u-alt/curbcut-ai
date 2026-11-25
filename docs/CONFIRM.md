@@ -46,5 +46,7 @@ undone is not undone twice. When nothing is left, `undo_last` returns `None`.
 
 The log holds action ids, rule references, and outcomes. It never holds screen
 content, OCR text, or accessibility strings. The consequence is a sentence the
-product wrote, not a transcription of the screen. The workspace canary scan
-covers this crate.
+product wrote, not a transcription of the screen. Retention is `session`: the
+log lives in RAM and `clear` empties it; there is no timestamp or expiry. See
+[DATA_INVENTORY.md](DATA_INVENTORY.md) §Retention decisions. The workspace
+canary scan covers this crate.
