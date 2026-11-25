@@ -153,6 +153,7 @@ docs/
   WRITE_GUARD.md           Write guard: WriteA11y token, attempt log, denied no-op
   MEANING.md               Meaning-preservation checker: entities, numbers, negation
   TELEMETRY.md             Counts-only telemetry schema, allowlist, opt-in export
+  TRANSMISSION_PATHS.md    Planned crash-report and companion channels: no code today
   ETHICS.md                The never list, honest-claim standard, panel authority
   ROADMAP.md               Timeline and milestones
 supply-chain/
@@ -176,6 +177,7 @@ scripts/
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
   validate_retention.py      Reconciles enforced rules and planned retention targets
   validate_voice_pipeline.py Checks the voice path has no retention overclaims
+  validate_transmission_paths.py Checks off-device paths have no invented channels
   validate_telemetry_retention.py Checks the never-stored rule and its summaries
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder

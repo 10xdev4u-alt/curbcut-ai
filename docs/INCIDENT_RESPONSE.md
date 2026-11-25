@@ -171,3 +171,6 @@ SEV3 and SEV4 get one only if the team wants it. Use
 [`POSTMORTEM_TEMPLATE.md`](POSTMORTEM_TEMPLATE.md). Action items carry an owner
 and a due date and are filed as issues; a postmortem with no issues is a
 process failure, not a success.
+
+Neither crash-report upload nor companion read-aloud is a channel today; see
+[`TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md).

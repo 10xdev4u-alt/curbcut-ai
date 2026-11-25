@@ -127,6 +127,10 @@ The voice classes DC-32/DC-33/DC-34 are described end to end in
 [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md); their declared rules are not
 implemented today.
 
+The two proposed off-device paths DC-27 and DC-29 are documented in
+[`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md); both are planned and not
+implemented today.
+
 ## Lawful-basis rationale (provisional)
 
 Every basis above is an engineering proposal recorded so the DPIA has something

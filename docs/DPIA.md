@@ -107,7 +107,7 @@ the guard that enforces this is DC-11.
 | R-04 | Microphone audio is retained longer than claimed or reaches a model | Low | Severe | Sub-second bound documented in [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md); **unenforced**, no capture code today (#217) | F-06 |
 | R-05 | A retention promise cannot be kept because nothing implements it | High | Medium | Inventory states one enforced rule per class; day counts labelled planned targets (F-03, F-04 mitigated); encrypted store still planned (#93); purge untracked before #216 | F-03, F-04 |
 | R-06 | Diagnostics from a real incident leak content | Medium | Severe | Counts and hashes only, evidence allowlist matched to REDACTION.md | - |
-| R-07 | A crash report or companion message leaves the device without a clear approval step | Medium | High | Opt-in stated; **channel undocumented** | F-08 |
+| R-07 | A crash report or companion message leaves the device without a clear approval step | Medium | High | Opt-in stated; **channel undocumented**; see [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md) | F-08 |
 | R-08 | A hash is treated as stronger than it is | Medium | Medium | `docs/HASHES.md` states each construction once; the consumer documents reference it | F-07 |
 | R-09 | Update traffic happens without a user-facing choice | Certain | Low | Kill switch blocks it by default | F-12 |
 | R-10 | Retained data outlives the reason it was kept | Medium | Medium | Deletion controls exist for some classes; no cadence | F-10 |
@@ -122,7 +122,9 @@ After the mitigations that exist today, the residual risks are:
 - **Unverified voice pipeline (R-04).** Documented, still unenforced. Real
   until #217 implements capture and the sub-second bound; #201 documents the
   path only.
-- **Undocumented transmission paths (R-07).** Real until #203 documents them.
+- **Undocumented transmission paths (R-07).** Real until #203 documents them;
+  both paths are now described in
+  [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md) but no channel exists.
 - **Planned persistence (R-05).** The published rules are now honest about what
   is enforced, but the encrypted store and any day-based purge remain
   unimplemented (#93 for the store, #216 for the purge).

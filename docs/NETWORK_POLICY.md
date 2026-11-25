@@ -37,6 +37,9 @@ too. `update::dial` takes the feature it is dialling and returns
 `NetworkError::Blocked` for anything but `UpdateCheck`, so a denied optional
 channel cannot ride the update path.
 
+Crash reports and companion read-aloud are not channels today; see
+[`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md).
+
 ## The modes
 
 | Mode | String | Allows |

@@ -144,7 +144,9 @@ data, not a second inventory.
 | Update metadata | RAM/disk | session | signed | version only |
 
 The `< 1 s` voice-audio figure is a declared contract; no code enforces it
-today. See [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md).
+today. See [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md). The `user-approved`
+crash-report row is likewise a declared contract, not an implemented channel;
+see [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md).
 
 ---
 
