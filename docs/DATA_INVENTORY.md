@@ -180,5 +180,8 @@ user-facing controls and #224 tracks the maximum-lifetime decision.
   or health information. We process it because it is on the user's screen; we
   do not retain it. The residual risk is recorded as R-01 in the DPIA.
 
+The internal status of the DPIA and the outstanding external review are
+recorded in [`docs/DPIA.md`](DPIA.md) §Audit status.
+
 See [`docs/PRIVACY_FINDINGS.md`](PRIVACY_FINDINGS.md) for the findings this
 inventory produced and their status.

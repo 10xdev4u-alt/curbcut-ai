@@ -11,7 +11,8 @@ This DPIA is an internal engineering document. It has **not** been reviewed by
 external counsel or an external privacy auditor, and it does not assert
 compliance with GDPR, the UK GDPR, or any other regime. Legal review is tracked
 as F-11 and the provisional lawful bases below are proposals for that review,
-not conclusions. Do not quote this document as a compliance statement.
+not conclusions. Do not quote this document as a compliance statement. See
+§Audit status below.
 
 ## Scope
 
@@ -148,7 +149,26 @@ probe.
   checks each of DC-13, DC-14, DC-15, DC-24, DC-28 and DC-29: the named code
   control must still exist, or the statement that the user deletes it manually
   must still be the honest one. This sets no maximum lifetime. F-10 stays OPEN
-  until a user-facing control exists.
+  until a user-facing control exists. See §Audit status below.
+
+## Audit status
+
+This is an **internal engineering document, not audited**. **No external
+party** has reviewed it, and no external privacy auditor, counsel, or reviewer
+has been commissioned. It **does not assert compliance** with GDPR, the UK
+GDPR, or any other regime, and it is **not legal advice**. F-11 stays OPEN and
+#204 tracks the gap.
+
+Commissioning is outside a repository change: the **security lead**, with
+**legal counsel** and the budget holder, must **commission** an audit. No
+reviewer is named here because none exists.
+
+A future audit must cover **all 37 data classes**, their provisional **lawful
+bases**, the **retention** and **consent** gates, the off-device paths (DC-27,
+DC-29, DC-30), residual risks R-01 through R-10, and the no-content controls.
+The evidence that would close F-11 is a published scope letter, a **named
+reviewer**, and a **signed report** with every finding tracked in #204. Until
+then, do not describe this DPIA as audited.
 
 ## What would change this assessment
 
