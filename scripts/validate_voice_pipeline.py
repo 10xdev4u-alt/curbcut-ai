@@ -1,0 +1,386 @@
+#!/usr/bin/env python3
+"""Fail if the voice-path document drifts into a retention overclaim.
+
+Issue #201 asked for an end-to-end description of the microphone path and for
+the sub-second bound to be attributed. No code enforces that bound today: there
+is no capture, audio buffer, or ASR call in the workspace. This validator
+checks that the canonical document and its consumers keep saying so, that
+F-06 and DPIA R-04 stay open, and that no clock rule is invented in the
+push-to-talk gate.
+
+Run ``--self-test`` to apply every named mutation to a pristine copy and
+require detection. Every mutation source is preflighted against the committed
+files, so a stale fixture fails cleanly instead of silently passing.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import shutil
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+VOICE = "docs/VOICE_PIPELINE.md"
+INVENTORY = "docs/DATA_INVENTORY.md"
+THREAT = "docs/THREAT_MODEL.md"
+MODELS = "docs/MODELS.md"
+SPEECH = "docs/SPEECH.md"
+VOICE_COMMANDS = "docs/VOICE_COMMANDS.md"
+DPIA = "docs/DPIA.md"
+FINDINGS = "docs/PRIVACY_FINDINGS.md"
+COMMAND_RS = "crates/curbcut-tts/src/command.rs"
+README = "README.md"
+WORKFLOW = ".github/workflows/ci.yml"
+
+DOCUMENTS = (
+    VOICE,
+    INVENTORY,
+    THREAT,
+    MODELS,
+    SPEECH,
+    VOICE_COMMANDS,
+    DPIA,
+    FINDINGS,
+    COMMAND_RS,
+    README,
+    WORKFLOW,
+)
+
+CONSUMERS = (INVENTORY, THREAT, MODELS, SPEECH, VOICE_COMMANDS, DPIA)
+
+SECTIONS = (
+    "Status",
+    "The path",
+    "What is held in RAM",
+    "Who enforces the bound",
+    "Never stored or logged",
+    "Open work and tracking",
+)
+
+REQUIRED_PHRASES = (
+    "< 1 s",
+    "<1-second",
+    "planned",
+    "no code enforces",
+    "asr-v1",
+    "dc-32",
+    "dc-33",
+    "dc-34",
+    "f-06",
+    "r-04",
+    "securebuffer",
+    "raw samples are never stored",
+    "#217",
+)
+
+OVERCLAIMS = (
+    "enforced today",
+    "is enforced",
+    "are enforced",
+    "wcag compliant",
+    "ada compliant",
+    "makes apps accessible",
+)
+
+CLOCK_PRIMITIVE = re.compile(r"Instant|SystemTime|Duration|std::time|sleep")
+
+
+def flatten(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def table_cells(text: str, first_cell: str) -> list[str] | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not (stripped.startswith("|") and stripped.endswith("|")):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if cells and cells[0] == first_cell:
+            return cells
+    return None
+
+
+def row_containing(text: str, needle: str) -> str:
+    for line in text.splitlines():
+        if line.strip().startswith("|") and needle in line:
+            return line
+    return ""
+
+
+def validate(root: Path) -> list[str]:
+    errors: list[str] = []
+    documents: dict[str, str] = {}
+    for relative in DOCUMENTS:
+        path = root / relative
+        if not path.is_file():
+            errors.append(f"missing {relative}")
+            continue
+        try:
+            documents[relative] = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            errors.append(f"{relative}: cannot read: {error}")
+    if errors:
+        return errors
+
+    voice = documents[VOICE]
+    for heading in SECTIONS:
+        if not re.search(rf"^#{{1,6}}\s+{re.escape(heading)}\b", voice, re.MULTILINE):
+            errors.append(f"VOICE_PIPELINE.md is missing the {heading!r} section")
+    body = flatten(voice)
+    for phrase in REQUIRED_PHRASES:
+        if phrase not in body:
+            errors.append(f"VOICE_PIPELINE.md no longer states {phrase!r}")
+    for phrase in OVERCLAIMS:
+        if phrase in body:
+            errors.append(f"VOICE_PIPELINE.md overclaims {phrase!r}")
+
+    for relative in CONSUMERS:
+        if "](VOICE_PIPELINE.md)" not in documents[relative]:
+            errors.append(f"{relative} no longer links to docs/VOICE_PIPELINE.md")
+
+    dc32 = table_cells(documents[INVENTORY], "DC-32")
+    if dc32 is None:
+        errors.append("DATA_INVENTORY.md has no DC-32 row")
+    elif len(dc32) < 10:
+        errors.append("DC-32 row is truncated")
+    elif dc32[9] != "planned":
+        errors.append(f"DC-32 code status is {dc32[9]!r}, not 'planned'")
+
+    threat_row = row_containing(documents[THREAT], "| Voice audio |")
+    if not threat_row:
+        errors.append("THREAT_MODEL.md has no voice audio row")
+    elif "< 1 s" not in threat_row:
+        errors.append("THREAT_MODEL.md voice row lost the < 1 s bound")
+
+    r04 = table_cells(documents[DPIA], "R-04")
+    if r04 is None:
+        errors.append("DPIA.md has no R-04 row")
+    elif len(r04) < 5:
+        errors.append("R-04 row is truncated")
+    elif "unenforced" not in flatten(r04[4]):
+        errors.append("R-04 no longer states the bound is unenforced")
+    if "#217" not in documents[DPIA]:
+        errors.append("DPIA.md no longer tracks enforcement in #217")
+
+    f06 = table_cells(documents[FINDINGS], "F-06")
+    if f06 is None:
+        errors.append("PRIVACY_FINDINGS.md has no F-06 row")
+    elif len(f06) < 3:
+        errors.append("F-06 row is truncated")
+    elif f06[2] != "OPEN":
+        errors.append(f"F-06 status is {f06[2]!r}, not OPEN")
+    elif f06[-1].strip() != "#217":
+        errors.append("F-06 no longer tracks enforcement in #217")
+
+    match = CLOCK_PRIMITIVE.search(documents[COMMAND_RS])
+    if match:
+        errors.append(f"command.rs invents a clock rule ({match.group(0)})")
+
+    readme = flatten(documents[README])
+    if "validate_voice_pipeline.py" not in readme:
+        errors.append("README.md no longer indexes scripts/validate_voice_pipeline.py")
+    workflow = documents[WORKFLOW]
+    if "scripts/validate_voice_pipeline.py --self-test" not in workflow:
+        errors.append("CI no longer self-tests the voice-path validator")
+    if not re.search(r"python3 scripts/validate_voice_pipeline\.py\n", workflow):
+        errors.append("CI no longer runs the voice-path validator")
+    return errors
+
+
+def collected_files(root: Path) -> list[str]:
+    return list(DOCUMENTS)
+
+
+def materialize(target: Path, pristine: dict[str, str]) -> None:
+    if target.exists():
+        shutil.rmtree(target)
+    for relative, text in pristine.items():
+        path = target / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline="\n")
+
+
+CASES: tuple[dict[str, object], ...] = (
+    {
+        "label": "canonical document deleted",
+        "delete": [VOICE],
+        "expect": "missing docs/VOICE_PIPELINE.md",
+    },
+    {
+        "label": "status section renamed",
+        "edit": [(VOICE, "## Status", "## Current state")],
+        "expect": "'Status' section",
+    },
+    {
+        "label": "enforcement invented",
+        "edit": [
+            (VOICE, "No code enforces the bound today.", "The bound is enforced today.")
+        ],
+        "expect": "overclaims 'enforced today'",
+    },
+    {
+        "label": "bound inflated",
+        "replace": [(VOICE, "`< 1 s`", "`< 10 s`")],
+        "expect": "'< 1 s'",
+    },
+    {
+        "label": "DC-32 marked implemented",
+        "edit": [
+            (
+                INVENTORY,
+                "| mic permission, voice control off by default | local-only | yes | planned |",
+                "| mic permission, voice control off by default | local-only | yes | implemented |",
+            )
+        ],
+        "expect": "DC-32 code status",
+    },
+    {
+        "label": "threat model bound removed",
+        "edit": [(THREAT, "| Voice audio | RAM | < 1 s |", "| Voice audio | RAM | session |")],
+        "expect": "voice row lost the < 1 s bound",
+    },
+    {
+        "label": "voice commands drops the link",
+        "edit": [(VOICE_COMMANDS, "[`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md)", "the pipeline doc")],
+        "expect": "VOICE_COMMANDS.md no longer links",
+    },
+    {
+        "label": "speech drops the link",
+        "edit": [(SPEECH, "[`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md)", "the pipeline doc")],
+        "expect": "SPEECH.md no longer links",
+    },
+    {
+        "label": "R-04 calls the bound enforced",
+        "edit": [(DPIA, "**unenforced**, no capture code today", "**enforced**")],
+        "expect": "R-04 no longer states the bound is unenforced",
+    },
+    {
+        "label": "finding closed early",
+        "edit": [(FINDINGS, "| F-06 | HIGH | OPEN |", "| F-06 | HIGH | MITIGATED |")],
+        "expect": "F-06 status",
+    },
+    {
+        "label": "readme drops the validator",
+        "edit": [(README, "validate_voice_pipeline.py", "validate_removed.py")],
+        "expect": "no longer indexes scripts/validate_voice_pipeline.py",
+    },
+    {
+        "label": "CI drops the self-test",
+        "edit": [
+            (WORKFLOW, "scripts/validate_voice_pipeline.py --self-test", "scripts/validate_hashes.py --self-test")
+        ],
+        "expect": "no longer self-tests the voice-path validator",
+    },
+)
+
+
+def _apply(tmp: Path, case: dict[str, object]) -> None:
+    for relative in case.get("delete", ()):  # type: ignore[union-attr]
+        (tmp / str(relative)).unlink(missing_ok=True)
+    for relative, old, new in case.get("edit", ()):  # type: ignore[union-attr]
+        path = tmp / str(relative)
+        text = path.read_text(encoding="utf-8")
+        if old == new:
+            raise AssertionError(f"case is a no-op: {old!r} in {relative}")
+        if old not in text:
+            raise AssertionError(f"case no longer applies: {old!r} not in {relative}")
+        path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+    for relative, old, new in case.get("replace", ()):  # type: ignore[union-attr]
+        path = tmp / str(relative)
+        text = path.read_text(encoding="utf-8")
+        if old == new:
+            raise AssertionError(f"case is a no-op: {old!r} in {relative}")
+        if old not in text:
+            raise AssertionError(f"case no longer applies: {old!r} not in {relative}")
+        path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+
+
+def self_test() -> int:
+    pristine = {
+        relative: (ROOT / relative).read_text(encoding="utf-8")
+        for relative in collected_files(ROOT)
+    }
+    # A stale fixture used to surface as a traceback three laps in a row.
+    # Check every mutation source before touching any file.
+    for case in CASES:
+        for action in ("edit", "replace"):
+            for relative, old, _ in case.get(action, ()):  # type: ignore[union-attr]
+                if old not in pristine[str(relative)]:
+                    print(
+                        f"SELF-TEST FAILED: stale fixture in {case['label']}: "
+                        f"{old!r} not in {relative}",
+                        file=sys.stderr,
+                    )
+                    return 1
+        for relative in case.get("delete", ()):  # type: ignore[union-attr]
+            if str(relative) not in pristine:
+                print(
+                    f"SELF-TEST FAILED: stale deletion in {case['label']}: {relative}",
+                    file=sys.stderr,
+                )
+                return 1
+
+    tmp = Path(tempfile.mkdtemp(prefix="curbcut-voice-"))
+    try:
+        materialize(tmp, pristine)
+        if validate(tmp):
+            print("SELF-TEST FAILED: a pristine copy did not pass", file=sys.stderr)
+            return 1
+        print("self-test: the committed documents pass")
+
+        for case in CASES:
+            materialize(tmp, pristine)
+            try:
+                _apply(tmp, case)
+            except AssertionError as error:
+                print(
+                    f"SELF-TEST FAILED: {case['label']}: {error}", file=sys.stderr
+                )
+                return 1
+            errors = validate(tmp)
+            expected = str(case["expect"])
+            if not any(expected.lower() in error.lower() for error in errors):
+                print(
+                    f"SELF-TEST FAILED: {case['label']} was not detected with "
+                    f"{expected!r} (got {errors[:2]})",
+                    file=sys.stderr,
+                )
+                return 1
+
+        print(
+            f"self-test: {len(CASES)} named attacks were each detected by their "
+            "own check"
+        )
+        return 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help=f"apply {len(CASES)} named attacks and require detection",
+    )
+    args = parser.parse_args()
+
+    if args.self_test:
+        return self_test()
+
+    errors = validate(ROOT)
+    for message in errors:
+        print(f"FAIL: {message}", file=sys.stderr)
+    if errors:
+        print(f"{len(errors)} voice-path check(s) failed", file=sys.stderr)
+        return 1
+    print("the voice path is documented without retention overclaims")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
