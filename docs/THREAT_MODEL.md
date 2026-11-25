@@ -143,6 +143,9 @@ data, not a second inventory.
 | Telemetry | RAM only | never-stored | n/a | opt-in, no identifiers |
 | Update metadata | RAM/disk | session | signed | version only |
 
+The `< 1 s` voice-audio figure is a declared contract; no code enforces it
+today. See [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md).
+
 ---
 
 ## 5. Incident response

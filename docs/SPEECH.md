@@ -3,6 +3,9 @@
 `crates/curbcut-tts` abstracts text-to-speech behind a trait so the quality
 path and the instant fallback are interchangeable. `CC-076`.
 
+The inbound microphone path is planned and separate; see
+[`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md).
+
 ## Rules
 
 1. **Voice download is opt-in.** `VoiceCatalog::can_download` is false until the

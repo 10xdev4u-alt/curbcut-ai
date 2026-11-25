@@ -144,6 +144,7 @@ docs/
   NORMALIZE.md             Numbers, dates, and units spoken: money, unambiguous dates, unit systems
   SPEECH.md                TTS engines, voices, fallback chain, and audio focus
   VOICE_COMMANDS.md        Voice command grammar, help, and push-to-talk
+  VOICE_PIPELINE.md        Capture, buffer, ASR, and the planned sub-second bound
   COEXISTENCE.md           Coexistence with a screen reader: duck or pause, never overlap
   SENSITIVE_CONTENT.md     Sensitive-content guard: financial, medical, legal
   DESTRUCTIVE_ACTIONS.md   Destructive-action catalog, preview, and confirmation
@@ -174,6 +175,7 @@ scripts/
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
   validate_retention.py      Reconciles enforced rules and planned retention targets
+  validate_voice_pipeline.py Checks the voice path has no retention overclaims
   validate_telemetry_retention.py Checks the never-stored rule and its summaries
   validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder

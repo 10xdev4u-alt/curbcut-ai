@@ -5,6 +5,9 @@ recognition: a versioned phrase catalog, a "what can I say?" panel, and the
 push-to-talk state machine. A voice command is matched by phrase, not by a
 model, so the same grammar runs with any recognizer. `CC-084`.
 
+Recognition upstream of this grammar is planned, not implemented; see
+[`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md).
+
 ## Rules
 
 1. **The longest phrase wins.** `read faster` is `VoiceCommand::ReadFaster`,

@@ -104,7 +104,7 @@ the guard that enforces this is DC-11.
 | R-01 | A frame or OCR string reaches a log, dump, crash report, or the network | Low | Severe | Redaction layer, canary fixture, no-content CI scan, panic-payload silence check | - |
 | R-02 | Persisted configuration is read from disk without the user's key | Medium | High | Designed SQLCipher plus keychain key; **unimplemented** | F-01 |
 | R-03 | Health or behavioral inference is drawn without a valid basis | Medium | High | Explicit consent gates recorded per class; special-category guard | F-09 |
-| R-04 | Microphone audio is retained longer than claimed or reaches a model | Low | Severe | Sub-second bound specified; **undocumented and unenforced** | F-06 |
+| R-04 | Microphone audio is retained longer than claimed or reaches a model | Low | Severe | Sub-second bound documented in [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md); **unenforced**, no capture code today (#217) | F-06 |
 | R-05 | A retention promise cannot be kept because nothing implements it | High | Medium | Inventory states one enforced rule per class; day counts labelled planned targets (F-03, F-04 mitigated); encrypted store still planned (#93); purge untracked before #216 | F-03, F-04 |
 | R-06 | Diagnostics from a real incident leak content | Medium | Severe | Counts and hashes only, evidence allowlist matched to REDACTION.md | - |
 | R-07 | A crash report or companion message leaves the device without a clear approval step | Medium | High | Opt-in stated; **channel undocumented** | F-08 |
@@ -119,7 +119,9 @@ After the mitigations that exist today, the residual risks are:
 - **Unencrypted at-rest storage (R-02).** Real until #93 ships. Impact is high
   because profiles encode health inference, but likelihood is bounded by the
   requirement for physical access to the machine.
-- **Unverified voice pipeline (R-04).** Real until #201 documents and tests it.
+- **Unverified voice pipeline (R-04).** Documented, still unenforced. Real
+  until #217 implements capture and the sub-second bound; #201 documents the
+  path only.
 - **Undocumented transmission paths (R-07).** Real until #203 documents them.
 - **Planned persistence (R-05).** The published rules are now honest about what
   is enforced, but the encrypted store and any day-based purge remain

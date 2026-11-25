@@ -18,6 +18,9 @@
 
 Sizes are download sizes; quantized in-memory footprints are smaller. The `llm-v1` int4 model is the only large download and is optional (rules-only mode is the fallback).
 
+`asr-v1` is a planned local model; no code loads it today. See
+[`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md).
+
 ---
 
 ## 2. Latency budgets
