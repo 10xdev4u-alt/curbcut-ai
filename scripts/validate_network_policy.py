@@ -142,6 +142,17 @@ def validate(root: Path) -> list[str]:
         phrase = CONSUMER_PHRASES[relative]
         if phrase not in flatten(text):
             errors.append(f"{relative} no longer states {phrase!r}")
+        for phrase in OVERCLAIMS:
+            if phrase in flatten(text):
+                errors.append(f"{relative} overclaims {phrase!r}")
+
+    dc30 = table_cells(documents[INVENTORY], "DC-30")
+    if dc30 is None:
+        errors.append("DATA_INVENTORY.md has no DC-30 row")
+    elif len(dc30) < 6:
+        errors.append("DC-30 row is truncated")
+    elif dc30[5] != "legitimate-interests":
+        errors.append(f"DC-30 basis is {dc30[5]!r}, not 'legitimate-interests'")
 
     f12 = table_cells(documents[FINDINGS], "F-12")
     if f12 is None:
@@ -165,6 +176,9 @@ def validate(root: Path) -> list[str]:
     for phrase in CODE_INVARIANTS:
         if phrase not in net:
             errors.append(f"net.rs no longer contains {phrase!r}")
+    checks = net.count("if !switch.allows(feature)")
+    if checks != 2:
+        errors.append(f"net.rs has {checks} switch checks, expected 2")
 
     readme = flatten(documents[README])
     if "network_policy.md" not in readme:
@@ -229,6 +243,17 @@ CASES: tuple[dict[str, object], ...] = (
         "expect": "'#205'",
     },
     {
+        "label": "DC-30 basis changed",
+        "edit": [
+            (
+                INVENTORY,
+                "| RAM today; disk persistence planned | session | legitimate-interests",
+                "| RAM today; disk persistence planned | session | contract",
+            )
+        ],
+        "expect": "DC-30 basis",
+    },
+    {
         "label": "finding closed early",
         "edit": [(FINDINGS, "| F-12 | MEDIUM | MITIGATED |", "| F-12 | MEDIUM | OPEN |")],
         "expect": "F-12 status",
@@ -242,6 +267,22 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "update dial loses the switch check",
         "replace": [(NET_RS, "if !switch.allows(feature)", "if false")],
         "expect": "net.rs no longer contains 'if !switch.allows(feature)'",
+    },
+    {
+        "label": "update dial alone loses its switch check",
+        "edit": [
+            (
+                NET_RS,
+                "if feature != NetworkFeature::UpdateCheck {\n            return Err(NetworkError::Blocked);\n        }\n        if !switch.allows(feature) {",
+                "if feature != NetworkFeature::UpdateCheck {\n            return Err(NetworkError::Blocked);\n        }\n        if true {",
+            )
+        ],
+        "expect": "net.rs has 1 switch checks",
+    },
+    {
+        "label": "security guide invents user consent",
+        "edit": [(SECURITY, "Accessibility semantics are read-only by default", "The user has opted in to updates. Accessibility semantics are read-only by default")],
+        "expect": "SECURITY.md overclaims 'user has opted in'",
     },
     {
         "label": "readme drops the validator",

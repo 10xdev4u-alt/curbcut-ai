@@ -81,7 +81,7 @@ return `NetworkError::Blocked` without dialling when the switch refuses.
 every build, while the other four channels live behind the `net` feature. This
 is a **deliberate exception**, not an oversight: a broken install is repaired
 by a check for a newer build. `docs/DATA_INVENTORY.md` DC-30 records the basis
-(`contract`) and the control (the kill switch denies the channel), and DPIA
+(`legitimate-interests`) and the control (the kill switch denies the channel), and DPIA
 R-09 tracks the user-facing gap as F-12. Recorded for issue #205.
 
 The control that exists is the runtime switch: it **starts engaged**, so a
@@ -92,9 +92,9 @@ attempted when a caller explicitly releases the switch in memory.
 
 There is **no per-user opt-in**: no persisted setting, no UI, and no way to
 inspect or revoke the permission. "Off by default" describes the switch, not
-a user choice. The payload is **version only**, with **no screen content**,
-and the channel is local to update metadata (DC-30). #221 tracks a real
-setting. This exception is the limit of the promise in README principle 1.
+a user choice. The class is update metadata (**version only**), with
+**no screen content**; this crate defines the class but builds no payload. The channel is
+local to update metadata (DC-30). #221 tracks a real setting. This exception is the limit of the promise in README principle 1.
 
 ## Which build is running
 
