@@ -24,7 +24,9 @@ never loaded.
 
 `curbcut_core::hash` provides SHA-256 and HMAC-SHA256 in safe Rust with no
 dependency. The digests are checked against the published NIST/RFC 4231 test
-vectors, so the primitive is verified independently of this crate.
+vectors, so the primitive is verified independently of this crate. Both
+constructions, and what they do not protect, are stated once in
+[`docs/HASHES.md`](HASHES.md).
 
 ## Signature keys
 

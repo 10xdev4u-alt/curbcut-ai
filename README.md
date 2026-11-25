@@ -105,6 +105,7 @@ docs/
   PROPERTY_TESTS.md        Seeded property tests and parser fuzzing: harness and suites
   CHAOS_TESTS.md           Failure injection: permission, cache, huge screen, remote desktop
   MODEL_GUARD.md           Model hash pinning and release signature keys
+  HASHES.md                The three hash constructions: what each protects and does not
   RULES.md                 Deterministic rule layer: ids, thresholds, tests
   RULES_ENGINE.md          Forward-chaining rules: facts, priority, conflict, toggles
   CLI.md                   Headless CLI: commands, exit codes, redacted dump
@@ -172,6 +173,7 @@ scripts/
   publish_issues.py        Publish the backlog to GitHub and record the CC-># map
   scaffold_workspace.py    Regenerates the 14-crate workspace skeleton
   validate_data_inventory.py  Checks inventory vocabularies, finding links, and DPIA
+  validate_hashes.py         Checks the hash statement and its cross-references
   sbom.py                    Generates the SBOM and an unsigned attestation placeholder
   validate_supply_chain.py   Checks release prerequisites and supply-chain claims
   validate_dataset.py        Checks the published corpus, manifest, and license

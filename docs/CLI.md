@@ -50,8 +50,8 @@ node id=1 label_len=6 label=[3a506cb501761960] value_len=12 value=[5b9e6051ae9cd
 It never prints a name, label, or value. The hash is the core redactor's keyless
 `RedactMode::Hash`: deterministic, so the same value correlates across dumps,
 but recoverable offline for low-entropy values. It is for correlation, not
-protection. `the_dump_contains_neither_secret` seeds two known secrets and
-asserts neither appears.
+protection; see [`docs/HASHES.md`](HASHES.md). `the_dump_contains_neither_secret`
+seeds two known secrets and asserts neither appears.
 
 ## The benchmark
 

@@ -855,7 +855,8 @@ Implemented in `crates/curbcut-adapt/src/provenance.rs`. See
   `OriginalValue`, and the time. `get`/`original` are the one-click lookup.
 - `OriginalValue::Setting` keeps a user-chosen setting value whole.
   `OriginalValue::Content` keeps only a length and a non-cryptographic identity
-  hash, so content-derived originals are never retained as text.
+  hash ([`docs/HASHES.md`](HASHES.md)), so content-derived originals are never
+  retained as text.
 - `OriginalValue::describe` is the log-safe summary; it never contains the value
   or the text it stands for.
 - `for_action` and `for_rule` filter without copying; `entries` is oldest
@@ -1057,7 +1058,8 @@ Implemented in `crates/curbcut-core/src/secure.rs`. See
   SHA-256 pin and the release signature, and a model that fails either is never
   handed to a backend. SHA-256 and HMAC-SHA256 live in `curbcut_core::hash`, with
   the primitive checked against the published test vectors. See
-  [`docs/MODEL_GUARD.md`](MODEL_GUARD.md).
+  [`docs/MODEL_GUARD.md`](MODEL_GUARD.md); the constructions and their limits
+  are stated once in [`docs/HASHES.md`](HASHES.md).
 
 ---
 
