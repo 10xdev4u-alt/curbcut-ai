@@ -193,8 +193,21 @@ def validate(root: Path) -> list[str]:
         row = table_cells(documents[INVENTORY], dc)
         if row is not None and len(row) >= 10 and row[9] != "planned":
             flipped = True
-    if flipped and not PRODUCTION_MODULE.search(voice):
-        errors.append("DC-32/DC-33 cannot be implemented without #217 evidence")
+    module_match = PRODUCTION_MODULE.search(voice)
+    if "Production module: none named today." not in voice and module_match is None:
+        errors.append(
+            "VOICE_PIPELINE.md Production module line is neither the none "
+            "sentinel nor a crates path"
+        )
+    if flipped:
+        if module_match is None:
+            errors.append("DC-32/DC-33 cannot be implemented without #217 evidence")
+        else:
+            relative = module_match.group(0).split("`")[1]
+            if ".." in relative or not (root / relative).is_file():
+                errors.append(
+                    "DC-32/DC-33 evidence names a nonexistent production module"
+                )
 
     threat_row = row_containing(documents[THREAT], "| Voice audio |")
     if not threat_row:
@@ -369,6 +382,27 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "frame budget replaced with a wall clock",
         "replace": [(VOICE, "sample_rate_hz", "Instant")],
         "expect": "VOICE_PIPELINE.md no longer states 'sample_rate_hz'",
+    },
+    {
+        "label": "production module sentinel drifted",
+        "edit": [(VOICE, "Production module: none named today.", "Production module: soon")],
+        "expect": "Production module line is neither",
+    },
+    {
+        "label": "fake production module with a flipped status",
+        "edit": [
+            (
+                INVENTORY,
+                "| mic permission, voice control off by default | local-only | yes | planned |",
+                "| mic permission, voice control off by default | local-only | yes | implemented |",
+            ),
+            (
+                VOICE,
+                "Production module: none named today.",
+                "Production module: `crates/curbcut-audio/src/capture.rs`",
+            ),
+        ],
+        "expect": "nonexistent production module",
     },
     {
         "label": "DC-32 flipped without #217 evidence",
