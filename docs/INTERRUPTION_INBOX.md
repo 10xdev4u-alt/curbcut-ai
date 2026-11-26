@@ -45,6 +45,8 @@ inbox's.
 An entry holds an app slug, a kind, a rectangle, and a flag. It holds no label
 or text, so an inbox dump cannot leak what was on screen. The CLI `forget-inbox`
 command calls `Inbox::clear` on a process-local inbox built from stdin; it
-reaches no running app and no store file. Deletion for DC-24 is described in
+reaches no running app and no store file. The CLI `forget-inbox-entry` command
+calls `Inbox::remove` on a process-local inbox built from stdin, reaching no
+running app and no store file. Deletion for DC-24 is described in
 [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
 classes.

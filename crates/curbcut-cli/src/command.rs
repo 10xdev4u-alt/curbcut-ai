@@ -42,6 +42,8 @@ pub enum Command {
     ForgetSimplifications,
     /// Delete process-local inbox entries supplied on stdin.
     ForgetInbox,
+    /// Delete one process-local inbox entry by id supplied on stdin.
+    ForgetInboxEntry,
     /// Inspect a config document supplied on stdin, without dialing.
     NetworkStatus,
     /// Print a content-free revoke recipe for a config document on stdin.
@@ -78,6 +80,7 @@ impl Command {
             "forget-layouts" => Ok(Self::ForgetLayouts),
             "forget-simplifications" => Ok(Self::ForgetSimplifications),
             "forget-inbox" => Ok(Self::ForgetInbox),
+            "forget-inbox-entry" => Ok(Self::ForgetInboxEntry),
             "network-status" => Ok(Self::NetworkStatus),
             "network-revoke" => Ok(Self::NetworkRevoke),
             "vpat" => Ok(Self::Vpat),
@@ -103,8 +106,8 @@ impl Command {
     ///
     /// Errors go to `err`; output goes to `out`. Only [`Command::ForgetLayouts`],
     /// [`Command::ForgetSimplifications`], [`Command::ForgetInbox`],
-    /// [`Command::NetworkStatus`], and [`Command::NetworkRevoke`] read `input`;
-    /// every other command ignores it.
+    /// [`Command::ForgetInboxEntry`], [`Command::NetworkStatus`], and
+    /// [`Command::NetworkRevoke`] read `input`; every other command ignores it.
     pub fn execute_with_input(
         &self,
         out: &mut dyn fmt::Write,
@@ -130,6 +133,7 @@ impl Command {
             Self::ForgetLayouts => crate::forget::forget_layouts(input, out, err),
             Self::ForgetSimplifications => crate::forget::forget_simplifications(input, out, err),
             Self::ForgetInbox => crate::forget::forget_inbox(input, out, err),
+            Self::ForgetInboxEntry => crate::forget::forget_inbox_entry(input, out, err),
             Self::NetworkStatus => crate::network::network_status(input, out, err),
             Self::NetworkRevoke => crate::network::network_revoke(input, out, err),
             Self::Vpat => {
@@ -167,11 +171,12 @@ commands:
   status    status
   dump      redacted dump
   bench     benchmark
-  forget-layouts  clear layouts
-  forget-simplifications  clear feedback
-  forget-inbox  clear inbox
-  network-status  inspect config
-  network-revoke  revoke recipe
+  forget-layouts  clear
+  forget-simplifications  clear
+  forget-inbox  clear
+  forget-inbox-entry  remove one
+  network-status  inspect
+  network-revoke  revoke
   vpat      draft VPAT
   limitations  limitations
   panic     panic
@@ -232,6 +237,7 @@ pub fn run(args: &[String]) -> i32 {
             Command::ForgetLayouts
             | Command::ForgetSimplifications
             | Command::ForgetInbox
+            | Command::ForgetInboxEntry
             | Command::NetworkStatus
             | Command::NetworkRevoke,
         ) => {
@@ -340,6 +346,15 @@ mod tests {
         for token in ["forget-simplifications", "forget-inbox"] {
             assert!(usage().contains(token), "{token} missing from help");
         }
+    }
+
+    #[test]
+    fn forget_inbox_entry_parses_and_appears_in_help() {
+        assert_eq!(
+            Command::parse(&["forget-inbox-entry".to_string()]),
+            Ok(Command::ForgetInboxEntry)
+        );
+        assert!(usage().contains("forget-inbox-entry"), "{}", usage());
     }
 
     #[test]

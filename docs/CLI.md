@@ -19,6 +19,7 @@ than panicking in the argument iterator.
 | `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, scope and reach lines | 0 |
 | `forget-simplifications` | `deleted feedback entries=N`, `remaining feedback entries=0`, scope and reach lines | 0 |
 | `forget-inbox` | `deleted inbox entries=N`, `remaining inbox entries=0`, scope and reach lines | 0 |
+| `forget-inbox-entry` | `removed inbox entries=N`, `remaining inbox entries=M`, scope and reach lines | 0 |
 | `network-status` | `update_check=allowed\|blocked`, `policy=…`, `switch=…`, `scope=process-local RAM only` | 0 |
 | `network-revoke` | `update_check = false`, `scope=process-local RAM only` | 0 |
 | `vpat` | the draft VPAT for our own UI | 0 |
@@ -83,11 +84,32 @@ printf 'mail toast 1 2 3 4 1\nchat banner -3 4 5 6 0\n' | cargo run -q --bin cur
 # reach=no running app or store file
 ```
 
-The inbox files every line, so duplicate lines count separately. All three
+`forget-inbox-entry` reads the same entry lines as `forget-inbox`, followed by
+a final line `<id:u64>` selecting one of the filed entries. It files those
+entries with `Inbox::file`, calls `Inbox::remove(InboxId(id))`, and reports the
+removal count plus the number left after that removal:
+
+```bash
+printf 'mail toast 1 2 3 4 1\nchat banner -3 4 5 6 0\n0\n' | cargo run -q --bin curbcut-cli -- forget-inbox-entry
+# removed inbox entries=1
+# remaining inbox entries=1
+# scope=process-local RAM only
+# reach=no running app or store file
+```
+
+The id line counts toward the 4096-line cap. Empty stdin exits 2 with
+`error: no entry id`; a malformed id or entry reports its line number only and
+exits 2, echoing no id, slug, kind, or coordinate. An id that is not filed
+succeeds with `removed inbox entries=0`. This command is **process-local,
+RAM-only** and cannot reach a running app or store file: it builds a fresh
+inbox from stdin, removes one entry from that inbox, and writes nothing.
+
+The inbox files every line, so duplicate lines count separately. All four
 deletion commands skip blank lines, accept CRLF, and stop at 4096 non-blank
 lines. A malformed line reports its line number only and exits 2; no hash,
-slug, kind, or coordinate is echoed. Empty stdin is a successful zero deletion
-and invalid UTF-8 stdin exits 2.
+slug, kind, or coordinate is echoed. For the three clear-all commands, empty
+stdin is a successful zero deletion; `forget-inbox-entry` needs an id. Invalid
+UTF-8 stdin exits 2.
 
 These commands are process-local and RAM-only affordances for DC-14, DC-15,
 and DC-24. They **cannot reach a running app or a store file**: there is no
