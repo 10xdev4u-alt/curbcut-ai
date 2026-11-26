@@ -35,6 +35,7 @@ dependencies = [
 name = "curbcut-cli"
 version = "0.1.0"
 dependencies = [
+ "curbcut-adapt",
  "curbcut-core",
  "curbcut-store",
 ]
