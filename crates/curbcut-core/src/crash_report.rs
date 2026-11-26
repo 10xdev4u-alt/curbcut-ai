@@ -121,7 +121,7 @@ impl fmt::Debug for CrashReport {
 /// preparation, and [`CrashReportGate::prepare`] consumes that approval when
 /// it succeeds; [`CrashReportGate::revoke`] cancels it before then. This is a
 /// decision in memory, not a user control: approving does not send anything.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct CrashReportGate {
     approved: bool,
 }

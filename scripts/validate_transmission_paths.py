@@ -366,6 +366,14 @@ CASES: tuple[dict[str, object], ...] = (
         "expect": "no longer self-tests the transmission-path validator",
     },
     {
+        "label": "local decision primitive removed",
+        "replace": [
+            (PATHS, "local decision primitive", "local foundation"),
+            (PATHS, "Local decision primitive", "Local foundation"),
+        ],
+        "expect": "'local decision primitive'",
+    },
+    {
         "label": "the local gate is described as a live channel",
         "edit": [
             (

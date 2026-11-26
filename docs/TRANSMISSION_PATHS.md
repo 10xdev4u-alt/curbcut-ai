@@ -9,7 +9,7 @@ Issue #203 closed the documentation half; implementation is tracked in #219.
 Both paths are **planned — not implemented** as channels. There is no code
 that sends, uploads, or receives data for either path:
 no crash-report uploader, no companion client, no approval UI, and no
-revocation control in any of the 14 crates. `NetworkFeature::ALL` in
+user-facing revocation control in any of the 14 crates. `NetworkFeature::ALL` in
 `crates/curbcut-core/src/net.rs` has five variants and none covers either path.
 No network call exists for either path today. F-08 and DPIA R-07 remain open.
 
