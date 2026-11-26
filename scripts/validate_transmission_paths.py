@@ -100,6 +100,7 @@ REQUIRED_PHRASES = (
     "networkfeature",
     "killswitch",
     "no approval ui",
+    "local decision primitive",
 )
 
 OVERCLAIMS = (
@@ -110,6 +111,11 @@ OVERCLAIMS = (
     "is implemented",
     "user can revoke today",
 )
+
+# Additive guard for the shipped local primitive: it decides whether an
+# artifact is built in process, so calling it a channel is a new kind of
+# overclaim. OVERCLAIMS itself stays fixed for the original two paths.
+GATE_OVERCLAIMS = ("crashreportgate is a live channel",)
 
 CHANNEL_LIST = "pub const ALL: [NetworkFeature; 5] = ["
 
@@ -153,6 +159,9 @@ def validate(root: Path) -> list[str]:
         if phrase not in body:
             errors.append(f"TRANSMISSION_PATHS.md no longer states {phrase!r}")
     for phrase in OVERCLAIMS:
+        if phrase in body:
+            errors.append(f"TRANSMISSION_PATHS.md overclaims {phrase!r}")
+    for phrase in GATE_OVERCLAIMS:
         if phrase in body:
             errors.append(f"TRANSMISSION_PATHS.md overclaims {phrase!r}")
 
@@ -239,7 +248,7 @@ CASES: tuple[dict[str, object], ...] = (
     },
     {
         "label": "paths marked implemented",
-        "edit": [(PATHS, "Both paths are **planned — not implemented**.", "Both paths are is implemented.")],
+        "edit": [(PATHS, "Both paths are **planned — not implemented** as channels.", "Both paths are is implemented.")],
         "expect": "overclaims 'is implemented'",
     },
     {
@@ -355,6 +364,17 @@ CASES: tuple[dict[str, object], ...] = (
             (WORKFLOW, "scripts/validate_transmission_paths.py --self-test", "scripts/validate_hashes.py --self-test")
         ],
         "expect": "no longer self-tests the transmission-path validator",
+    },
+    {
+        "label": "the local gate is described as a live channel",
+        "edit": [
+            (
+                PATHS,
+                "local artifact and a local decision;",
+                "CrashReportGate is a live channel, not a local artifact and a local decision;",
+            )
+        ],
+        "expect": "overclaims 'crashreportgate is a live channel'",
     },
 )
 

@@ -114,6 +114,12 @@ the guard that enforces this is DC-11.
 | R-09 | Update traffic happens without a user-facing choice | Certain | Low | Kill switch blocks it by default; documented exception in [`docs/NETWORK_POLICY.md`](NETWORK_POLICY.md); persisted `update_check` gates the `update::dial_from_config` path, but no shipped binary calls it and there is no UI (#221) | F-12 |
 | R-10 | Retained data outlives the reason it was kept | Medium | Medium | Deletion controls exist for some classes; no cadence | F-10 |
 
+**Note on R-07 (DC-27):** `curbcut-core` now ships a local, content-free
+approval gate: it produces a report in process only after an explicit in-memory
+approval. It adds no channel, no transport, and no user-facing revocation
+control. `channel undocumented` remains the accurate statement, and R-07 stays
+OPEN; see [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md).
+
 ## Residual risk
 
 After the mitigations that exist today, the residual risks are:

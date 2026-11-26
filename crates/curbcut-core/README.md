@@ -28,7 +28,11 @@ a runner that reports the seed and case index on a break, and a
 wall-clock budget for fuzz runs. The `chaos` module is the failure
 injection harness: scripted faults, a panic guard that drops the
 payload, and a report that fails when a fault is unannounced or an
-announcement does not recover. See
+announcement does not recover. The `crash_report` module is a local,
+content-free decision primitive: `CrashReportGate::prepare` yields a
+report only after an in-process approval and consumes that one-shot
+approval. There is no uploader, socket, recipient, approval UI, or
+channel, and #219 stays open. See
 [`../../docs/CHAOS_TESTS.md`](../../docs/CHAOS_TESTS.md),
 [`../../docs/PROPERTY_TESTS.md`](../../docs/PROPERTY_TESTS.md),
 [`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),
