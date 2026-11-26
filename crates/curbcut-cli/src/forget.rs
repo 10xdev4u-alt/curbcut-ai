@@ -2,14 +2,15 @@
 //!
 //! [`forget_layouts`], [`forget_simplifications`], and [`forget_inbox`] build
 //! real in-memory data structures from user-supplied stdin lines and clear
-//! them with their real clear/reset methods. They are **process-local and
-//! RAM-only**: they cannot reach a running app's memory and there is no store
-//! file to remove. Output is counts only; no key, hash, slug, or kind is
-//! echoed.
+//! them with their real clear/reset methods. [`forget_inbox_entry`] files the
+//! same lines and removes one by its `InboxId` with the real `Inbox::remove`.
+//! They are **process-local and RAM-only**: they cannot reach a running app's
+//! memory and there is no store file to remove. Output is counts only; no key,
+//! hash, id, slug, kind, or coordinate is echoed.
 
 use std::fmt;
 
-use curbcut_adapt::inbox::Inbox;
+use curbcut_adapt::inbox::{Inbox, InboxId};
 use curbcut_core::id::{AppId, UserId, WindowId};
 use curbcut_core::types::{Interruption, InterruptionKind, Rect};
 use curbcut_store::feedback::{AdaptationConfig, Feedback, LearnedSimplification};
@@ -41,6 +42,39 @@ fn interruption_kind(token: &str) -> Option<InterruptionKind> {
         "paywall" => Some(InterruptionKind::Paywall),
         _ => None,
     }
+}
+
+/// Parses one `<app-slug> <kind> <x> <y> <w> <h> <dismissible>` entry line.
+///
+/// Shared by the clear-all and remove-one commands so their stdin format and
+/// kind tokens cannot drift apart.
+fn parse_inbox_entry(line: &str) -> Option<(AppId, Interruption)> {
+    let fields: Vec<&str> = line.split_whitespace().collect();
+    let [app, kind, x, y, w, h, dismissible] = fields.as_slice() else {
+        return None;
+    };
+    let kind = interruption_kind(kind)?;
+    let (Some(x), Some(y), Some(w), Some(h)) = (
+        x.parse::<i32>().ok(),
+        y.parse::<i32>().ok(),
+        w.parse::<u32>().ok(),
+        h.parse::<u32>().ok(),
+    ) else {
+        return None;
+    };
+    let dismissible = match *dismissible {
+        "0" => false,
+        "1" => true,
+        _ => return None,
+    };
+    Some((
+        AppId::new(app),
+        Interruption {
+            kind,
+            rect: Rect::new(x, y, w, h),
+            dismissible,
+        },
+    ))
 }
 
 /// Deletes the layouts described by `input` from a process-local memory.
@@ -169,41 +203,66 @@ pub fn forget_inbox(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::Wr
             return EXIT_USAGE;
         }
         let number = index + 1;
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        let (app, kind, x, y, w, h, dismissible) = match fields.as_slice() {
-            [app, kind, x, y, w, h, dismissible] => (app, kind, x, y, w, h, dismissible),
-            _ => return malformed("inbox", number, err),
-        };
-        let Some(kind) = interruption_kind(kind) else {
+        let Some((app, interruption)) = parse_inbox_entry(line) else {
             return malformed("inbox", number, err);
         };
-        let (Some(x), Some(y), Some(w), Some(h)) = (
-            x.parse::<i32>().ok(),
-            y.parse::<i32>().ok(),
-            w.parse::<u32>().ok(),
-            h.parse::<u32>().ok(),
-        ) else {
-            return malformed("inbox", number, err);
-        };
-        let dismissible = match *dismissible {
-            "0" => false,
-            "1" => true,
-            _ => return malformed("inbox", number, err),
-        };
-        inbox.file(
-            AppId::new(app),
-            Interruption {
-                kind,
-                rect: Rect::new(x, y, w, h),
-                dismissible,
-            },
-        );
+        inbox.file(app, interruption);
     }
 
     let deleted = inbox.len();
     inbox.clear();
     let _ = writeln!(out, "deleted inbox entries={deleted}");
     let _ = writeln!(out, "remaining inbox entries=0");
+    let _ = writeln!(out, "{SCOPE}");
+    let _ = writeln!(out, "{REACH}");
+    EXIT_OK
+}
+
+/// Removes one filed interruption from a process-local inbox by id.
+///
+/// The nonblank lines before the last are entry lines in the same format as
+/// [`forget_inbox`]; the last nonblank line is a single `<id:u64>` selecting
+/// which of those entries to remove. Both kinds of line count toward
+/// [`MAX_LINES`]. Empty stdin exits with [`EXIT_USAGE`] and `error: no entry
+/// id`. A malformed entry or id reports a line number only and exits with
+/// [`EXIT_USAGE`]. An id that is not filed succeeds with zero removals.
+/// Output is the removal count and the number of entries remaining after the
+/// operation; no id, slug, kind, or coordinate is echoed.
+pub fn forget_inbox_entry(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
+    let mut lines: Vec<(usize, &str)> = Vec::new();
+    for (index, raw) in input.lines().enumerate() {
+        let line = raw.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            continue;
+        }
+        lines.push((index + 1, line));
+        if lines.len() > MAX_LINES {
+            let _ = writeln!(err, "error: too many inbox lines");
+            return EXIT_USAGE;
+        }
+    }
+
+    let Some(&(id_number, id_line)) = lines.last() else {
+        let _ = writeln!(err, "error: no entry id");
+        return EXIT_USAGE;
+    };
+    let id: u64 = match id_line.parse() {
+        Ok(value) => value,
+        Err(_) => return malformed("inbox id", id_number, err),
+    };
+
+    let mut inbox = Inbox::new();
+    for &(number, line) in &lines[..lines.len() - 1] {
+        let Some((app, interruption)) = parse_inbox_entry(line) else {
+            return malformed("inbox", number, err);
+        };
+        inbox.file(app, interruption);
+    }
+
+    let removed = usize::from(inbox.remove(InboxId(id)));
+    let remaining = inbox.len();
+    let _ = writeln!(out, "removed inbox entries={removed}");
+    let _ = writeln!(out, "remaining inbox entries={remaining}");
     let _ = writeln!(out, "{SCOPE}");
     let _ = writeln!(out, "{REACH}");
     EXIT_OK
@@ -231,6 +290,13 @@ mod tests {
         let mut out = String::new();
         let mut err = String::new();
         let code = forget_inbox(input, &mut out, &mut err);
+        (code, out, err)
+    }
+
+    fn run_inbox_entry(input: &str) -> (i32, String, String) {
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = forget_inbox_entry(input, &mut out, &mut err);
         (code, out, err)
     }
 
@@ -377,5 +443,95 @@ mod tests {
         assert_eq!(code, EXIT_USAGE);
         assert!(out.is_empty(), "{out}");
         assert!(err.contains("too many inbox lines"), "{err}");
+    }
+
+    #[test]
+    fn inbox_entry_without_an_id_is_a_content_free_usage_error() {
+        let (code, out, err) = run_inbox_entry("");
+        assert_eq!(code, EXIT_USAGE);
+        assert!(out.is_empty(), "{out}");
+        assert_eq!(err, "error: no entry id\n");
+    }
+
+    #[test]
+    fn inbox_entry_removes_one_and_reports_the_remaining_count() {
+        let input = "mail toast 42 43 44 45 1\nchat banner -46 47 48 49 0\n1\n";
+        let (code, out, err) = run_inbox_entry(input);
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("removed inbox entries=1"), "{out}");
+        assert!(out.contains("remaining inbox entries=1"), "{out}");
+        assert!(out.contains(SCOPE), "{out}");
+        assert!(out.contains(REACH), "{out}");
+        for token in ["mail", "chat", "toast", "banner", "42", "43", "-46", "48"] {
+            assert!(!out.contains(token), "{out}");
+        }
+    }
+
+    #[test]
+    fn inbox_entry_duplicate_lines_file_distinct_ids() {
+        let input = "mail toast 7 8 9 10 1\nmail toast 7 8 9 10 1\n";
+        for id in ["0", "1"] {
+            let (code, out, err) = run_inbox_entry(&format!("{input}{id}\n"));
+            assert_eq!(code, EXIT_OK, "id {id}: {err}");
+            assert!(out.contains("removed inbox entries=1"), "id {id}: {out}");
+            assert!(out.contains("remaining inbox entries=1"), "id {id}: {out}");
+        }
+    }
+
+    #[test]
+    fn inbox_entry_unknown_id_removes_nothing_and_keeps_the_count() {
+        let input = "mail toast 42 43 44 45 1\nchat banner -46 47 48 49 0\n987654321\n";
+        let (code, out, err) = run_inbox_entry(input);
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("removed inbox entries=0"), "{out}");
+        assert!(out.contains("remaining inbox entries=2"), "{out}");
+        assert!(out.contains(SCOPE), "{out}");
+        assert!(out.contains(REACH), "{out}");
+        assert!(!out.contains("987654321"), "{out}");
+        assert!(!err.contains("987654321"), "{err}");
+    }
+
+    #[test]
+    fn inbox_entry_malformed_lines_report_only_their_numbers() {
+        for (input, number, secret) in [
+            ("mail toast 1 2 3 4 1\nnot-an-id\n", 2, "not-an-id"),
+            ("mail surprise 1 2 3 4 1\n0\n", 1, "surprise"),
+            ("mail toast 1 2 3 4 1\n0 9\n", 2, "0 9"),
+        ] {
+            let (code, out, err) = run_inbox_entry(input);
+            assert_eq!(code, EXIT_USAGE, "input {input:?}");
+            assert!(out.is_empty(), "input {input:?}: {out}");
+            assert!(err.contains(&format!("line {number}")), "{err}");
+            assert!(!err.contains(secret), "{err}");
+        }
+    }
+
+    #[test]
+    fn inbox_entry_accepts_crlf_and_blank_lines() {
+        let input = "mail toast 11 12 13 14 1\r\n\r\nchat banner 15 16 17 18 0\r\n1\r\n\r\n";
+        let (code, out, err) = run_inbox_entry(input);
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("removed inbox entries=1"), "{out}");
+        assert!(out.contains("remaining inbox entries=1"), "{out}");
+    }
+
+    #[test]
+    fn inbox_entry_counts_the_id_line_toward_the_cap() {
+        let entries: String = (0..MAX_LINES).map(|_| "mail toast 1 2 3 4 1\n").collect();
+        let (code, out, err) = run_inbox_entry(&format!("{entries}0\n"));
+        assert_eq!(code, EXIT_USAGE);
+        assert!(out.is_empty(), "{out}");
+        assert!(err.contains("too many inbox lines"), "{err}");
+
+        let entries: String = (0..MAX_LINES - 1)
+            .map(|_| "mail toast 1 2 3 4 1\n")
+            .collect();
+        let (code, out, err) = run_inbox_entry(&format!("{entries}0\n"));
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("removed inbox entries=1"), "{out}");
+        assert!(
+            out.contains(&format!("remaining inbox entries={}", MAX_LINES - 2)),
+            "{out}"
+        );
     }
 }

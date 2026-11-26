@@ -207,6 +207,95 @@ fn forget_commands_reject_invalid_utf8_stdin() {
 }
 
 #[test]
+fn forget_inbox_entry_removes_the_named_entry_from_stdin() {
+    let output = run_with_input(
+        &[OsStr::new("forget-inbox-entry")],
+        "ccsecret toast 4242 4343 44 45 1\r\n\r\nhidden banner -46 47 48 49 0\n0\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(stderr(&output).is_empty(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("removed inbox entries=1"), "{text}");
+    assert!(text.contains("remaining inbox entries=1"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    assert!(
+        text.contains("reach=no running app or store file"),
+        "{text}"
+    );
+    let combined = format!("{text}{}", stderr(&output));
+    for token in [
+        "ccsecret", "hidden", "toast", "banner", "4242", "4343", "-46", "48",
+    ] {
+        assert!(!combined.contains(token), "{token}: {combined}");
+    }
+}
+
+#[test]
+fn forget_inbox_entry_unknown_id_removes_zero() {
+    let output = run_with_input(
+        &[OsStr::new("forget-inbox-entry")],
+        "ccsecret toast 4242 4343 44 45 1\nhidden banner -46 47 48 49 0\n987654321\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("removed inbox entries=0"), "{text}");
+    assert!(text.contains("remaining inbox entries=2"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    assert!(
+        text.contains("reach=no running app or store file"),
+        "{text}"
+    );
+    let combined = format!("{text}{}", stderr(&output));
+    for token in ["ccsecret", "hidden", "toast", "banner", "987654321", "4242"] {
+        assert!(!combined.contains(token), "{token}: {combined}");
+    }
+}
+
+#[test]
+fn forget_inbox_entry_malformed_id_exits_two_with_a_line_number_only() {
+    let output = run_with_input(
+        &[OsStr::new("forget-inbox-entry")],
+        "ccsecret toast 4242 4343 44 45 1\nnot-an-id\n",
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    let err = stderr(&output);
+    assert!(err.contains("line 2"), "{err}");
+    let combined = format!("{}{err}", stdout(&output));
+    for token in ["ccsecret", "toast", "4242", "4343", "not-an-id"] {
+        assert!(!combined.contains(token), "{token}: {combined}");
+    }
+}
+
+#[test]
+fn forget_inbox_entry_without_an_id_exits_two() {
+    let output = run_with_input(&[OsStr::new("forget-inbox-entry")], "");
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert_eq!(stderr(&output), "error: no entry id\n");
+}
+
+#[test]
+fn forget_inbox_entry_rejects_invalid_utf8_stdin() {
+    let output = run_with_bytes(&[OsStr::new("forget-inbox-entry")], &[0xff, b'\n']);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("stdin is not valid UTF-8"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn help_lists_forget_inbox_entry() {
+    let output = run(&[OsStr::new("--help")]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("forget-inbox-entry"), "{text}");
+}
+
+#[test]
 fn help_lists_both_forget_commands() {
     let output = run(&[OsStr::new("--help")]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));

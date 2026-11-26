@@ -82,7 +82,13 @@ CLASSES = {
         "manually",
         "forget-simplifications",
     ),
-    "Interruption inbox (DC-24)": ("remove", "clear", "ram", "no file", "forget-inbox"),
+    "Interruption inbox (DC-24)": (
+        "remove",
+        "clear",
+        "ram",
+        "no file",
+        "forget-inbox-entry",
+    ),
     "Backup and encrypted export (DC-28)": ("no export", "manually"),
     "Optional encrypted sync (DC-29)": ("no channel", "nothing is synced", "owed"),
 }
@@ -186,6 +192,13 @@ def validate(root: Path) -> list[str]:
         for phrase in phrases:
             if phrase not in control:
                 errors.append(f"{label} lost its control statement ({phrase!r})")
+        # "forget-inbox" is a prefix of "forget-inbox-entry", so the generic
+        # flattened check above cannot fail while the newer token survives.
+        if label == "Interruption inbox (DC-24)" and "`forget-inbox`" not in cells[2]:
+            errors.append(
+                "Interruption inbox (DC-24) lost its control statement "
+                "('forget-inbox')"
+            )
         dc = re.search(r"DC-\d+", label).group(0)
         row = table_cells(inventory, dc)
         if row is None:
@@ -215,25 +228,38 @@ def validate(root: Path) -> list[str]:
     cli_rs = documents[CLI_RS]
     if '"forget-layouts" =>' not in cli_rs:
         errors.append("CLI no longer parses forget-layouts")
-    for token in ("forget-simplifications", "forget-inbox"):
+    for token in ("forget-simplifications", "forget-inbox", "forget-inbox-entry"):
         if f'"{token}" =>' not in cli_rs:
             errors.append(f"CLI no longer parses {token}")
     forget_rs = documents[FORGET_RS]
-    for function in ("pub fn forget_simplifications", "pub fn forget_inbox"):
-        if function not in forget_rs:
+    for function in (
+        "pub fn forget_simplifications",
+        "pub fn forget_inbox",
+        "pub fn forget_inbox_entry",
+    ):
+        # `pub fn forget_inbox` is a prefix of the newer function name, so it
+        # must match the whole signature or renaming the old one goes unseen.
+        present = (
+            re.search(r"^pub fn forget_inbox\(", forget_rs, re.MULTILINE) is not None
+            if function == "pub fn forget_inbox"
+            else function in forget_rs
+        )
+        if not present:
             errors.append(f"forget.rs lost {function!r}")
     cli_doc = flatten(documents[CLI_DOC])
     if "forget-layouts" not in cli_doc:
         errors.append("CLI.md no longer documents forget-layouts")
     if "process-local, ram-only" not in cli_doc:
         errors.append("CLI.md no longer states the deletion is process-local")
-    for token in ("forget-simplifications", "forget-inbox"):
+    for token in ("forget-simplifications", "forget-inbox", "forget-inbox-entry"):
         if token not in cli_doc:
             errors.append(f"CLI.md no longer documents {token}")
     cli_doc_raw = documents[CLI_DOC]
-    for token in ("forget-simplifications", "forget-inbox"):
+    for token in ("forget-simplifications", "forget-inbox", "forget-inbox-entry"):
         if f"`{token}` reads" not in cli_doc_raw:
             errors.append(f"CLI.md no longer documents the {token} stdin contract")
+    if "forget-inbox-entry" not in documents[INBOX_DOC]:
+        errors.append("INTERRUPTION_INBOX.md no longer mentions forget-inbox-entry")
 
     f10 = table_cells(documents[FINDINGS], "F-10")
     if f10 is None:
@@ -391,6 +417,26 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "CI drops the self-test",
         "edit": [(WORKFLOW, "scripts/validate_until_deleted.py --self-test", "scripts/validate_network_policy.py --self-test")],
         "expect": "no longer self-tests the until-deleted validator",
+    },
+    {
+        "label": "DC-24 clear-all command renamed",
+        "edit": [(INVENTORY, "`forget-inbox` calls `Inbox::clear`", "`forget-any` calls `Inbox::clear`")],
+        "expect": "lost its control statement ('forget-inbox')",
+    },
+    {
+        "label": "forget-inbox-entry parse arm removed",
+        "edit": [(CLI_RS, '"forget-inbox-entry" =>', '"forget-inbox-entry-old" =>')],
+        "expect": "CLI no longer parses forget-inbox-entry",
+    },
+    {
+        "label": "forget.rs forget_inbox_entry function renamed",
+        "edit": [(FORGET_RS, "pub fn forget_inbox_entry", "pub fn forget_entry")],
+        "expect": "forget.rs lost 'pub fn forget_inbox_entry'",
+    },
+    {
+        "label": "CLI.md forget-inbox-entry stdin contract removed",
+        "edit": [(CLI_DOC, "`forget-inbox-entry` reads", "`forget-inbox-entry-old` reads")],
+        "expect": "no longer documents the forget-inbox-entry stdin contract",
     },
 )
 

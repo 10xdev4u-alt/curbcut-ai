@@ -158,9 +158,10 @@ and no timer-driven deletion for any of them, and **no user-facing deletion
 control in the app** exists today: three have in-memory library methods whose
 only callers are process-local CLI commands (DC-14, DC-15, DC-24), profiles
 have only a baseline reset, and two have no code.
-The CLI `forget-layouts`, `forget-simplifications`, and `forget-inbox` commands
-are process-local, RAM-only affordances for DC-14, DC-15, and DC-24 alone; the
-other three classes have no user-facing control. The table
+The CLI `forget-layouts`, `forget-simplifications`, `forget-inbox`, and
+`forget-inbox-entry` commands are process-local, RAM-only affordances for
+DC-14, DC-15, and DC-24 alone; the other three classes have no user-facing
+control. The table
 names the control that exists or the manual path owed when persistence ships.
 **F-10 stays OPEN** because a documented cadence is not a control. #223 tracks
 user-facing controls and #224 tracks the maximum-lifetime decision.
@@ -170,7 +171,7 @@ user-facing controls and #224 tracks the maximum-lifetime decision.
 | Profiles (DC-13) | until-deleted | No delete API; `ProfileGraph::reset` restores the baseline only. User must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
 | Per-app layouts (DC-14) | until-deleted | CLI `forget-layouts` calls `LayoutMemory::reset_all` on a process-local memory built from stdin; `forget`, `reset_app`, and `reset_user` remain in-memory library methods, not wired to UI or CLI; user must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
 | Learned simplifications (DC-15) | until-deleted | CLI `forget-simplifications` calls `LearnedSimplification::clear` on a process-local learner built from stdin; `FeedbackLog::clear` remains an in-memory method, not wired to UI or CLI; user must delete the store file manually once persistence ships. | Each DPIA review | F-10 |
-| Interruption inbox (DC-24) | until-deleted | CLI `forget-inbox` calls `Inbox::clear` on a process-local inbox built from stdin; `Inbox::remove` remains an in-memory method, not wired to UI or CLI; the list is RAM only, so there is no file to delete. | Each DPIA review | F-10 |
+| Interruption inbox (DC-24) | until-deleted | CLI `forget-inbox` calls `Inbox::clear` on a process-local inbox built from stdin; CLI `forget-inbox-entry` calls `Inbox::remove` on a process-local inbox built from stdin, but `Inbox::remove` remains an in-memory method, not wired to UI; the list is RAM only, so there is no file to delete. | Each DPIA review | F-10 |
 | Backup and encrypted export (DC-28) | until-deleted | No export or backup code exists; a user-held file is outside the app and the user deletes it manually. | Each DPIA review | F-10 |
 | Optional encrypted sync (DC-29) | until-deleted | Only `NetworkFeature::Sync` exists; no channel or client, nothing is synced today, and no revocation control. A deletion path is owed before the channel ships. | Each DPIA review | F-10 |
 
