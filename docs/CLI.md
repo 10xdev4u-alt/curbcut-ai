@@ -16,7 +16,9 @@ than panicking in the argument iterator.
 | `status` | `status ok`, `crate=…`, `version=…` | 0 |
 | `dump` | redacted graph dump | 0 |
 | `bench` | `bench iterations=… bytes=… elapsed_ns=…` | 0 |
-| `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, `scope=process-local RAM only` | 0 |
+| `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, scope and reach lines | 0 |
+| `forget-simplifications` | `deleted feedback entries=N`, `remaining feedback entries=0`, scope and reach lines | 0 |
+| `forget-inbox` | `deleted inbox entries=N`, `remaining inbox entries=0`, scope and reach lines | 0 |
 | `network-status` | `update_check=allowed\|blocked`, `policy=…`, `switch=…`, `scope=process-local RAM only` | 0 |
 | `network-revoke` | `update_check = false`, `scope=process-local RAM only` | 0 |
 | `vpat` | the draft VPAT for our own UI | 0 |
@@ -38,6 +40,7 @@ printf '1 mail 7\n2 mail 8\n' | cargo run -q --bin curbcut-cli -- forget-layouts
 # deleted layouts=2
 # remaining layouts=0
 # scope=process-local RAM only
+# reach=no running app or store file
 ```
 
 Blank lines are skipped; duplicate keys collapse, so `N` counts distinct
@@ -50,6 +53,46 @@ running app's memory, reads and writes no file, and does not delete any other
 class. It is not an in-app deletion control, sets no maximum lifetime, and does
 not close F-10. See [`DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
 classes.
+
+`forget-simplifications` reads `<hash:u64> <accept|reject>` lines from stdin,
+builds a `LearnedSimplification` with capacity 4096, counts its entries with
+`len`, and calls `clear` (which also drops undo history and resets the level):
+
+```bash
+printf '42 accept\n99 reject\n' | cargo run -q --bin curbcut-cli -- forget-simplifications
+# deleted feedback entries=2
+# remaining feedback entries=0
+# scope=process-local RAM only
+# reach=no running app or store file
+```
+
+The log does not coalesce entries, so duplicate lines count separately. The
+capacity equals the line cap, so no accepted line is evicted before the count.
+
+`forget-inbox` reads
+`<app-slug> <kind> <x:i32> <y:i32> <w:u32> <h:u32> <dismissible:0|1>` lines
+from stdin. `kind` is one fixed token: `toast`, `banner`, `popup`, `cookie`, or
+`paywall`. Each line calls `Inbox::file`, then the count is taken with `len`
+and `Inbox::clear` removes every entry:
+
+```bash
+printf 'mail toast 1 2 3 4 1\nchat banner -3 4 5 6 0\n' | cargo run -q --bin curbcut-cli -- forget-inbox
+# deleted inbox entries=2
+# remaining inbox entries=0
+# scope=process-local RAM only
+# reach=no running app or store file
+```
+
+The inbox files every line, so duplicate lines count separately. All three
+deletion commands skip blank lines, accept CRLF, and stop at 4096 non-blank
+lines. A malformed line reports its line number only and exits 2; no hash,
+slug, kind, or coordinate is echoed. Empty stdin is a successful zero deletion
+and invalid UTF-8 stdin exits 2.
+
+These commands are process-local and RAM-only affordances for DC-14, DC-15,
+and DC-24. They **cannot reach a running app or a store file**: there is no
+app IPC, no database path, and no file write. They are not in-app deletion
+controls, set no maximum lifetime, and do not close F-10.
 
 ## Network inspect and revoke recipes
 

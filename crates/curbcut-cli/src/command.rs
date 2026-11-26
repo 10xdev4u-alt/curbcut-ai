@@ -38,6 +38,10 @@ pub enum Command {
     Bench,
     /// Delete process-local layouts supplied on stdin.
     ForgetLayouts,
+    /// Delete process-local feedback entries supplied on stdin.
+    ForgetSimplifications,
+    /// Delete process-local inbox entries supplied on stdin.
+    ForgetInbox,
     /// Inspect a config document supplied on stdin, without dialing.
     NetworkStatus,
     /// Print a content-free revoke recipe for a config document on stdin.
@@ -72,6 +76,8 @@ impl Command {
             "dump" => Ok(Self::Dump),
             "bench" => Ok(Self::Bench),
             "forget-layouts" => Ok(Self::ForgetLayouts),
+            "forget-simplifications" => Ok(Self::ForgetSimplifications),
+            "forget-inbox" => Ok(Self::ForgetInbox),
             "network-status" => Ok(Self::NetworkStatus),
             "network-revoke" => Ok(Self::NetworkRevoke),
             "vpat" => Ok(Self::Vpat),
@@ -96,6 +102,7 @@ impl Command {
     /// Runs the command with input for stdin-driven commands.
     ///
     /// Errors go to `err`; output goes to `out`. Only [`Command::ForgetLayouts`],
+    /// [`Command::ForgetSimplifications`], [`Command::ForgetInbox`],
     /// [`Command::NetworkStatus`], and [`Command::NetworkRevoke`] read `input`;
     /// every other command ignores it.
     pub fn execute_with_input(
@@ -121,6 +128,8 @@ impl Command {
                 EXIT_OK
             }
             Self::ForgetLayouts => crate::forget::forget_layouts(input, out, err),
+            Self::ForgetSimplifications => crate::forget::forget_simplifications(input, out, err),
+            Self::ForgetInbox => crate::forget::forget_inbox(input, out, err),
             Self::NetworkStatus => crate::network::network_status(input, out, err),
             Self::NetworkRevoke => crate::network::network_revoke(input, out, err),
             Self::Vpat => {
@@ -155,15 +164,17 @@ pub fn usage() -> &'static str {
     "usage: curbcut-cli <command>
 
 commands:
-  status    status line
+  status    status
   dump      redacted dump
-  bench     redaction benchmark
-  forget-layouts  delete stdin layouts
-  network-status  inspect stdin config
-  network-revoke  print revoke recipe
-  vpat      draft VPAT for our UI
-  limitations  published limitations
-  panic     panic on purpose
+  bench     benchmark
+  forget-layouts  clear layouts
+  forget-simplifications  clear feedback
+  forget-inbox  clear inbox
+  network-status  inspect config
+  network-revoke  revoke recipe
+  vpat      draft VPAT
+  limitations  limitations
+  panic     panic
   help      this text
 
 exit codes:
@@ -217,12 +228,22 @@ pub fn run(args: &[String]) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
     let code = match Command::parse(args) {
-        Ok(Command::ForgetLayouts | Command::NetworkStatus | Command::NetworkRevoke) => {
+        Ok(
+            Command::ForgetLayouts
+            | Command::ForgetSimplifications
+            | Command::ForgetInbox
+            | Command::NetworkStatus
+            | Command::NetworkRevoke,
+        ) => {
             let mut buffer = String::new();
             match std::io::Read::read_to_string(&mut std::io::stdin(), &mut buffer) {
                 Ok(_) => run_with_input_to(args, &mut out, &mut err, &buffer),
-                Err(_) => {
+                Err(error) if error.kind() == std::io::ErrorKind::InvalidData => {
                     let _ = writeln!(err, "error: stdin is not valid UTF-8");
+                    EXIT_USAGE
+                }
+                Err(_) => {
+                    let _ = writeln!(err, "error: cannot read stdin");
                     EXIT_USAGE
                 }
             }
@@ -302,6 +323,21 @@ mod tests {
             Ok(Command::NetworkRevoke)
         );
         for token in ["network-status", "network-revoke"] {
+            assert!(usage().contains(token), "{token} missing from help");
+        }
+    }
+
+    #[test]
+    fn forget_commands_parse_and_appear_in_help() {
+        assert_eq!(
+            Command::parse(&["forget-simplifications".to_string()]),
+            Ok(Command::ForgetSimplifications)
+        );
+        assert_eq!(
+            Command::parse(&["forget-inbox".to_string()]),
+            Ok(Command::ForgetInbox)
+        );
+        for token in ["forget-simplifications", "forget-inbox"] {
             assert!(usage().contains(token), "{token} missing from help");
         }
     }

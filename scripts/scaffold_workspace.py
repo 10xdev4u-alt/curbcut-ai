@@ -49,7 +49,7 @@ CRATES = [
     ("curbcut-input", "Global shortcuts, hover/click routing, and switch access.", ["curbcut-core"]),
     ("curbcut-store", "Storage schema, migrations, repositories, key handling, the plan cache, the sealed understanding cache, per-app layout memory, and learned simplifications.", ["curbcut-core"]),
     ("curbcut-telemetry", "Opt-in, counts-only telemetry and redaction.", ["curbcut-core"]),
-    ("curbcut-cli", "Headless control, benchmark, redacted debug dump, and the accessibility mapping/VPAT generator.", ["curbcut-core", "curbcut-store"]),
+    ("curbcut-cli", "Headless control, benchmark, redacted debug dump, and the accessibility mapping/VPAT generator.", ["curbcut-core", "curbcut-store", "curbcut-adapt"]),
     ("curbcut-app", "Tauri app shell and frontend bridge (stub until the toolchain lands).", ["curbcut-core"]),
     ("curbcut-macros", "Typed event and provenance macros.", []),
 ]
@@ -226,11 +226,14 @@ CRATE_STATUS = {
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark,\n"
-        "process-local forget-layouts, the process-local network-status and\n"
+        "process-local forget-layouts, forget-simplifications, and forget-inbox\n"
+        "deletion commands, the process-local network-status and\n"
         "network-revoke inspect/revoke recipes, panic, vpat, and limitations\n"
-        "commands, with stable exit codes. The recipes parse a config document\n"
-        "on stdin and never dial, write a file, or change persisted state;\n"
-        "F-12, R-09, and #221 stay open. The accessibility mapping, the draft\n"
+        "commands, with stable exit codes. The deletion commands act on\n"
+        "process-local RAM only: no app, no file, and F-10 stays OPEN. The\n"
+        "recipes parse a config document on stdin and never dial, write a\n"
+        "file, or change persisted state; F-12, R-09, and #221 stay open.\n"
+        "The accessibility mapping, the draft\n"
         "VPAT, and the limitations page are generated from one data module, so a\n"
         "published claim and the test that backs it cannot drift apart. See\n"
         "[`../../docs/CLI.md`](../../docs/CLI.md),\n"

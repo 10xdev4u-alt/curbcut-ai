@@ -13,3 +13,4 @@ workspace = true
 [dependencies]
 curbcut-core = { path = "../curbcut-core" }
 curbcut-store = { path = "../curbcut-store" }
+curbcut-adapt = { path = "../curbcut-adapt" }

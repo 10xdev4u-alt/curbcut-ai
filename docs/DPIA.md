@@ -155,8 +155,9 @@ probe.
   checks each of DC-13, DC-14, DC-15, DC-24, DC-28 and DC-29: the named code
   control must still exist, or the statement that the user deletes it manually
   must still be the honest one. This sets no maximum lifetime. F-10 stays OPEN
-  until a user-facing control exists; the CLI `forget-layouts` command is a
-  process-local, RAM-only affordance for DC-14 only. See §Audit status below.
+  until a user-facing control exists; the CLI `forget-layouts`,
+  `forget-simplifications`, and `forget-inbox` commands are process-local,
+  RAM-only affordances for DC-14, DC-15, and DC-24 only. See §Audit status below.
 
 ## Audit status
 

@@ -57,6 +57,10 @@ fn forget_layouts_deletes_keys_from_stdin() {
     let text = stdout(&output);
     assert!(text.contains("deleted layouts=3"), "{text}");
     assert!(text.contains("remaining layouts=0"), "{text}");
+    assert!(
+        text.contains("reach=no running app or store file"),
+        "{text}"
+    );
     for token in ["mail", "chat"] {
         assert!(!text.contains(token), "{text}");
     }
@@ -93,6 +97,123 @@ fn forget_layouts_reports_a_bad_line_number_only() {
     assert!(err.contains("line 2"), "{err}");
     assert!(!err.contains("nope"), "{err}");
     assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn forget_simplifications_deletes_feedback_from_stdin() {
+    let output = run_with_input(
+        &[OsStr::new("forget-simplifications")],
+        "12345 accept\n67890 reject\n12345 accept\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(stderr(&output).is_empty(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("deleted feedback entries=3"), "{text}");
+    assert!(text.contains("remaining feedback entries=0"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    assert!(
+        text.contains("reach=no running app or store file"),
+        "{text}"
+    );
+    for token in ["12345", "67890", "accept", "reject"] {
+        assert!(!text.contains(token), "{text}");
+    }
+}
+
+#[test]
+fn forget_inbox_deletes_filed_interruptions_from_stdin() {
+    let output = run_with_input(
+        &[OsStr::new("forget-inbox")],
+        "mail toast 1 2 3 4 1\r\n\r\nmail toast 1 2 3 4 1\nchat banner -3 4 5 6 0\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(stderr(&output).is_empty(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("deleted inbox entries=3"), "{text}");
+    assert!(text.contains("remaining inbox entries=0"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    assert!(
+        text.contains("reach=no running app or store file"),
+        "{text}"
+    );
+    for token in ["mail", "chat", "toast", "banner"] {
+        assert!(!text.contains(token), "{text}");
+    }
+}
+
+#[test]
+fn forget_commands_with_empty_stdin_delete_zero() {
+    for (command, expected) in [
+        ("forget-simplifications", "deleted feedback entries=0"),
+        ("forget-inbox", "deleted inbox entries=0"),
+    ] {
+        let output = run_with_input(&[OsStr::new(command)], "");
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{command}: {}",
+            stderr(&output)
+        );
+        assert!(
+            stdout(&output).contains(expected),
+            "{command}: {}",
+            stdout(&output)
+        );
+    }
+}
+
+#[test]
+fn forget_commands_report_a_bad_line_number_only() {
+    for (command, input, number, secret) in [
+        (
+            "forget-simplifications",
+            "1 accept\nnope accept\n",
+            2,
+            "nope",
+        ),
+        (
+            "forget-inbox",
+            "mail toast 1 2 3 4 1\nmail surprise 1 2 3 4 1\n",
+            2,
+            "surprise",
+        ),
+    ] {
+        let output = run_with_input(&[OsStr::new(command)], input);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{command}: {}",
+            stderr(&output)
+        );
+        assert!(stdout(&output).is_empty(), "{command}: {}", stdout(&output));
+        let err = stderr(&output);
+        assert!(err.contains(&format!("line {number}")), "{command}: {err}");
+        assert!(!err.contains(secret), "{command}: {err}");
+    }
+}
+
+#[test]
+fn forget_commands_reject_invalid_utf8_stdin() {
+    for command in ["forget-simplifications", "forget-inbox"] {
+        let output = run_with_bytes(&[OsStr::new(command)], &[0xff, b'\n']);
+        assert_eq!(output.status.code(), Some(2), "{command}");
+        assert!(
+            stderr(&output).contains("stdin is not valid UTF-8"),
+            "{command}: {}",
+            stderr(&output)
+        );
+        assert!(stdout(&output).is_empty(), "{command}: {}", stdout(&output));
+    }
+}
+
+#[test]
+fn help_lists_both_forget_commands() {
+    let output = run(&[OsStr::new("--help")]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    for token in ["forget-simplifications", "forget-inbox"] {
+        assert!(text.contains(token), "{text}");
+    }
 }
 
 #[test]

@@ -33,6 +33,7 @@ FEEDBACK_DOC = "docs/LEARNED_SIMPLIFICATIONS.md"
 INBOX_DOC = "docs/INTERRUPTION_INBOX.md"
 TRANSMISSION_DOC = "docs/TRANSMISSION_PATHS.md"
 CLI_RS = "crates/curbcut-cli/src/command.rs"
+FORGET_RS = "crates/curbcut-cli/src/forget.rs"
 CLI_DOC = "docs/CLI.md"
 PROFILE_RS = "crates/curbcut-adapt/src/profile.rs"
 LAYOUT_RS = "crates/curbcut-store/src/layout_memory.rs"
@@ -53,6 +54,7 @@ DOCUMENTS = (
     INBOX_DOC,
     TRANSMISSION_DOC,
     CLI_RS,
+    FORGET_RS,
     CLI_DOC,
     PROFILE_RS,
     LAYOUT_RS,
@@ -74,8 +76,13 @@ CLASSES = {
         "manually",
         "forget-layouts",
     ),
-    "Learned simplifications (DC-15)": ("clear", "not wired", "manually"),
-    "Interruption inbox (DC-24)": ("remove", "clear", "ram", "no file"),
+    "Learned simplifications (DC-15)": (
+        "clear",
+        "not wired",
+        "manually",
+        "forget-simplifications",
+    ),
+    "Interruption inbox (DC-24)": ("remove", "clear", "ram", "no file", "forget-inbox"),
     "Backup and encrypted export (DC-28)": ("no export", "manually"),
     "Optional encrypted sync (DC-29)": ("no channel", "nothing is synced", "owed"),
 }
@@ -208,11 +215,25 @@ def validate(root: Path) -> list[str]:
     cli_rs = documents[CLI_RS]
     if '"forget-layouts" =>' not in cli_rs:
         errors.append("CLI no longer parses forget-layouts")
+    for token in ("forget-simplifications", "forget-inbox"):
+        if f'"{token}" =>' not in cli_rs:
+            errors.append(f"CLI no longer parses {token}")
+    forget_rs = documents[FORGET_RS]
+    for function in ("pub fn forget_simplifications", "pub fn forget_inbox"):
+        if function not in forget_rs:
+            errors.append(f"forget.rs lost {function!r}")
     cli_doc = flatten(documents[CLI_DOC])
     if "forget-layouts" not in cli_doc:
         errors.append("CLI.md no longer documents forget-layouts")
     if "process-local, ram-only" not in cli_doc:
         errors.append("CLI.md no longer states the deletion is process-local")
+    for token in ("forget-simplifications", "forget-inbox"):
+        if token not in cli_doc:
+            errors.append(f"CLI.md no longer documents {token}")
+    cli_doc_raw = documents[CLI_DOC]
+    for token in ("forget-simplifications", "forget-inbox"):
+        if f"`{token}` reads" not in cli_doc_raw:
+            errors.append(f"CLI.md no longer documents the {token} stdin contract")
 
     f10 = table_cells(documents[FINDINGS], "F-10")
     if f10 is None:
@@ -341,6 +362,25 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "CLI forget command removed",
         "edit": [(CLI_RS, '"forget-layouts" =>', '"forget-everything" =>')],
         "expect": "CLI no longer parses forget-layouts",
+    },
+    {
+        "label": "forget-simplifications parse arm removed",
+        "edit": [
+            (CLI_RS, '"forget-simplifications" =>', '"forget-simplifications-old" =>')
+        ],
+        "expect": "CLI no longer parses forget-simplifications",
+    },
+    {
+        "label": "forget.rs forget_inbox function renamed",
+        "edit": [
+            (FORGET_RS, "pub fn forget_inbox", "pub fn forget_everything")
+        ],
+        "expect": "forget.rs lost 'pub fn forget_inbox'",
+    },
+    {
+        "label": "CLI.md forget-inbox stdin contract removed",
+        "edit": [(CLI_DOC, "`forget-inbox` reads", "`forget-everything` reads")],
+        "expect": "no longer documents the forget-inbox stdin contract",
     },
     {
         "label": "readme drops the validator",
