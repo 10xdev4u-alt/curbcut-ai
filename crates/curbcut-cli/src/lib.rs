@@ -20,6 +20,7 @@ pub mod bench;
 pub mod command;
 pub mod dump;
 pub mod forget;
+pub mod network;
 pub mod vpat;
 
 pub use command::{run, run_to, run_with_input_to, usage, Command, EXIT_OK, EXIT_USAGE};

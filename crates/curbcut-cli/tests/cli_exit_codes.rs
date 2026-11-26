@@ -96,6 +96,75 @@ fn forget_layouts_reports_a_bad_line_number_only() {
 }
 
 #[test]
+fn network_status_reports_the_config_built_decision() {
+    let output = run_with_input(
+        &[OsStr::new("network-status")],
+        "version = 1\nupdate_check = true\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(stderr(&output).is_empty(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("update_check=allowed"), "{text}");
+    assert!(text.contains("policy=updates-only"), "{text}");
+    assert!(text.contains("switch=released"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    for token in ["update_check = true", "true", "version = 1"] {
+        assert!(!text.contains(token), "{text}");
+    }
+}
+
+#[test]
+fn network_status_without_the_key_reports_blocked() {
+    let output = run_with_input(&[OsStr::new("network-status")], "version = 1\n");
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("update_check=blocked"), "{text}");
+    assert!(text.contains("policy=offline"), "{text}");
+    assert!(text.contains("switch=engaged"), "{text}");
+}
+
+#[test]
+fn network_revoke_prints_a_recipe_and_changes_no_file() {
+    let output = run_with_input(
+        &[OsStr::new("network-revoke")],
+        "version = 1\nupdate_check = true\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("update_check = false"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    assert!(!text.contains("true"), "{text}");
+}
+
+#[test]
+fn network_commands_reject_malformed_input_without_echo() {
+    for command in ["network-status", "network-revoke"] {
+        let output = run_with_input(
+            &[OsStr::new(command)],
+            "version = 1\ncc_secret_canary = 7\n",
+        );
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{command}: {}",
+            stderr(&output)
+        );
+        assert!(stdout(&output).is_empty(), "{command}: {}", stdout(&output));
+        for text in [stdout(&output), stderr(&output)] {
+            assert!(!text.contains("cc_secret_canary"), "{command}: {text}");
+        }
+    }
+}
+
+#[test]
+fn network_status_rejects_invalid_utf8_stdin() {
+    let output = run_with_bytes(&[OsStr::new("network-status")], &[0xff, b'\n']);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stderr(&output).contains("stdin is not valid UTF-8"));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
 fn help_lists_forget_layouts() {
     let output = run(&[OsStr::new("--help")]);
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
@@ -104,6 +173,16 @@ fn help_lists_forget_layouts() {
         "{}",
         stdout(&output)
     );
+}
+
+#[test]
+fn help_lists_both_network_commands() {
+    let output = run(&[OsStr::new("--help")]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    for token in ["network-status", "network-revoke"] {
+        assert!(text.contains(token), "{text}");
+    }
 }
 
 #[test]

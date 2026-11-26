@@ -213,7 +213,8 @@ impl KillSwitch {
     /// fresh engaged switch over [`NetworkPolicy::updates_only`] and releases
     /// it, so only [`NetworkFeature::UpdateCheck`] can dial. The value is read
     /// once, when the switch is built; later config changes are not live.
-    /// No shipped binary calls this constructor.
+    /// The process-local CLI calls this constructor to inspect the decision;
+    /// no shipped binary dials through it.
     pub fn from_config(config: &crate::config::Config) -> Self {
         if config.update_check {
             let mut switch = Self::new(NetworkPolicy::updates_only());

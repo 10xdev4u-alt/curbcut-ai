@@ -93,12 +93,30 @@ rechecks it on every call; and `release()` hands the decision to the policy.
 `NetworkPolicy::updates_only()` when the root `update_check` value is true and
 releases that switch; `update::dial_from_config` delegates to `update::dial`.
 That is a persisted setting and an enforcement point, not a shipped user
-control: **no shipped binary calls** `from_config` or `dial_from_config`, and
-there is **no UI to inspect or revoke** the setting.
-No shipped binary releases a switch; the only library `release()` call is
-inside `from_config`. Tests and the `net_probe` example still release one by
-hand, which is why the socket guard keeps that example in both builds. #221
-remains OPEN for that control.
+control: **no shipped binary calls** `dial_from_config`, and there is **no UI to inspect or revoke** the setting in the app. The CLI recipe below
+is process-local and does not dial.
+No shipped binary releases a switch it keeps or uses to dial; the only library
+`release()` call is inside `from_config`. The CLI calls `from_config` only to inspect the decision
+and drops the switch without dialing. Tests and the `net_probe` example still
+release one by hand, which is why the socket guard keeps that example in both
+builds. #221 remains OPEN for that control.
+
+### The CLI inspect/revoke recipe
+
+`curbcut-cli network-status` and `curbcut-cli network-revoke` take a TOML
+config document on stdin. `network-status` calls `Config::from_toml` and
+`KillSwitch::from_config` and prints only fixed labels: `update_check=allowed`
+or `update_check=blocked`, `policy=...`, `switch=...`, and
+`scope=process-local RAM only`. `network-revoke` prints the canonical line
+`update_check = false` plus the same scope note. Neither command dials, opens
+a file, or echoes a config token or value; malformed input exits 2 with a
+line or field name only.
+
+This is an inspect/revoke **recipe**, not a persisted change. It reaches no
+running app, writes no file, offers no app UI, and keeps no state after the
+process exits. F-12 stays MITIGATED and R-09 stays a documented exception;
+#221 stays OPEN until a persisted store, an app UI, and an inspect/revoke
+control exist. These commands are not a shipped opt-in.
 
 An absent `update_check` key means false, so a document that never mentions it
 keeps the switch engaged. The class is update metadata (**version only**), with

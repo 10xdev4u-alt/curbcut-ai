@@ -17,6 +17,8 @@ than panicking in the argument iterator.
 | `dump` | redacted graph dump | 0 |
 | `bench` | `bench iterations=… bytes=… elapsed_ns=…` | 0 |
 | `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, `scope=process-local RAM only` | 0 |
+| `network-status` | `update_check=allowed\|blocked`, `policy=…`, `switch=…`, `scope=process-local RAM only` | 0 |
+| `network-revoke` | `update_check = false`, `scope=process-local RAM only` | 0 |
 | `vpat` | the draft VPAT for our own UI | 0 |
 | `limitations` | the numbered limitations list | 0 |
 | `panic` | a panic message | 101 |
@@ -48,6 +50,37 @@ running app's memory, reads and writes no file, and does not delete any other
 class. It is not an in-app deletion control, sets no maximum lifetime, and does
 not close F-10. See [`DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
 classes.
+
+## Network inspect and revoke recipes
+
+`network-status` and `network-revoke` read a TOML config document on stdin.
+`network-status` calls `Config::from_toml` and `KillSwitch::from_config`, then
+prints only fixed labels:
+
+```bash
+printf 'version = 1\nupdate_check = true\n' | cargo run -q --bin curbcut-cli -- network-status
+# update_check=allowed
+# policy=updates-only
+# switch=released
+# scope=process-local RAM only
+```
+
+An absent `update_check` key or an explicit `false` prints
+`update_check=blocked`, `policy=offline`, and `switch=engaged`.
+`network-revoke` parses the same input and prints the canonical line
+`update_check = false` with the same scope note:
+
+```bash
+printf 'version = 1\nupdate_check = true\n' | cargo run -q --bin curbcut-cli -- network-revoke
+# update_check = false
+# scope=process-local RAM only
+```
+
+Neither command dials, writes a file, or echoes a config token or value;
+malformed input exits 2 with a line or field name only. This is a process-local
+inspect/revoke **recipe**, not a shipped user control: it reaches no running
+app and changes no persisted state. F-12, R-09, and #221 stay as recorded in
+[`NETWORK_POLICY.md`](NETWORK_POLICY.md).
 
 ## Exit codes
 
