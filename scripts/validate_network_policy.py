@@ -33,6 +33,7 @@ FINDINGS = "docs/PRIVACY_FINDINGS.md"
 SECURITY = "SECURITY.md"
 THREAT = "docs/THREAT_MODEL.md"
 NET_RS = "crates/curbcut-core/src/net.rs"
+CORE_README = "crates/curbcut-core/README.md"
 COMMAND_RS = "crates/curbcut-cli/src/command.rs"
 CONFIG_RS = "crates/curbcut-core/src/config.rs"
 OPT_IN_TEST = "crates/curbcut-core/tests/network_opt_in.rs"
@@ -49,6 +50,7 @@ DOCUMENTS = (
     SECURITY,
     THREAT,
     NET_RS,
+    CORE_README,
     COMMAND_RS,
     CONFIG_RS,
     OPT_IN_TEST,
@@ -218,6 +220,11 @@ def validate(root: Path) -> list[str]:
         errors.append("R-09 no longer points at F-12")
 
     net = documents[NET_RS]
+    if "no shipped binary calls this constructor" in net.lower():
+        errors.append("net.rs still says no shipped binary calls from_config")
+    core_readme = documents[CORE_README]
+    if "no shipped binary calls that path yet" in core_readme.lower():
+        errors.append("curbcut-core README still says no shipped binary calls from_config")
     for phrase in CODE_INVARIANTS + FROM_CONFIG_INVARIANTS:
         if phrase not in net:
             errors.append(f"net.rs no longer contains {phrase!r}")
@@ -316,7 +323,7 @@ CASES: tuple[dict[str, object], ...] = (
         "replace": [
             (
                 POLICY,
-                "No shipped binary releases a switch",
+                "No shipped binary releases a switch it keeps or uses to dial",
                 "A shipped binary releases a switch",
             )
         ],
@@ -422,6 +429,16 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "security guide invents user consent",
         "edit": [(SECURITY, "Accessibility semantics are read-only by default", "The user has opted in to updates. Accessibility semantics are read-only by default")],
         "expect": "SECURITY.md overclaims 'user has opted in'",
+    },
+    {
+        "label": "core constructor doc goes stale",
+        "edit": [(NET_RS, "The process-local CLI calls this constructor to inspect the decision;", "No shipped binary calls this constructor.")],
+        "expect": "net.rs still says no shipped binary calls from_config",
+    },
+    {
+        "label": "core generated README goes stale",
+        "edit": [(CORE_README, "a process-local CLI calls it to inspect the decision, but no shipped", "no shipped binary calls that path yet.")],
+        "expect": "curbcut-core README still says",
     },
     {
         "label": "readme drops the validator",

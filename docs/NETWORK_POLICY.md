@@ -95,8 +95,8 @@ releases that switch; `update::dial_from_config` delegates to `update::dial`.
 That is a persisted setting and an enforcement point, not a shipped user
 control: **no shipped binary calls** `dial_from_config`, and there is **no UI to inspect or revoke** the setting in the app. The CLI recipe below
 is process-local and does not dial.
-No shipped binary releases a switch; the only library `release()` call is
-inside `from_config`. The CLI calls `from_config` only to inspect the decision
+No shipped binary releases a switch it keeps or uses to dial; the only library
+`release()` call is inside `from_config`. The CLI calls `from_config` only to inspect the decision
 and drops the switch without dialing. Tests and the `net_probe` example still
 release one by hand, which is why the socket guard keeps that example in both
 builds. #221 remains OPEN for that control.
