@@ -33,8 +33,10 @@ FINDINGS = "docs/PRIVACY_FINDINGS.md"
 SECURITY = "SECURITY.md"
 THREAT = "docs/THREAT_MODEL.md"
 NET_RS = "crates/curbcut-core/src/net.rs"
+COMMAND_RS = "crates/curbcut-cli/src/command.rs"
 CONFIG_RS = "crates/curbcut-core/src/config.rs"
 OPT_IN_TEST = "crates/curbcut-core/tests/network_opt_in.rs"
+CLI_DOC = "docs/CLI.md"
 CONFIG_SCHEMA = "docs/CONFIG_SCHEMA.md"
 README = "README.md"
 WORKFLOW = ".github/workflows/ci.yml"
@@ -47,8 +49,10 @@ DOCUMENTS = (
     SECURITY,
     THREAT,
     NET_RS,
+    COMMAND_RS,
     CONFIG_RS,
     OPT_IN_TEST,
+    CLI_DOC,
     CONFIG_SCHEMA,
     README,
     WORKFLOW,
@@ -90,6 +94,7 @@ OVERCLAIMS = (
     "off by default until the user",
     "fully offline",
     "kill switch is a user control",
+    "user opt-in is shipped",
     "wcag compliant",
     "ada compliant",
     "makes apps accessible",
@@ -119,6 +124,17 @@ TEST_NAMES = (
     "fn true_allows_only_update_check_and_reaches_loopback()",
     "fn non_boolean_update_check_is_rejected()",
     "fn removing_the_key_revokes_the_choice()",
+)
+
+CLI_TOKENS = ("network-status", "network-revoke")
+
+COMMAND_INVARIANTS = (
+    "NetworkStatus,",
+    "NetworkRevoke,",
+    '"network-status" => Ok(Self::NetworkStatus)',
+    '"network-revoke" => Ok(Self::NetworkRevoke)',
+    "crate::network::network_status(input, out, err)",
+    "crate::network::network_revoke(input, out, err)",
 )
 
 
@@ -211,6 +227,18 @@ def validate(root: Path) -> list[str]:
     checks = net.count("if !switch.allows(feature)")
     if checks != 2:
         errors.append(f"net.rs has {checks} switch checks, expected 2")
+
+    command = documents[COMMAND_RS]
+    for phrase in COMMAND_INVARIANTS:
+        if phrase not in command:
+            errors.append(f"command.rs no longer contains {phrase!r}")
+    for token in CLI_TOKENS:
+        if token not in command:
+            errors.append(f"command.rs no longer has the {token!r} command")
+        if token not in policy:
+            errors.append(f"NETWORK_POLICY.md no longer documents the {token!r} recipe")
+        if token not in documents[CLI_DOC]:
+            errors.append(f"CLI.md no longer documents the {token!r} command")
 
     config_rs = documents[CONFIG_RS]
     for phrase in CONFIG_INVARIANTS:
@@ -404,6 +432,48 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "CI drops the self-test",
         "edit": [(WORKFLOW, "scripts/validate_network_policy.py --self-test", "scripts/validate_hashes.py --self-test")],
         "expect": "no longer self-tests the network-policy validator",
+    },
+    {
+        "label": "CLI status token removed from the dispatcher",
+        "replace": [(COMMAND_RS, "network-status", "netstat")],
+        "expect": "command.rs no longer has the 'network-status' command",
+    },
+    {
+        "label": "CLI recipe dropped from the command guide",
+        "replace": [(CLI_DOC, "network-revoke", "revoke")],
+        "expect": "CLI.md no longer documents the 'network-revoke' command",
+    },
+    {
+        "label": "CLI recipe dropped from the network policy",
+        "replace": [(POLICY, "network-status", "netstat")],
+        "expect": "NETWORK_POLICY.md no longer documents the 'network-status' recipe",
+    },
+    {
+        "label": "shipped opt-in overclaim",
+        "edit": [
+            (
+                POLICY,
+                "### The CLI inspect/revoke recipe",
+                "### The CLI inspect/revoke recipe\n\nUser opt-in is shipped.",
+            )
+        ],
+        "expect": "NETWORK_POLICY.md overclaims 'user opt-in is shipped'",
+    },
+    {
+        "label": "CLI recipes unwired from dispatch",
+        "edit": [
+            (
+                COMMAND_RS,
+                "crate::network::network_status(input, out, err)",
+                "crate::network::network_status(\"\", out, err)",
+            ),
+            (
+                COMMAND_RS,
+                "crate::network::network_revoke(input, out, err)",
+                "crate::network::network_revoke(\"\", out, err)",
+            ),
+        ],
+        "expect": "command.rs no longer contains 'crate::network::network_status(input, out, err)'",
     },
 )
 

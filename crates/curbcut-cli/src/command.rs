@@ -38,6 +38,10 @@ pub enum Command {
     Bench,
     /// Delete process-local layouts supplied on stdin.
     ForgetLayouts,
+    /// Inspect a config document supplied on stdin, without dialing.
+    NetworkStatus,
+    /// Print a content-free revoke recipe for a config document on stdin.
+    NetworkRevoke,
     /// Draft VPAT, generated from the mapping data.
     Vpat,
     /// The published limitations, generated from the mapping data.
@@ -68,6 +72,8 @@ impl Command {
             "dump" => Ok(Self::Dump),
             "bench" => Ok(Self::Bench),
             "forget-layouts" => Ok(Self::ForgetLayouts),
+            "network-status" => Ok(Self::NetworkStatus),
+            "network-revoke" => Ok(Self::NetworkRevoke),
             "vpat" => Ok(Self::Vpat),
             "limitations" => Ok(Self::Limitations),
             "panic" => Ok(Self::Panic),
@@ -89,8 +95,9 @@ impl Command {
 
     /// Runs the command with input for stdin-driven commands.
     ///
-    /// Errors go to `err`; output goes to `out`. Only [`Command::ForgetLayouts`]
-    /// reads `input`; every other command ignores it.
+    /// Errors go to `err`; output goes to `out`. Only [`Command::ForgetLayouts`],
+    /// [`Command::NetworkStatus`], and [`Command::NetworkRevoke`] read `input`;
+    /// every other command ignores it.
     pub fn execute_with_input(
         &self,
         out: &mut dyn fmt::Write,
@@ -114,6 +121,8 @@ impl Command {
                 EXIT_OK
             }
             Self::ForgetLayouts => crate::forget::forget_layouts(input, out, err),
+            Self::NetworkStatus => crate::network::network_status(input, out, err),
+            Self::NetworkRevoke => crate::network::network_revoke(input, out, err),
             Self::Vpat => {
                 let _ = write!(out, "{}", vpat::draft_vpat());
                 EXIT_OK
@@ -146,13 +155,15 @@ pub fn usage() -> &'static str {
     "usage: curbcut-cli <command>
 
 commands:
-  status    content-free status line
-  dump      redacted debug dump (lengths and hashes only)
-  bench     deterministic redaction benchmark
-  forget-layouts  delete stdin layouts (RAM only)
+  status    status line
+  dump      redacted dump
+  bench     redaction benchmark
+  forget-layouts  delete stdin layouts
+  network-status  inspect stdin config
+  network-revoke  print revoke recipe
   vpat      draft VPAT for our UI
   limitations  published limitations
-  panic     panic on purpose, to check the panic path
+  panic     panic on purpose
   help      this text
 
 exit codes:
@@ -206,7 +217,7 @@ pub fn run(args: &[String]) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
     let code = match Command::parse(args) {
-        Ok(Command::ForgetLayouts) => {
+        Ok(Command::ForgetLayouts | Command::NetworkStatus | Command::NetworkRevoke) => {
             let mut buffer = String::new();
             match std::io::Read::read_to_string(&mut std::io::stdin(), &mut buffer) {
                 Ok(_) => run_with_input_to(args, &mut out, &mut err, &buffer),
@@ -277,6 +288,21 @@ mod tests {
     fn help_flags_are_commands() {
         for flag in ["--help", "-h"] {
             assert_eq!(Command::parse(&[flag.to_string()]), Ok(Command::Help));
+        }
+    }
+
+    #[test]
+    fn network_commands_parse_and_appear_in_help() {
+        assert_eq!(
+            Command::parse(&["network-status".to_string()]),
+            Ok(Command::NetworkStatus)
+        );
+        assert_eq!(
+            Command::parse(&["network-revoke".to_string()]),
+            Ok(Command::NetworkRevoke)
+        );
+        for token in ["network-status", "network-revoke"] {
+            assert!(usage().contains(token), "{token} missing from help");
         }
     }
 

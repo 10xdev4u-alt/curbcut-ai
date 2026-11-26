@@ -225,11 +225,15 @@ CRATE_STATUS = {
     ),
     "curbcut-cli": (
         "The headless CLI is implemented: status, redacted dump, benchmark,\n"
-        "process-local forget-layouts, panic, vpat, and limitations commands,\n"
-        "with stable exit codes. The accessibility mapping, the draft VPAT, and\n"
-        "the limitations page are generated from one data module, so a published\n"
-        "claim and the test that backs it cannot drift apart. See\n"
+        "process-local forget-layouts, the process-local network-status and\n"
+        "network-revoke inspect/revoke recipes, panic, vpat, and limitations\n"
+        "commands, with stable exit codes. The recipes parse a config document\n"
+        "on stdin and never dial, write a file, or change persisted state;\n"
+        "F-12, R-09, and #221 stay open. The accessibility mapping, the draft\n"
+        "VPAT, and the limitations page are generated from one data module, so a\n"
+        "published claim and the test that backs it cannot drift apart. See\n"
         "[`../../docs/CLI.md`](../../docs/CLI.md),\n"
+        "[`../../docs/NETWORK_POLICY.md`](../../docs/NETWORK_POLICY.md),\n"
         "[`../../docs/A11Y_MAPPING.md`](../../docs/A11Y_MAPPING.md), and\n"
         "[`../../docs/VPAT.md`](../../docs/VPAT.md)."
     ),
