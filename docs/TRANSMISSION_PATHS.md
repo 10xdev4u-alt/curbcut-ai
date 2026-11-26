@@ -6,9 +6,10 @@ Issue #203 closed the documentation half; implementation is tracked in #219.
 
 ## Status
 
-Both paths are **planned — not implemented**. There is no code for either path:
+Both paths are **planned — not implemented** as channels. There is no code
+that sends, uploads, or receives data for either path:
 no crash-report uploader, no companion client, no approval UI, and no
-revocation control in any of the 14 crates. `NetworkFeature::ALL` in
+user-facing revocation control in any of the 14 crates. `NetworkFeature::ALL` in
 `crates/curbcut-core/src/net.rs` has five variants and none covers either path.
 No network call exists for either path today. F-08 and DPIA R-07 remain open.
 
@@ -16,7 +17,8 @@ No network call exists for either path today. F-08 and DPIA R-07 remain open.
 
 - **What is sent:** nothing today. The planned payload is content-free — counts
   and hashes only, never screen text, OCR text, or accessibility strings.
-- **When:** only after an explicit per-report approval, which does not exist.
+- **When:** only after an explicit per-report approval. A local in-memory gate
+  exists for DC-27 (see below); no channel or user-facing control does.
 - **Channel:** none today. The planned channel must be a new `NetworkFeature`,
   compiled behind `net` and gated by the `KillSwitch`.
 - **Recipient and retention:** undecided. `never-stored` in the inventory is a
@@ -39,13 +41,14 @@ No network call exists for either path today. F-08 and DPIA R-07 remain open.
 
 | Path | Sent | When | Channel today |
 | --- | --- | --- | --- |
-| Crash reports (DC-27) | nothing; planned counts and hashes only | on explicit approval (planned) | none |
+| Crash reports (DC-27) | nothing sent; a local counts-and-hashes artifact exists (see below) | on explicit approval (planned channel) | none |
 | Companion read-aloud (DC-29) | nothing; `EngineKind::Remote` is never selected | on explicit opt-in, off by default (planned) | none |
 
 ## Gate and revocation — planned
 
-No approval UI and no revocation control exist today: users cannot approve or
-revoke either path because neither path exists. The compiled gate (`net`
+No approval UI and no user-facing revocation control exist today: users cannot
+approve or revoke either channel path. A local, in-process gate for DC-27 is
+described below; it is not a channel and has no UI. The compiled gate (`net`
 feature) and the runtime `KillSwitch` are real and already block every existing
 channel, but there is no channel to put behind them for these two paths. A
 future implementation must add a `NetworkFeature`, keep it off by default, and
@@ -69,3 +72,16 @@ a transport.
 - DC-28 and DC-29 are also `until-deleted` classes: see
   [`docs/DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted classes. `F-10`
   stays OPEN; no deletion control or maximum lifetime exists.
+
+## Local decision primitive (foundation only, DC-27)
+
+`crates/curbcut-core/src/crash_report.rs` ships a local decision primitive for
+DC-27: `CrashReportGate::prepare` produces a `CrashReport` only after an
+explicit in-process `approve`, and that approval is one-shot. A report carries
+counts and hashes only — a count, a fixed reason code, and a digest — so no
+screen text, OCR text, or accessibility string can be stored in it. This is a
+local artifact and a local decision; it is not a transport, has no recipient,
+and adds no `NetworkFeature`. There is no uploader, no socket, no approval UI,
+and no channel here. Nothing in this module dials or contacts a recipient.
+"Revocation" is only `revoke` on the in-memory gate before preparation: it is
+not a user-facing control. #219 stays open, and F-08 and DPIA R-07 stay open.

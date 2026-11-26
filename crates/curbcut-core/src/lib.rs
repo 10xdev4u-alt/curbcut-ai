@@ -21,6 +21,8 @@ pub mod capability;
 pub mod chaos;
 pub mod command;
 pub mod config;
+/// Local, content-free crash-report artifacts and the one-shot approval gate.
+pub mod crash_report;
 pub mod error;
 pub mod event;
 pub mod hash;
