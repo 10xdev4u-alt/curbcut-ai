@@ -49,6 +49,21 @@ A clock-free `PushToTalk` gate is not enforcement. Until that code exists the
 bound is a contract in documents, F-06 and R-04 stay open, and the follow-up
 issue #217 tracks the work.
 
+Evidence checklist for #217 (all three items are required before any
+implementation claim):
+
+1. **Production caller.** A named production caller in a capture adapter that
+   owns the audio window; a standalone capped-audio type with no caller is not
+   evidence.
+   Production module: none named today.
+2. **Frame budget.** The bound is expressed as a sample-rate-derived frame
+   budget from `sample_rate_hz`, not a wall clock.
+3. **Retention test.** A retention test fails when more than
+   `sample_rate_hz - 1` frames are retained.
+
+Until all three items exist, F-06 and R-04 stay open and no implementation
+claim is allowed.
+
 ## Never stored or logged
 
 Raw samples are never stored, logged, or exported. No transcripts, OCR output,

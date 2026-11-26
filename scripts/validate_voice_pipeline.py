@@ -82,6 +82,9 @@ REQUIRED_PHRASES = (
     "securebuffer",
     "raw samples are never stored",
     "#217",
+    "production caller",
+    "sample_rate_hz",
+    "retention test",
 )
 
 OVERCLAIMS = (
@@ -94,6 +97,30 @@ OVERCLAIMS = (
 )
 
 CLOCK_PRIMITIVE = re.compile(r"Instant|SystemTime|Duration|std::time|sleep")
+
+# A flipped DC-32/DC-33 row is only credible once the #217 checklist names the
+# production module that owns the audio window. The placeholder below is not a
+# module; a real one is a crates/... path on the "Production module:" line.
+PRODUCTION_MODULE = re.compile(
+    r"(?m)^[ \t]*Production module:[ \t]*`crates/[A-Za-z0-9_./-]+\.rs`[ \t]*$"
+)
+
+# Exact #217 block in docs/VOICE_PIPELINE.md; also the mutation source for
+# removing the whole checklist. Preflighted with every other mutation source.
+CHECKLIST = """Evidence checklist for #217 (all three items are required before any
+implementation claim):
+
+1. **Production caller.** A named production caller in a capture adapter that
+   owns the audio window; a standalone capped-audio type with no caller is not
+   evidence.
+   Production module: none named today.
+2. **Frame budget.** The bound is expressed as a sample-rate-derived frame
+   budget from `sample_rate_hz`, not a wall clock.
+3. **Retention test.** A retention test fails when more than
+   `sample_rate_hz - 1` frames are retained.
+
+Until all three items exist, F-06 and R-04 stay open and no implementation
+claim is allowed."""
 
 
 def flatten(text: str) -> str:
@@ -160,6 +187,14 @@ def validate(root: Path) -> list[str]:
             errors.append(f"{dc} row is truncated")
         elif row[9] != expected:
             errors.append(f"{dc} code status is {row[9]!r}, not {expected!r}")
+
+    flipped = False
+    for dc in ("DC-32", "DC-33"):
+        row = table_cells(documents[INVENTORY], dc)
+        if row is not None and len(row) >= 10 and row[9] != "planned":
+            flipped = True
+    if flipped and not PRODUCTION_MODULE.search(voice):
+        errors.append("DC-32/DC-33 cannot be implemented without #217 evidence")
 
     threat_row = row_containing(documents[THREAT], "| Voice audio |")
     if not threat_row:
@@ -324,6 +359,27 @@ CASES: tuple[dict[str, object], ...] = (
             (WORKFLOW, "scripts/validate_voice_pipeline.py --self-test", "scripts/validate_hashes.py --self-test")
         ],
         "expect": "no longer self-tests the voice-path validator",
+    },
+    {
+        "label": "evidence checklist removed",
+        "edit": [(VOICE, CHECKLIST, "")],
+        "expect": "VOICE_PIPELINE.md no longer states 'production caller'",
+    },
+    {
+        "label": "frame budget replaced with a wall clock",
+        "replace": [(VOICE, "sample_rate_hz", "Instant")],
+        "expect": "VOICE_PIPELINE.md no longer states 'sample_rate_hz'",
+    },
+    {
+        "label": "DC-32 flipped without #217 evidence",
+        "edit": [
+            (
+                INVENTORY,
+                "| mic permission, voice control off by default | local-only | yes | planned |",
+                "| mic permission, voice control off by default | local-only | yes | implemented |",
+            )
+        ],
+        "expect": "DC-32/DC-33 cannot be implemented without #217 evidence",
     },
 )
 
