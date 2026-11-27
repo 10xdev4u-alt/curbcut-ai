@@ -18,7 +18,10 @@ pub struct ReadingVerdict {
     pub score: f32,
     /// The profile target.
     pub target: ReadingLevel,
-    /// Whether the measured band is at or below the target.
+    /// Whether the text is measurable and its band is at or below the target.
+    ///
+    /// Unsupported scripts are never a passing verdict, even for a Complex
+    /// target.
     pub meets_target: bool,
 }
 
@@ -82,8 +85,19 @@ pub fn reading_level(text: &str) -> ReadingLevel {
 }
 
 /// Compares a text with a target band.
+///
+/// A text the scorer cannot measure (empty, non-Latin, or mixed script) gets a
+/// zero score, the hardest band, and a negative verdict. Recomputing
+/// `level <= target` here would wrongly pass a Complex target.
 pub fn compare(text: &str, target: ReadingLevel) -> ReadingVerdict {
-    let score = flesch_reading_ease(text);
+    let Some(score) = flesch_reading_ease_checked(text) else {
+        return ReadingVerdict {
+            level: ReadingLevel::Complex,
+            score: 0.0,
+            target,
+            meets_target: false,
+        };
+    };
     let level = ReadingLevel::from_flesch(score);
     ReadingVerdict {
         level,
@@ -442,6 +456,39 @@ mod tests {
         assert!(compare(easy, ReadingLevel::Complex).meets_target);
         assert!(!compare(hard, ReadingLevel::Plain).meets_target);
         assert!(compare(hard, ReadingLevel::Complex).meets_target);
+    }
+
+    /// Unmeasurable text must never be reported as meeting a target. Every
+    /// target is checked so a Complex target cannot hide the false green.
+    #[test]
+    fn unmeasurable_text_never_meets_any_target() {
+        for text in [
+            "Кот сидит на коврике и смотрит в окно.", // NonLatin
+            "猫坐在窗边看外面。",                     // CJK
+            "The cat 猫 sat on the mat.",             // Mixed
+            "",
+            "... !!! ???",
+            "12345 !!!",
+        ] {
+            for target in [
+                ReadingLevel::Easy,
+                ReadingLevel::Plain,
+                ReadingLevel::Complex,
+            ] {
+                let verdict = compare(text, target);
+                assert!(
+                    !verdict.meets_target,
+                    "text {text:?}, target {target:?} must not pass"
+                );
+                assert_eq!(verdict.score, 0.0, "text {text:?}, target {target:?}");
+                assert_eq!(
+                    verdict.level,
+                    ReadingLevel::Complex,
+                    "text {text:?}, target {target:?}"
+                );
+                assert_eq!(verdict.target, target, "text {text:?}");
+            }
+        }
     }
 
     #[test]
