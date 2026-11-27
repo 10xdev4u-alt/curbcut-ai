@@ -254,30 +254,51 @@ impl ReadingScore {
     /// Scores a text.
     pub fn compute(text: &str) -> Self {
         let script = classify_script(text);
+        let supported = script.is_supported();
         let words = words(text);
-        let syllables = total_syllables(&words);
+        let syllable_counts: Vec<u32> = words.iter().map(|word| count_syllables(word)).collect();
+        let syllables: u32 = syllable_counts.iter().sum();
+        let word_count = words.len() as f32;
+        let sentence_total = sentences(text).max(1);
+        let sentence_count = sentence_total as f32;
         let word_bands = WordBands {
-            short: words
+            short: syllable_counts.iter().filter(|&&n| n <= 2).count() as u32,
+            medium: syllable_counts.iter().filter(|&&n| n == 3).count() as u32,
+            long: syllable_counts.iter().filter(|&&n| n >= 4).count() as u32,
+        };
+        let (flesch_ease, flesch_kincaid_grade, smog, ari) = if !supported || words.is_empty() {
+            if supported {
+                (Some(0.0), None, None, None)
+            } else {
+                (None, None, None, None)
+            }
+        } else {
+            let s = syllables as f32;
+            let ease = 206.835 - 1.015 * (word_count / sentence_count) - 84.6 * (s / word_count);
+            let grade = 0.39 * (word_count / sentence_count) + 11.8 * (s / word_count) - 15.59;
+            let smog_grade = if sentence_count >= 3.0 {
+                let polysyllables = syllable_counts.iter().filter(|&&n| n >= 3).count() as f32;
+                Some(1.043 * (polysyllables * (30.0 / sentence_count)).sqrt() + 3.1291)
+            } else {
+                None
+            };
+            let characters = words
                 .iter()
-                .filter(|word| count_syllables(word) <= 2)
-                .count() as u32,
-            medium: words
-                .iter()
-                .filter(|word| count_syllables(word) == 3)
-                .count() as u32,
-            long: words
-                .iter()
-                .filter(|word| count_syllables(word) >= 4)
-                .count() as u32,
+                .map(|word| word.chars().filter(|ch| ch.is_alphanumeric()).count())
+                .sum::<usize>() as f32;
+            let ari_index = Some(
+                4.71 * (characters / word_count) + 0.5 * (word_count / sentence_count) - 21.43,
+            );
+            (Some(ease), Some(grade), smog_grade, ari_index)
         };
         Self {
             script,
-            flesch_ease: flesch_reading_ease_checked(text),
-            flesch_kincaid_grade: flesch_kincaid_grade(text),
-            smog: smog(text),
-            ari: ari(text),
+            flesch_ease,
+            flesch_kincaid_grade,
+            smog,
+            ari,
             words: words.len() as u32,
-            sentences: sentences(text).max(1) as u32,
+            sentences: sentence_total as u32,
             syllables,
             word_bands,
         }
@@ -576,6 +597,132 @@ mod tests {
                 doc.contains(word),
                 "docs/READING_LEVEL.md does not state `{word}`"
             );
+        }
+    }
+
+    /// Builds the score from the reference helpers, independent of `compute`.
+    fn expected_score(text: &str) -> ReadingScore {
+        let words = words(text);
+        ReadingScore {
+            script: classify_script(text),
+            flesch_ease: flesch_reading_ease_checked(text),
+            flesch_kincaid_grade: flesch_kincaid_grade(text),
+            smog: smog(text),
+            ari: ari(text),
+            words: words.len() as u32,
+            sentences: sentences(text).max(1) as u32,
+            syllables: total_syllables(&words),
+            word_bands: WordBands {
+                short: words
+                    .iter()
+                    .filter(|word| count_syllables(word) <= 2)
+                    .count() as u32,
+                medium: words
+                    .iter()
+                    .filter(|word| count_syllables(word) == 3)
+                    .count() as u32,
+                long: words
+                    .iter()
+                    .filter(|word| count_syllables(word) >= 4)
+                    .count() as u32,
+            },
+        }
+    }
+
+    /// `PartialEq` on `f32` is not bit equality; check both.
+    fn assert_same_score(actual: ReadingScore, expected: ReadingScore, text: &str) {
+        assert_eq!(actual, expected, "text: {text:?}");
+        assert_eq!(
+            actual.flesch_ease.map(f32::to_bits),
+            expected.flesch_ease.map(f32::to_bits),
+            "flesch_ease bits, text: {text:?}"
+        );
+        assert_eq!(
+            actual.flesch_kincaid_grade.map(f32::to_bits),
+            expected.flesch_kincaid_grade.map(f32::to_bits),
+            "flesch_kincaid_grade bits, text: {text:?}"
+        );
+        assert_eq!(
+            actual.smog.map(f32::to_bits),
+            expected.smog.map(f32::to_bits),
+            "smog bits, text: {text:?}"
+        );
+        assert_eq!(
+            actual.ari.map(f32::to_bits),
+            expected.ari.map(f32::to_bits),
+            "ari bits, text: {text:?}"
+        );
+    }
+
+    #[test]
+    fn compute_matches_the_reference_helpers_on_representative_texts() {
+        let empty = "";
+        let short_latin = "The cat sat on the mat.";
+        let long_latin = "The curious little reader opened the window. Outside, a remarkable \
+            procession of elephants meandered slowly past the garden. Nobody expected such a \
+            visit, yet everybody watched in wonder! Could anyone explain where the enormous \
+            animals came from?";
+        let unsupported = "Кот сидит на коврике и смотрит в окно.";
+
+        for text in [empty, short_latin, long_latin, unsupported] {
+            assert_same_score(ReadingScore::compute(text), expected_score(text), text);
+        }
+
+        // Anchor the cases so the helpers cannot be wrong in the same way.
+        let empty_score = ReadingScore::compute(empty);
+        assert_eq!(empty_score.script, Script::Empty);
+        assert_eq!(empty_score.words, 0);
+        assert_eq!(empty_score.sentences, 1);
+        assert_eq!(empty_score.flesch_ease, None);
+        assert_eq!(empty_score.flesch_kincaid_grade, None);
+        assert_eq!(empty_score.smog, None);
+        assert_eq!(empty_score.ari, None);
+
+        let short_score = ReadingScore::compute(short_latin);
+        assert_eq!(short_score.script, Script::Latin);
+        assert_eq!(short_score.words, 6);
+        assert_eq!(short_score.sentences, 1);
+        assert!(short_score.flesch_ease.is_some());
+        assert_eq!(short_score.smog, None, "fewer than three sentences");
+
+        let long_score = ReadingScore::compute(long_latin);
+        assert_eq!(long_score.script, Script::Latin);
+        assert_eq!(long_score.sentences, 4);
+        assert!(long_score.smog.is_some());
+
+        let unsupported_score = ReadingScore::compute(unsupported);
+        assert_eq!(unsupported_score.script, Script::NonLatin);
+        assert_eq!(unsupported_score.flesch_ease, None);
+        assert_eq!(unsupported_score.flesch_kincaid_grade, None);
+        assert_eq!(unsupported_score.smog, None);
+        assert_eq!(unsupported_score.ari, None);
+
+        // Mixed script and punctuation-only text exercise the other branches.
+        for text in [
+            "The cat Кот sat on the mat.",
+            "... !!! ???",
+            "12345 !!!",
+            "élan vital partout.",
+        ] {
+            assert_same_score(ReadingScore::compute(text), expected_score(text), text);
+        }
+    }
+
+    #[test]
+    fn compute_matches_the_reference_helpers_across_lengths_and_scripts() {
+        // Vary the sentence count across the SMOG <3 threshold and the word
+        // count from zero upward, checking every score bit against the helpers.
+        for sentence_count in 0..=12 {
+            let text = "Banana. ".repeat(sentence_count);
+            assert_same_score(ReadingScore::compute(&text), expected_score(&text), &text);
+        }
+        for text in [
+            "Banana.",
+            "Banana. Banana.",
+            "hmm rhythm silent",
+            "猫 猫 猫",
+        ] {
+            assert_same_score(ReadingScore::compute(text), expected_score(text), text);
         }
     }
 }
