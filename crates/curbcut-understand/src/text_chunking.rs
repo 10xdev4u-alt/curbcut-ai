@@ -7,9 +7,11 @@
 //!   ids sequential from zero, so a chunk id is stable for highlighting.
 //! - **A table stays whole.** Consecutive table lines become one
 //!   [`ChunkKind::Table`] chunk and are never split across chunks.
-//! - **No mid-word splits.** A period inside a number or a whole-word
-//!   abbreviation does not end a sentence, and a clause break needs a following
-//!   space.
+//! - **No mid-word splits.** A period inside a number, a whole-word
+//!   abbreviation, or an initialism (`U.S.`) does not end a sentence, and a
+//!   clause break needs a following space. The initialism rule is conservative:
+//!   a short capitalised word followed by a single letter and a period may be
+//!   kept in one chunk rather than split.
 //!
 //! [`split_clauses`] cuts a sentence into clauses. The module reads text the
 //! caller passes and never logs it. See
@@ -388,7 +390,8 @@ fn sentence_ranges(text: &str) -> Vec<(usize, usize)> {
                     .get(index + 1)
                     .is_some_and(|byte| byte.is_ascii_digit());
             let abbreviation = byte == b'.' && ends_abbreviation(text, index);
-            if starts_next && !decimal && !abbreviation {
+            let initialism = byte == b'.' && is_initialism_period(text, index);
+            if starts_next && !decimal && !abbreviation && !initialism {
                 if let Some((sentence_start, sentence_end)) = trimmed_range(text, start, end) {
                     ranges.push((sentence_start, sentence_end));
                 }
@@ -416,6 +419,60 @@ fn ends_abbreviation(text: &str, dot: usize) -> bool {
             .strip_suffix(abbreviation)
             .is_some_and(|head| !head.chars().next_back().is_some_and(char::is_alphanumeric))
     })
+}
+
+/// Whether the period at `dot` belongs to an initialism run such as `U.S.` or
+/// `Ph.D.` rather than ending a sentence.
+///
+/// Two positions in a run are recognised:
+///
+/// - an **internal** period, where a short token ends just before the dot and
+///   the text after it (past any whitespace) is a single ASCII letter followed
+///   by another period (`U.` in `U.S.`, `Ph.` in `Ph.D.`);
+/// - the **closing** period of a run that already contains an internal period,
+///   when the next non-space byte starts a capital word, such as the `P` in
+///   "U.S. President". A capital that is a *new* initialism (a single letter
+///   plus a period, such as `P.`) is handled by the first case, not the second.
+///
+/// Only byte-level ASCII checks are used, so a non-ASCII byte simply fails the
+/// guard and `dot` is never advanced past a char boundary.
+fn is_initialism_period(text: &str, dot: usize) -> bool {
+    let bytes = text.as_bytes();
+    if bytes.get(dot) != Some(&b'.') {
+        return false;
+    }
+    let mut token_start = dot;
+    while token_start > 0 && bytes[token_start - 1].is_ascii_alphabetic() {
+        token_start -= 1;
+    }
+    let token_len = dot - token_start;
+    if !(1..=2).contains(&token_len) {
+        return false;
+    }
+    if token_start > 0 && bytes[token_start - 1].is_ascii_alphanumeric() {
+        return false;
+    }
+    let mut after = dot + 1;
+    while after < bytes.len() && bytes[after].is_ascii_whitespace() {
+        after += 1;
+    }
+    if after + 1 < bytes.len() && bytes[after].is_ascii_alphabetic() && bytes[after + 1] == b'.' {
+        return true;
+    }
+    // Closing period: a single letter after a period (e.g. `S.` in `U.S.`),
+    // followed by a capital word that continues the same sentence.
+    if token_len == 1 && token_start >= 2 && bytes[token_start - 1] == b'.' {
+        let internal_dot = token_start - 1;
+        let mut run_start = internal_dot;
+        while run_start > 0 && bytes[run_start - 1].is_ascii_alphabetic() {
+            run_start -= 1;
+        }
+        return (1..=2).contains(&(internal_dot - run_start))
+            && (run_start == 0 || !bytes[run_start - 1].is_ascii_alphanumeric())
+            && after < bytes.len()
+            && bytes[after].is_ascii_uppercase();
+    }
+    false
 }
 
 /// Whether the punctuation at `index` sits between digits.
