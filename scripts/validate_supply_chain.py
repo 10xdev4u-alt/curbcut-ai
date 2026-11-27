@@ -16,6 +16,8 @@ release builds. This script checks what can be checked from files alone:
 * ``docs/SUPPLY_CHAIN.md`` keeps its four sections and its honest statements,
   including the one that says two independent builds have *not* been shown to
   match;
+* ``SECURITY.md`` does not reintroduce the four false security claims and keeps
+  the present-tense replacements for them;
 * CI has an ``sbom`` job, so the artifact is actually produced.
 
 Usage::
@@ -42,6 +44,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_LICENSES = "supply-chain/registry-licenses.json"
+SECURITY_POLICY = "SECURITY.md"
 
 REQUIRED_FILES = (
     ("Cargo.toml", "the workspace manifest"),
@@ -50,6 +53,7 @@ REQUIRED_FILES = (
     ("docs/SUPPLY_CHAIN.md", "the release documentation"),
     (REGISTRY_LICENSES, "the third-party license declarations"),
     (".github/workflows/ci.yml", "the release pipeline"),
+    (SECURITY_POLICY, "the security policy"),
 )
 
 SUPPLY_CHAIN_SECTIONS = (
@@ -66,6 +70,26 @@ SUPPLY_CHAIN_PHRASES = (
     "have not been shown to match",
     "registry-licenses.json",
     "never invents a license",
+)
+
+# The four false claims, in the order they appeared in SECURITY.md. The release
+# claim has two telltales, so it occupies two entries here.
+SECURITY_FALSE_PHRASES = (
+    "The store and caches are encrypted with keys in the OS keychain",
+    "Keychain retrieval; a secret-scanning CI job",
+    "reviewed by `cargo deny`",
+    "Release builds are reproducible and publish an SBOM and a signed attestation",
+    "signature verification is implemented for model files",
+)
+
+# The present-tense replacements that must survive: nothing at rest is
+# protected today, and the rest is explicitly planned or unmet.
+SECURITY_HONEST_PHRASES = (
+    "not protected today",
+    "unsigned attestation placeholder",
+    "unmet (#208)",
+    "no keychain adapter",
+    "test-only HMAC release-MAC guard",
 )
 
 LICENSE_BODY_ANCHOR = "Everyone is permitted to copy and distribute verbatim copies"
@@ -239,6 +263,20 @@ def validate(root: Path) -> list[str]:
     for phrase in SUPPLY_CHAIN_PHRASES:
         if phrase not in body:
             errors.append(f"supply-chain document no longer states {phrase!r}")
+
+    # SECURITY.md is part of the supply-chain claim surface. The four claims
+    # below were false in the committed text: at-rest encryption, a shipped
+    # keychain secret-scanning path, cargo deny review, and a signed/reproducible
+    # release. Any reappearance is treated as a regression unless the sentence
+    # is reworded, so these are matched verbatim against the source, not a
+    # flattened copy. The honest counterparts must stay present.
+    security = (root / SECURITY_POLICY).read_text(encoding="utf-8")
+    for phrase in SECURITY_FALSE_PHRASES:
+        if phrase in security:
+            errors.append(f"{SECURITY_POLICY} still claims {phrase!r}")
+    for phrase in SECURITY_HONEST_PHRASES:
+        if phrase not in security:
+            errors.append(f"{SECURITY_POLICY} no longer states {phrase!r}")
 
     workflow = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     if not re.search(r"^  sbom:\s*$", workflow, re.MULTILINE):
@@ -522,7 +560,83 @@ CASES: tuple[Case, ...] = (
         "edit": [(".github/workflows/ci.yml", "\n  sbom:", "\n  bom:")],
         "expect": "CI has no sbom job",
     },
+    {
+        "label": "security at-rest encryption claim restored",
+        "edit": [
+            (
+                SECURITY_POLICY,
+                "The store and caches are in-memory only today; files at rest "
+                "are not protected today, and encryption with keys in the OS "
+                "keychain is planned",
+                "The store and caches are encrypted with keys in the OS keychain",
+            )
+        ],
+        "expect": "still claims 'The store and caches are encrypted with keys in the OS keychain'",
+    },
+    {
+        "label": "security keychain-scanning claim restored",
+        "edit": [
+            (
+                SECURITY_POLICY,
+                "No key material is committed; no keychain adapter or "
+                "secret-scanning CI job ships yet (F-01/F-02).",
+                "Keychain retrieval; a secret-scanning CI job.",
+            )
+        ],
+        "expect": "still claims 'Keychain retrieval; a secret-scanning CI job'",
+    },
+    {
+        "label": "security cargo-deny claim restored",
+        "edit": [
+            (
+                SECURITY_POLICY,
+                "Dependencies are std-only; `cargo deny`/`cargo audit` are not CI gates.",
+                "Dependencies are pinned and reviewed by `cargo deny`.",
+            )
+        ],
+        "expect": "still claims 'reviewed by `cargo deny`'",
+    },
+    {
+        "label": "security signed-release claim restored",
+        "edit": [
+            (
+                SECURITY_POLICY,
+                "an unsigned attestation placeholder; reproducible release "
+                "builds and signing are unmet (#208)",
+                "Release builds are reproducible and publish an SBOM and a "
+                "signed attestation",
+            )
+        ],
+        "expect": "still claims 'Release builds are reproducible and publish an SBOM and a signed attestation'",
+    },
+    {
+        "label": "security model signature claim restored",
+        "edit": [
+            (
+                SECURITY_POLICY,
+                "a test-only HMAC release-MAC guard",
+                "signature verification is implemented for model files",
+            )
+        ],
+        "expect": "still claims 'signature verification is implemented for model files'",
+    },
 )
+
+
+def preflight_cases(pristine: dict[str, str]) -> list[str]:
+    """Check every case's mutation sources exist before any case is applied."""
+    problems: list[str] = []
+    for case in CASES:
+        label = str(case["label"])
+        for relative in case.get("delete", ()):  # type: ignore[union-attr]
+            if str(relative) not in pristine:
+                problems.append(f"{label}: delete target {relative!r} is not collected")
+        for relative, old, _new in case.get("edit", ()):  # type: ignore[union-attr]
+            if str(relative) not in pristine:
+                problems.append(f"{label}: edit target {relative!r} is not collected")
+            elif old not in pristine[str(relative)]:
+                problems.append(f"{label}: edit source {old!r} is not in {relative}")
+    return problems
 
 
 def self_test() -> int:
@@ -537,6 +651,13 @@ def self_test() -> int:
             print("SELF-TEST FAILED: a pristine copy did not pass", file=sys.stderr)
             return 1
         print("self-test: the committed files pass")
+
+        problems = preflight_cases(pristine)
+        if problems:
+            for problem in problems:
+                print(f"SELF-TEST FIXTURE BROKEN: {problem}", file=sys.stderr)
+            return 1
+        print(f"self-test: all {len(CASES)} cases have valid mutation sources")
 
         for case in CASES:
             materialize(tmp, pristine)

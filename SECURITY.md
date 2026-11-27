@@ -34,7 +34,7 @@ Out of scope:
 
 Frames are captured locally, processed in memory, never written to disk in raw form, and zeroized on drop. Nothing is sent to a server except the documented
 compiled-in update check, which is denied by default until an internal switch
-is released; see [`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md). Accessibility semantics are read-only by default; writing values requires an explicit user request, a per-session capability, and is logged. Models are pinned by hash and signature-verified. The store and caches are encrypted with keys in the OS keychain.
+is released; see [`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md). Accessibility semantics are read-only by default; writing values requires an explicit user request, a per-session capability, and is logged. Models are pinned by hash; a test-only HMAC release-MAC guard verifies the pin, with no production loader and no Ed25519 backend wired (docs/MODEL_GUARD.md). The store and caches are in-memory only today; files at rest are not protected today, and encryption with keys in the OS keychain is planned (F-01/F-02); see [`docs/DATA_INVENTORY.md`](docs/DATA_INVENTORY.md).
 
 ## Hard guarantees we test
 
@@ -44,14 +44,14 @@ is released; see [`docs/NETWORK_POLICY.md`](docs/NETWORK_POLICY.md). Accessibili
 | Offline build makes no network calls | A CI socket guard (`scripts/socket_guard.py`) over the `net_probe` example, plus the opt-in `net` feature. |
 | No action without consent | Capability token + action log; a test asserts denied writes are no-ops. |
 | Frames do not persist | Zeroize-on-drop with guard-byte tests. |
-| Models are untampered | Hash pinning + signature verification; fail closed. |
-| Keys are not in the repo | Keychain retrieval; a secret-scanning CI job. |
+| Model guard is tested | Hash vectors and a test-only HMAC release-MAC guard run in CI; no production loader or Ed25519 backend is wired (docs/MODEL_GUARD.md). |
+| Keys are not in the repo | No key material is committed; no keychain adapter or secret-scanning CI job ships yet (F-01/F-02). |
 
 ## Supply chain
 
-- Dependencies are pinned and reviewed by `cargo deny`.
-- Release builds are reproducible and publish an SBOM and a signed attestation.
-- Models are acquired from named sources with recorded hashes and licenses.
+- CI publishes an SBOM and an unsigned attestation placeholder; reproducible release builds and signing are unmet (#208); see [`docs/SUPPLY_CHAIN.md`](docs/SUPPLY_CHAIN.md).
+- Dependencies are std-only; `cargo deny`/`cargo audit` are not CI gates.
+- Models are pinned by hash; a test-only HMAC release-MAC guard verifies the pin in CI, with no production loader or Ed25519 backend wired, see [`docs/MODEL_GUARD.md`](docs/MODEL_GUARD.md).
 
 ## Disclosure timeline
 
