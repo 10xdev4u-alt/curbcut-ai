@@ -59,17 +59,18 @@ const SCALES: [&str; 7] = [
     "quintillion",
 ];
 
-/// Spells an integer in words.
-pub fn spell_integer(value: i64) -> String {
-    if value == 0 {
+/// Spells the magnitude of an integer in words, without a sign.
+///
+/// The seven scales cover every `u64`, so no magnitude has to pass through a
+/// signed cast on its way to words.
+fn spell_unsigned(mut magnitude: u64) -> String {
+    if magnitude == 0 {
         return "zero".to_string();
     }
-    let negative = value < 0;
-    let mut remaining = value.unsigned_abs();
     let mut parts: Vec<String> = Vec::new();
     let mut scale = 0_usize;
-    while remaining > 0 {
-        let chunk = remaining % 1_000;
+    while magnitude > 0 {
+        let chunk = magnitude % 1_000;
         if chunk > 0 {
             let mut text = under_1000(chunk);
             if !SCALES[scale].is_empty() {
@@ -78,11 +79,17 @@ pub fn spell_integer(value: i64) -> String {
             }
             parts.push(text);
         }
-        remaining /= 1_000;
+        magnitude /= 1_000;
         scale += 1;
     }
     parts.reverse();
-    let text = parts.join(" ");
+    parts.join(" ")
+}
+
+/// Spells an integer in words.
+pub fn spell_integer(value: i64) -> String {
+    let negative = value < 0;
+    let text = spell_unsigned(value.unsigned_abs());
     if negative {
         format!("minus {text}")
     } else {
@@ -142,15 +149,25 @@ fn digit_word(digit: char) -> &'static str {
 ///
 /// Trailing zeros in the fraction are dropped, so `3.50` is "three point five".
 pub fn spell_number(value: f64, decimals: u32) -> String {
-    let decimals = decimals.min(MAX_DECIMALS);
+    let mut decimals = decimals.min(MAX_DECIMALS);
     let negative = value < 0.0;
-    let factor = 10_f64.powi(i32::try_from(decimals).unwrap_or(i32::MAX));
-    let scaled = (value.abs() * factor).round() as u64;
+    let magnitude = value.abs();
+    // Scaling a large magnitude can overflow u64 (or f64). Drop decimal places
+    // until the scaled value fits, so the whole part never wraps through a
+    // signed cast. A magnitude that still does not fit saturates at u64::MAX.
+    let scaled = loop {
+        let factor = 10_f64.powi(i32::try_from(decimals).unwrap_or(i32::MAX));
+        let scaled = (magnitude * factor).round();
+        if decimals == 0 || (scaled.is_finite() && scaled < u64::MAX as f64) {
+            break scaled as u64;
+        }
+        decimals -= 1;
+    };
     let divisor = 10_u64.pow(decimals);
     let whole = scaled / divisor;
     let fraction = scaled % divisor;
 
-    let mut text = spell_integer(whole as i64);
+    let mut text = spell_unsigned(whole);
     if decimals > 0 && fraction > 0 {
         let mut digits = format!("{fraction:0width$}", width = decimals as usize);
         while digits.ends_with('0') {
@@ -293,7 +310,7 @@ impl Money {
         {
             format!("{} hundred", spell_integer((magnitude / 100.0) as i64))
         } else if magnitude.fract() == 0.0 {
-            spell_integer(magnitude as i64)
+            spell_number(magnitude, 0)
         } else {
             spell_number(magnitude, 2)
         };
