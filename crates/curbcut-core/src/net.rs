@@ -1,8 +1,10 @@
 //! Network policy, the runtime kill-switch, and the compiled offline gate.
 //!
 //! CurbCut is offline first: nothing dials out unless a policy allows the
-//! feature *and* the kill-switch is released. Two independent gates enforce
-//! that, and either one is enough to stop a connection:
+//! feature *and* the kill-switch is released. Two gates control network
+//! access. The runtime kill switch stops every channel. The compiled `net`
+//! feature removes the four optional channels; `UpdateCheck` is the exception
+//! and is stopped only by the runtime switch. The gates are:
 //!
 //! - **The compiled gate.** The `net` cargo feature is what puts the optional
 //!   transport in the binary at all. It is opt-in (`default = []`), so a build

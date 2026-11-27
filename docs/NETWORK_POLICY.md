@@ -8,8 +8,9 @@ bandwidth, leaks the fact that they are using CurbCut, and can leak more if the
 payload is ever wrong. The product is offline first: perception, understanding,
 adaptation, rendering, and speech all run on the device.
 
-Two independent gates enforce that, and either one alone is enough to stop a
-connection:
+Two gates control network access. The runtime kill switch stops every channel.
+The compiled `net` feature removes the four optional channels; `UpdateCheck` is
+the exception and is stopped only by the runtime switch. The gates are:
 
 - **The compiled gate.** The `net` cargo feature is what puts the optional
   transport in the binary at all. It is opt-in: the crate's default feature set
