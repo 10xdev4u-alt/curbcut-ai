@@ -49,6 +49,30 @@ fn a_quintillion_decimal_does_not_panic() {
 }
 
 #[test]
+fn magnitudes_above_the_signed_range_keep_their_sign() {
+    assert_eq!(spell_number(1e19, 0), "ten quintillion");
+    assert_eq!(spell_number(-1e19, 0), "minus ten quintillion");
+}
+
+#[test]
+fn scaled_magnitudes_above_u64_keep_the_whole_part_and_sign() {
+    assert_eq!(spell_number(1e18, 2), "one quintillion");
+    assert_eq!(spell_number(-1e18, 2), "minus one quintillion");
+}
+
+#[test]
+fn max_decimals_do_not_overflow_large_magnitudes() {
+    assert_eq!(spell_number(1e18, MAX_DECIMALS), "one quintillion");
+    assert_eq!(spell_number(-1e19, MAX_DECIMALS), "minus ten quintillion");
+}
+
+#[test]
+fn large_amounts_of_money_do_not_wrap_their_sign() {
+    let parsed = Money::parse("10000000000000000000 USD").expect("the code form");
+    assert_eq!(parsed.speak(), "ten quintillion dollars");
+}
+
+#[test]
 fn a_quintillion_amount_of_money_does_not_panic() {
     let parsed = Money::parse("1000000000000000000 USD").expect("the code form");
     assert_eq!(parsed.speak(), "one quintillion dollars");
@@ -279,6 +303,18 @@ fn a_locale_selects_the_unit_system() {
         Measurement::new(1.0, Unit::Mile).speak_for_locale(&Locale::new("en-GB")),
         "one thousand six hundred nine point three four metres"
     );
+}
+
+#[test]
+fn non_finite_magnitudes_saturate_without_wrapping() {
+    let saturated = spell_number(f64::MAX, 0);
+    assert_eq!(spell_number(f64::INFINITY, 0), saturated);
+    assert_eq!(
+        spell_number(f64::NEG_INFINITY, 0),
+        format!("minus {saturated}")
+    );
+    assert_eq!(spell_number(f64::NAN, 0), "zero");
+    assert_eq!(spell_number(-0.0, 0), "zero");
 }
 
 #[test]
