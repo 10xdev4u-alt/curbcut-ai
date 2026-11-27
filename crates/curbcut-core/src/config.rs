@@ -366,14 +366,36 @@ impl Shortcut {
     }
 }
 
+/// The canonical spelling of a shortcut key name.
+///
+/// Validation and comparison must agree on what counts as the same key, so
+/// both go through this one definition. Names are lowercased, `escape` becomes
+/// `esc`, `return` becomes `enter`, and function keys drop leading zeros
+/// (`f01` becomes `f1`). Unrecognized names are returned lowercased and
+/// otherwise unchanged, so callers can still reject them with
+/// [`is_known_key`].
+pub fn canonical_key(key: &str) -> String {
+    let key = key.to_lowercase();
+    match key.as_str() {
+        "escape" => return "esc".to_string(),
+        "return" => return "enter".to_string(),
+        _ => {}
+    }
+    match key.strip_prefix('f').and_then(|n| n.parse::<u8>().ok()) {
+        Some(n) if (1..=12).contains(&n) => format!("f{n}"),
+        _ => key,
+    }
+}
+
 /// Whether a key name is recognized by [`Shortcut::validate`].
 ///
 /// Recognized keys are the modifiers (`ctrl`, `alt`, `shift`, `meta`), the
 /// named keys (`esc`/`escape`, `space`, `tab`, `enter`/`return`, `backspace`,
 /// `delete`, and the arrow keys), a single ASCII alphanumeric character, and
-/// the function keys `f1`..`f12`. Names are matched case-insensitively.
+/// the function keys `f1`..`f12`. Names are matched case-insensitively and by
+/// [`canonical_key`], so synonyms and leading-zero function keys are accepted.
 pub fn is_known_key(key: &str) -> bool {
-    let key = key.to_lowercase();
+    let key = canonical_key(key);
     if matches!(
         key.as_str(),
         "ctrl"
@@ -381,11 +403,9 @@ pub fn is_known_key(key: &str) -> bool {
             | "shift"
             | "meta"
             | "esc"
-            | "escape"
             | "space"
             | "tab"
             | "enter"
-            | "return"
             | "backspace"
             | "delete"
             | "up"
@@ -1284,5 +1304,30 @@ confirm_actions = true
             message.contains(&MAX_REGION_EXCEPTIONS.to_string()),
             "{message}"
         );
+    }
+
+    #[test]
+    fn canonical_key_collapses_every_accepted_synonym() {
+        assert_eq!(canonical_key("ESC"), "esc");
+        assert_eq!(canonical_key("Escape"), "esc");
+        assert_eq!(canonical_key("RETURN"), "enter");
+        assert_eq!(canonical_key("f01"), "f1");
+        assert_eq!(canonical_key("F001"), "f1");
+        assert_eq!(canonical_key("f12"), "f12");
+        assert_eq!(canonical_key("CTRL"), "ctrl");
+        assert_eq!(canonical_key("f13"), "f13");
+        assert_eq!(canonical_key("banana"), "banana");
+    }
+
+    #[test]
+    fn is_known_key_accepts_synonyms_and_rejects_unknown_names() {
+        for key in [
+            "esc", "ESCAPE", "return", "ENTER", "f01", "F12", "ctrl", "x", "7",
+        ] {
+            assert!(is_known_key(key), "{key} should be known");
+        }
+        for key in ["", "ab", "banana", "f0", "f13", "f-1", "f1x"] {
+            assert!(!is_known_key(key), "{key} should not be known");
+        }
     }
 }
