@@ -63,6 +63,34 @@ DECISIONS = {
 }
 CLOCK_PRIMITIVE = re.compile(r"Instant|SystemTime|Duration|std::time|sleep|expire after")
 
+# A flipped DC-21/DC-26 rule is only credible once the #216 checklist names a
+# real production caller in a crates/... module. The placeholder is not a module.
+PURGE_MODULE = re.compile(
+    r"(?m)^[ \t]*Production module:[ \t]*`crates/[A-Za-z0-9_./-]+\.rs`[ \t]*$"
+)
+
+# Phrases that must survive in docs/CONFIRM.md for the #216 evidence gate.
+PURGE_PHRASES = (
+    "#216",
+    "production caller",
+    "production module",
+    "no disk sink",
+    "retention test",
+)
+
+# Exact #216 block in docs/CONFIRM.md; also the mutation source for removing
+# the whole checklist. Preflighted with every other mutation source.
+PURGE_CHECKLIST = """Evidence checklist for #216 (all three items are required before any implementation claim):
+
+1. **Production caller.** A named production caller that records action outcomes; a standalone ActionLog or purge with no caller is not evidence.
+   Production module: none named today.
+2. **Declared window and rollback policy.** A per-class window in DATA_INVENTORY.md plus a rollback-safe clock or day-tick owner; a record count is not a day count.
+3. **Retention test and non-blocking purge.** A test fails when a record outlives the window, and the purge is bounded off the UI path.
+
+No production caller constructs an ActionLog today; only the unit tests do. Diagnostic logs have no disk sink (#93), so there is no file to purge. Until all three items exist, DC-20/DC-21/DC-26 stay as documented and no implementation claim is allowed.
+
+- #216 tracks the day-based purge; update this document, the inventory, the threat model, and scripts/validate_retention.py in the same change."""
+
 
 def flatten(text: str) -> str:
     return " ".join(text.lower().split())
@@ -193,6 +221,42 @@ def validate(root: Path) -> list[str]:
         errors.append("CONFIRM.md no longer states there is no timestamp or expiry")
     if "](data_inventory.md)" not in confirm:
         errors.append("CONFIRM.md lost the inventory link")
+
+    # #216 evidence gate: a day-based purge claim needs a real production
+    # caller. The checklist states that none exists today, so any flip of a
+    # pinned DC-21/DC-26 rule or enforced statement needs a named module.
+    if PURGE_CHECKLIST not in documents[CONFIRM]:
+        errors.append("CONFIRM.md no longer states the #216 evidence checklist")
+    for phrase in PURGE_PHRASES:
+        if phrase not in confirm:
+            errors.append(f"CONFIRM.md no longer states {phrase!r}")
+    purge_module = PURGE_MODULE.search(documents[CONFIRM])
+    if (
+        "Production module: none named today." not in documents[CONFIRM]
+        and purge_module is None
+    ):
+        errors.append(
+            "CONFIRM.md Production module line is neither the none sentinel "
+            "nor a crates path"
+        )
+    flipped = False
+    for dc in ("DC-21", "DC-26"):
+        cells = decision_cells(decisions, dc)
+        if cells is None or len(cells) < 5:
+            continue
+        rule, enforced_phrase = DECISIONS[dc]
+        if cells[1] != rule or enforced_phrase not in flatten(cells[2]).replace("`", ""):
+            flipped = True
+    if flipped:
+        if purge_module is None:
+            errors.append("DC-21/DC-26 cannot claim enforcement without #216 evidence")
+        else:
+            relative = purge_module.group(0).split("`")[1]
+            if ".." in relative or not (root / relative).is_file():
+                errors.append(
+                    "DC-21/DC-26 evidence names a nonexistent production module"
+                )
+
     guard = flatten(documents[WRITE_GUARD])
     if "`bounded-records` (4096)" not in guard:
         errors.append("WRITE_GUARD.md no longer states 'bounded-records (4096)'")
@@ -409,6 +473,45 @@ CASES: tuple[dict[str, object], ...] = (
         ],
         "expect": "no longer self-tests the retention validator",
     },
+    {
+        "label": "#216 evidence checklist removed",
+        "edit": [(CONFIRM, PURGE_CHECKLIST, "")],
+        "expect": "CONFIRM.md no longer states 'production caller'",
+    },
+    {
+        "label": "production module sentinel drifted",
+        "edit": [
+            (CONFIRM, "Production module: none named today.", "Production module: soon")
+        ],
+        "expect": "Production module line is neither",
+    },
+    {
+        "label": "DC-21 flipped to 30-days without #216 evidence",
+        "edit": [
+            (
+                INVENTORY,
+                "| Action log (DC-21) | session | RAM `ActionLog` lifetime and `ActionLog::clear`; no timestamp and no purge | 30-days in a SQLCipher store; **not implemented** | F-04 |",
+                "| Action log (DC-21) | 30-days | RAM `ActionLog` lifetime and `ActionLog::clear`; no timestamp and no purge | 30-days in a SQLCipher store; **not implemented** | F-04 |",
+            )
+        ],
+        "expect": "DC-21/DC-26 cannot claim enforcement without #216 evidence",
+    },
+    {
+        "label": "fake production module with a flipped status",
+        "edit": [
+            (
+                INVENTORY,
+                "| Action log (DC-21) | session | RAM `ActionLog` lifetime and `ActionLog::clear`; no timestamp and no purge | 30-days in a SQLCipher store; **not implemented** | F-04 |",
+                "| Action log (DC-21) | 30-days | RAM `ActionLog` lifetime and `ActionLog::clear`; no timestamp and no purge | 30-days in a SQLCipher store; **not implemented** | F-04 |",
+            ),
+            (
+                CONFIRM,
+                "Production module: none named today.",
+                "Production module: `crates/curbcut-adapt/src/no_such_purge.rs`",
+            ),
+        ],
+        "expect": "names a nonexistent production module",
+    },
 )
 
 
@@ -428,6 +531,34 @@ def self_test() -> int:
         relative: (ROOT / relative).read_text(encoding="utf-8")
         for relative in collected_files(ROOT)
     }
+    # A stale fixture used to surface as a traceback three laps in a row.
+    # Check every mutation source before touching any file.
+    for case in CASES:
+        for action in ("edit", "replace"):
+            for relative, old, new in case.get(action, ()):  # type: ignore[union-attr]
+                key = str(relative)
+                if old == new:
+                    print(
+                        f"SELF-TEST FAILED: no-op fixture in {case['label']}: "
+                        f"{old!r} in {key}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if old not in pristine[key]:
+                    print(
+                        f"SELF-TEST FAILED: stale fixture in {case['label']}: "
+                        f"{old!r} not in {key}",
+                        file=sys.stderr,
+                    )
+                    return 1
+        for relative in case.get("delete", ()):  # type: ignore[union-attr]
+            if str(relative) not in pristine:
+                print(
+                    f"SELF-TEST FAILED: stale deletion in {case['label']}: {relative}",
+                    file=sys.stderr,
+                )
+                return 1
+
     tmp = Path(tempfile.mkdtemp(prefix="curbcut-retention-decisions-"))
     try:
         materialize(tmp, pristine)

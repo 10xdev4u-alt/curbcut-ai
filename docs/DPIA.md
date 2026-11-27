@@ -107,7 +107,7 @@ the guard that enforces this is DC-11.
 | R-02 | Persisted configuration is read from disk without the user's key | Medium | High | Designed SQLCipher plus keychain key; **unimplemented** | F-01 |
 | R-03 | Health or behavioral inference is drawn without a valid basis | Medium | High | Explicit consent gates recorded per class; special-category guard | F-09 |
 | R-04 | Microphone audio is retained longer than claimed or reaches a model | Low | Severe | Sub-second bound documented in [`docs/VOICE_PIPELINE.md`](VOICE_PIPELINE.md); **unenforced**, no capture code today (#217) | F-06 |
-| R-05 | A retention promise cannot be kept because nothing implements it | High | Medium | Inventory states one enforced rule per class; day counts labelled planned targets (F-03, F-04 mitigated); encrypted store still planned (#93); purge untracked before #216 | F-03, F-04 |
+| R-05 | A retention promise cannot be kept because nothing implements it | High | Medium | Inventory states one enforced rule per class; day counts labelled planned targets (F-03, F-04 mitigated); encrypted store still planned (#93); purge tracked in #216 but unimplemented | F-03, F-04 |
 | R-06 | Diagnostics from a real incident leak content | Medium | Severe | Counts and hashes only, evidence allowlist matched to REDACTION.md | - |
 | R-07 | A crash report or companion message leaves the device without a clear approval step | Medium | High | Opt-in stated; **channel undocumented**; see [`docs/TRANSMISSION_PATHS.md`](TRANSMISSION_PATHS.md) | F-08 |
 | R-08 | A hash is treated as stronger than it is | Medium | Medium | `docs/HASHES.md` states each construction once; the consumer documents reference it | F-07 |

@@ -50,3 +50,16 @@ product wrote, not a transcription of the screen. Retention is `session`: the
 log lives in RAM and `clear` empties it; there is no timestamp or expiry. See
 [DATA_INVENTORY.md](DATA_INVENTORY.md) §Retention decisions. The workspace
 canary scan covers this crate.
+
+## Open work and tracking
+
+Evidence checklist for #216 (all three items are required before any implementation claim):
+
+1. **Production caller.** A named production caller that records action outcomes; a standalone ActionLog or purge with no caller is not evidence.
+   Production module: none named today.
+2. **Declared window and rollback policy.** A per-class window in DATA_INVENTORY.md plus a rollback-safe clock or day-tick owner; a record count is not a day count.
+3. **Retention test and non-blocking purge.** A test fails when a record outlives the window, and the purge is bounded off the UI path.
+
+No production caller constructs an ActionLog today; only the unit tests do. Diagnostic logs have no disk sink (#93), so there is no file to purge. Until all three items exist, DC-20/DC-21/DC-26 stay as documented and no implementation claim is allowed.
+
+- #216 tracks the day-based purge; update this document, the inventory, the threat model, and scripts/validate_retention.py in the same change.
