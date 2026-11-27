@@ -12,7 +12,7 @@ use curbcut_core::id::RuleId;
 use curbcut_core::types::Rationale;
 
 /// Version of the built-in rule set.
-pub const RULE_SET_VERSION: u32 = 1;
+pub const RULE_SET_VERSION: u32 = 2;
 
 /// A deterministic rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -188,7 +188,7 @@ mod tests {
             .rationale(Rule::RoleRefinement, "heading_level=2")
             .expect("enabled");
         assert_eq!(rationale.rule, RuleId::new("role_refinement"));
-        assert!(rationale.text.contains("v1"), "{}", rationale.text);
+        assert!(rationale.text.contains("v2"), "{}", rationale.text);
         assert!(
             rationale.text.contains("heading_level=2"),
             "{}",

@@ -84,7 +84,7 @@ fn a_disabled_rule_still_computes_but_does_not_explain() {
 
 #[test]
 fn the_rule_set_reports_versions_and_order() {
-    assert_eq!(RULE_SET_VERSION, 1);
+    assert_eq!(RULE_SET_VERSION, 2);
     assert_eq!(Rule::ALL.len(), 4);
     let rules = RuleSet::new();
     assert_eq!(rules.enabled().len(), Rule::ALL.len());

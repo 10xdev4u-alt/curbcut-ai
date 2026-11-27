@@ -190,6 +190,26 @@ mod tests {
     }
 
     #[test]
+    fn reading_never_passes_unmeasurable_text() {
+        let mut engine = RuleEngine::default();
+        engine.set_reading_target(ReadingLevel::Complex);
+
+        for text in [
+            "Кот сидит на коврике и смотрит в окно.",
+            "猫坐在窗边看外面。",
+            "The cat 猫 sat on the mat.",
+            "",
+            "... !!! ???",
+        ] {
+            let (verdict, _) = engine.reading(text);
+            assert!(!verdict.meets_target, "text {text:?} must not pass");
+            assert_eq!(verdict.score, 0.0, "text {text:?}");
+            assert_eq!(verdict.level, ReadingLevel::Complex, "text {text:?}");
+            assert_eq!(verdict.target, ReadingLevel::Complex, "text {text:?}");
+        }
+    }
+
+    #[test]
     fn a_disabled_rule_returns_no_rationale() {
         let mut rules = RuleSet::new();
         rules.disable(Rule::Chunking);
