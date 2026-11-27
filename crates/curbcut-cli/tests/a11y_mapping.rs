@@ -11,7 +11,7 @@ use std::path::Path;
 
 use curbcut_cli::vpat::{
     render_coga_table, render_limitations, render_vpat_table, render_wcag_table, slug,
-    split_target, TestKind, COGA, LIMITATIONS, WCAG,
+    split_target, Status, TestKind, COGA, LIMITATIONS, WCAG,
 };
 
 const MAPPING_DOC: &str = include_str!("../../../docs/A11Y_MAPPING.md");
@@ -73,6 +73,42 @@ fn resolve(test: &str) -> Result<(), String> {
     } else {
         Err(format!("{test}: {path} does not name `{fragment}`"))
     }
+}
+
+/// Criterion ids with a recorded `pass` in the audit results table.
+///
+/// Only rows between the results-table header and the next `## ` heading count.
+/// The protocol says `fail` and `blocked` never raise a row to `Supports`, so
+/// those results must not license a claim either.
+fn recorded_audit_results(text: &str) -> BTreeSet<String> {
+    let mut in_table = false;
+    let mut results = BTreeSet::new();
+    for line in text.lines() {
+        if line.starts_with("## ") {
+            in_table = false;
+        }
+        if line.starts_with("| Criterion | Result |") {
+            in_table = true;
+            continue;
+        }
+        if !in_table || !line.starts_with('|') {
+            continue;
+        }
+        let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
+        if cells.len() < 2 || cells[0] == "Criterion" || cells[0].starts_with('-') {
+            continue;
+        }
+        if cells[1].eq_ignore_ascii_case("pass") {
+            results.insert(
+                cells[0]
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(cells[0])
+                    .to_string(),
+            );
+        }
+    }
+    results
 }
 
 /// The fragments the manual WCAG rows point at.
@@ -166,5 +202,44 @@ fn the_audit_doc_records_how_to_run_and_the_scope() {
     assert!(
         AUDIT_DOC.contains("## Platforms"),
         "the platforms are missing"
+    );
+}
+
+#[test]
+fn no_vpat_remark_claims_a_manual_test_was_verified() {
+    let table = render_vpat_table();
+    assert!(
+        !table.contains("Verified by manual test"),
+        "the VPAT still claims a manual procedure was executed"
+    );
+    assert!(
+        !VPAT_DOC.contains("Verified by manual test"),
+        "the generated VPAT.md still claims a manual procedure was executed"
+    );
+    for row in WCAG.iter().filter(|row| row.kind == TestKind::Manual) {
+        assert!(
+            table.contains(&format!(
+                "Manual procedure only — no result recorded: {}",
+                row.test
+            )),
+            "{}: the VPAT does not say the manual result is missing",
+            row.criterion
+        );
+    }
+}
+
+#[test]
+fn a_manual_claim_requires_a_recorded_audit_result() {
+    let recorded = recorded_audit_results(AUDIT_DOC);
+    let unbacked: Vec<&str> = WCAG
+        .iter()
+        .filter(|row| row.kind == TestKind::Manual)
+        .filter(|row| matches!(row.status, Status::Supports | Status::Partial))
+        .filter(|row| !recorded.contains(row.id()))
+        .map(|row| row.criterion)
+        .collect();
+    assert!(
+        unbacked.is_empty(),
+        "manual rows claimed without an audit result: {unbacked:?}"
     );
 }

@@ -8,9 +8,9 @@
 
 1. We cannot see protected/DRM content or secure desktops.
 2. We cannot reach into a native app's internals; we cover pixels, not code.
-3. Detection is probabilistic; we publish mAP and CER and a per-app confidence indicator.
+3. Detection is probabilistic; no mAP or CER result is published — the only published benchmark is redaction throughput (see `docs/DATASET.md`).
 4. Simplification can be wrong; we check meaning and always show the original.
-5. We do not support every language equally; we publish the language matrix.
+5. We do not support every language equally; we publish no language matrix. The shipped jargon entries are English-only; other locales need user-supplied entries.
 6. Linux Wayland support depends on the portal; some distros are beta.
 7. We are not a screen reader and do not replace one.
 8. We are not a compliance tool and do not make apps conform.
