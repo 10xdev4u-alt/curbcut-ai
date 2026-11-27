@@ -196,6 +196,9 @@ impl Redactor {
     pub fn redact(&self, text: &str) -> String {
         let mut out = text.to_string();
         for _ in 0..MAX_PASSES {
+            if !self.contains_any(&out) {
+                break;
+            }
             let next = self.redact_once(&out);
             if next == out {
                 break;
@@ -529,6 +532,62 @@ TEST_SECRET_THREE
         let variant = "test_secret_one";
         assert!(!redactor.contains_any(variant));
         assert_eq!(redactor.redact(variant), variant);
+    }
+
+    #[test]
+    // Output-equivalence anchor: this guards behavior, not the fast path.
+    // Removing the early break is output-neutral, so it cannot fail this test.
+    fn redact_output_is_unchanged_for_secret_no_secret_and_boundary_cases() {
+        let redactor = redactor();
+
+        // Clean text skips replacement entirely and comes back byte-for-byte.
+        for clean in [
+            "",
+            "plain text, no labels here.",
+            "test_secret_one", // case-sensitive: the lowercase variant is not a secret
+            "12345 !!! ???",
+        ] {
+            assert_eq!(redactor.redact(clean), clean, "clean text: {clean:?}");
+        }
+
+        // Secrets at the start, at the end, repeated, and adjacent.
+        assert_eq!(redactor.redact("TEST_SECRET_ONE tail"), "[redacted] tail");
+        assert_eq!(redactor.redact("head TEST_SECRET_ONE"), "head [redacted]");
+        assert_eq!(
+            redactor.redact("before TEST_SECRET_ONE middle TEST_SECRET_THREE after"),
+            "before [redacted] middle [redacted] after"
+        );
+        assert_eq!(
+            redactor.redact("TEST_SECRET_ONE|TEST_SECRET_THREE"),
+            "[redacted]|[redacted]"
+        );
+
+        // The longest registered secret wins where two overlap.
+        let mut overlapping = Redactor::new();
+        overlapping.add_secrets(["TEST_SECRET", "TEST_SECRET_OVERLAP"]);
+        assert_eq!(
+            overlapping.redact("xx TEST_SECRET_OVERLAP yy"),
+            "xx [redacted] yy"
+        );
+
+        // A secret formed across a replacement boundary disappears on a later
+        // pass, and the fixed point is stable when redacted again.
+        let mut boundary = Redactor::new();
+        boundary.add_secrets(["x[", "b"]);
+        assert_eq!(boundary.redact("xb"), "[redacted]redacted]");
+        assert_eq!(
+            boundary.redact("[redacted]redacted]"),
+            "[redacted]redacted]"
+        );
+
+        // A placeholder that contains a secret is swapped for a content-free marker.
+        let mut unusable = Redactor::new().with_placeholder("[d]");
+        unusable.add_secret("d");
+        assert_eq!(unusable.redact("a d c"), "a ──────── c");
+
+        // An empty redactor never changes anything.
+        let empty = Redactor::new();
+        assert_eq!(empty.redact("TEST_SECRET_ONE"), "TEST_SECRET_ONE");
     }
 
     #[test]
