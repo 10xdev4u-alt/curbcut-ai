@@ -188,9 +188,9 @@ missing command, an unknown command, or extra arguments; `run_to` maps that to
 `DumpGraph::dump` prints lengths and hashes only:
 
 ```
-graph name_len=12 name=[f21287eb1f5dd4c6]
+graph name_len=12 name_hash=[f21287eb1f5dd4c6]
 nodes=3
-node id=1 label_len=6 label=[3a506cb501761960] value_len=12 value=[5b9e6051ae9cd006]
+node id=1 label_len=6 label_hash=[3a506cb501761960] value_len=12 value_hash=[5b9e6051ae9cd006]
 ```
 
 It never prints a name, label, or value. The hash is the core redactor's keyless

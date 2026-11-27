@@ -73,14 +73,14 @@ impl DumpGraph {
 
         let mut out = String::new();
         out.push_str(&format!(
-            "graph name_len={} name={}\n",
+            "graph name_len={} name_hash={}\n",
             self.name.len(),
             redactor.redact(&self.name)
         ));
         out.push_str(&format!("nodes={}\n", self.nodes.len()));
         for node in &self.nodes {
             out.push_str(&format!(
-                "node id={} label_len={} label={} value_len={} value={}\n",
+                "node id={} label_len={} label_hash={} value_len={} value_hash={}\n",
                 node.id,
                 node.label.len(),
                 redactor.redact(&node.label),
@@ -111,6 +111,18 @@ mod tests {
     }
 
     #[test]
+    fn every_hash_field_is_named_as_a_hash() {
+        let dump = DumpGraph::sample().dump();
+        assert!(dump.contains("name_hash="), "{dump}");
+        assert!(dump.contains("label_hash="), "{dump}");
+        assert!(dump.contains("value_hash="), "{dump}");
+        assert!(dump.contains("nodes=3"), "{dump}");
+        for bare in ["name=", "label=", "value="] {
+            assert!(!dump.contains(bare), "bare key {bare} in {dump}");
+        }
+    }
+
+    #[test]
     fn the_dump_still_carries_lengths_counts_and_ids() {
         let graph = DumpGraph::new("graph-name", vec![DumpNode::new(7, "a-label", "a-value")]);
         let dump = graph.dump();
@@ -132,7 +144,7 @@ mod tests {
             .lines()
             .filter(|line| line.starts_with("node "))
             .map(|line| {
-                let start = line.find("label=").expect("label=") + "label=".len();
+                let start = line.find("label_hash=").expect("label_hash=") + "label_hash=".len();
                 line[start..].split_whitespace().next().expect("hash")
             })
             .collect();
