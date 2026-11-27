@@ -463,29 +463,32 @@ impl StabilityTracker {
     ///
     /// A delta is only trusted when at least two pairs agree within
     /// [`SCROLL_CONSENSUS_TOLERANCE`]. A single pair cannot tell a scroll from a
-    /// new element, so it is ignored.
+    /// new element, so it is ignored. Centre differences, their squares, and
+    /// the medians are computed in `i64`: two centres can be almost `2^32`
+    /// apart, so an `i32` difference (or its square) would overflow. The square
+    /// and its sum saturate, which keeps every extreme geometry well defined.
     fn estimate_scroll_delta(&self, observations: &[Observation]) -> Point {
         if self.tracks.len() < 2 || observations.is_empty() {
             return Point::default();
         }
 
-        let mut deltas: Vec<Point> = Vec::with_capacity(self.tracks.len());
+        let mut deltas: Vec<(i64, i64)> = Vec::with_capacity(self.tracks.len());
         for track in &self.tracks {
             let track_centre = rect_center(track.rect);
-            let mut best: Option<(i64, Point)> = None;
+            let tx = i64::from(track_centre.x);
+            let ty = i64::from(track_centre.y);
+            let mut best: Option<(i64, i64, i64)> = None;
             for obs in observations {
                 let obs_centre = rect_center(obs.rect);
-                let distance = i64::from(obs_centre.x - track_centre.x).pow(2)
-                    + i64::from(obs_centre.y - track_centre.y).pow(2);
-                if best.is_none_or(|(best_distance, _)| distance < best_distance) {
-                    best = Some((
-                        distance,
-                        Point::new(obs_centre.x - track_centre.x, obs_centre.y - track_centre.y),
-                    ));
+                let dx = i64::from(obs_centre.x) - tx;
+                let dy = i64::from(obs_centre.y) - ty;
+                let distance = dx.saturating_mul(dx).saturating_add(dy.saturating_mul(dy));
+                if best.is_none_or(|(best_distance, _, _)| distance < best_distance) {
+                    best = Some((distance, dx, dy));
                 }
             }
-            if let Some((_, delta)) = best {
-                deltas.push(delta);
+            if let Some((_, dx, dy)) = best {
+                deltas.push((dx, dy));
             }
         }
 
@@ -493,17 +496,17 @@ impl StabilityTracker {
             return Point::default();
         }
 
-        let mut xs: Vec<i32> = deltas.iter().map(|delta| delta.x).collect();
-        let mut ys: Vec<i32> = deltas.iter().map(|delta| delta.y).collect();
-        let median_x = median_i32(&mut xs);
-        let median_y = median_i32(&mut ys);
+        let mut xs: Vec<i64> = deltas.iter().map(|(x, _)| *x).collect();
+        let mut ys: Vec<i64> = deltas.iter().map(|(_, y)| *y).collect();
+        let median_x = median_i64(&mut xs);
+        let median_y = median_i64(&mut ys);
 
         let tolerance = SCROLL_CONSENSUS_TOLERANCE;
         let agreement = deltas
             .iter()
-            .filter(|delta| {
-                (delta.x - median_x).abs() as f32 <= tolerance
-                    && (delta.y - median_y).abs() as f32 <= tolerance
+            .filter(|(x, y)| {
+                ((*x - median_x) as f32).abs() <= tolerance
+                    && ((*y - median_y) as f32).abs() <= tolerance
             })
             .count();
         if agreement < 2 {
@@ -589,16 +592,25 @@ fn hungarian(cost: &[Vec<f32>]) -> Vec<usize> {
     assignment
 }
 
-/// The centre of a rectangle.
+/// The centre of a rectangle, clamped into the `i32` range used by [`Point`].
+///
+/// The half-extents are computed in `i64` so a rectangle at the edge of
+/// `i32`, or one whose dimension exceeds `i32::MAX`, saturates to the nearest
+/// representable coordinate instead of wrapping.
 fn rect_center(rect: Rect) -> Point {
     Point::new(
-        rect.x + rect.width as i32 / 2,
-        rect.y + rect.height as i32 / 2,
+        clamp_i32(i64::from(rect.x) + i64::from(rect.width) / 2),
+        clamp_i32(i64::from(rect.y) + i64::from(rect.height) / 2),
     )
 }
 
+/// Clamps a coordinate into the `i32` range used by [`Point`].
+fn clamp_i32(value: i64) -> i32 {
+    value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32
+}
+
 /// The median of a slice, sorting it in place.
-fn median_i32(values: &mut [i32]) -> i32 {
+fn median_i64(values: &mut [i64]) -> i64 {
     if values.is_empty() {
         return 0;
     }
@@ -607,7 +619,7 @@ fn median_i32(values: &mut [i32]) -> i32 {
 }
 
 /// Clamps a component to `±max`.
-fn clamp_to_jump(value: i32, max: f32) -> i32 {
+fn clamp_to_jump(value: i64, max: f32) -> i32 {
     if max <= 0.0 {
         return 0;
     }

@@ -470,3 +470,117 @@ fn the_documented_rules_match_the_code() {
         );
     }
 }
+
+// Geometry at the edges of `i32` used to panic in debug builds and wrap in
+// release, producing a bogus scroll delta that mis-matched element identities.
+// The centre, the squared distance, and the median are now computed in `i64`.
+
+#[test]
+fn rect_center_saturates_for_extreme_geometries() {
+    assert_eq!(
+        rect_center(Rect::new(i32::MAX, 0, 2, 2)),
+        Point::new(i32::MAX, 1)
+    );
+    assert_eq!(
+        rect_center(Rect::new(i32::MIN, 0, 2, 2)),
+        Point::new(i32::MIN + 1, 1)
+    );
+    assert_eq!(
+        rect_center(Rect::new(0, 0, u32::MAX, u32::MAX)),
+        Point::new(i32::MAX, i32::MAX)
+    );
+    assert_eq!(
+        rect_center(Rect::new(i32::MIN, i32::MIN, u32::MAX, u32::MAX)),
+        Point::new(-1, -1)
+    );
+}
+
+#[test]
+fn two_updates_near_i32_max_do_not_overflow() {
+    let mut tracker = StabilityTracker::default();
+    let extreme = Observation::new(Rect::new(i32::MAX, 0, 2, 2), label_hash("x"), 0.9);
+
+    let first = tracker.update(0, &[extreme.clone(), extreme.clone()]);
+    assert_eq!(first.len(), 2);
+    assert_eq!(
+        first
+            .iter()
+            .map(TrackedElement::stable_id)
+            .collect::<Vec<_>>(),
+        vec![StableId(1), StableId(2)]
+    );
+
+    let second = tracker.update(1, &[extreme.clone(), extreme.clone()]);
+    assert_eq!(second.len(), 2);
+    assert_eq!(tracker.last_scroll_delta(), Point::default(), "no scroll");
+
+    // A third update exercises the same geometry again without panicking.
+    let third = tracker.update(2, &[extreme.clone(), extreme]);
+    assert_eq!(third.len(), 2);
+    assert_eq!(tracker.last_scroll_delta(), Point::default());
+}
+
+#[test]
+fn centre_differences_across_the_i32_range_do_not_overflow() {
+    let mut tracker = StabilityTracker::default();
+    // Two tracks at the same centre near i32::MIN.
+    tracker.update(
+        0,
+        &[
+            obs("a", i32::MIN + 100, 0, 20, 20),
+            obs("b", i32::MIN + 100, 0, 20, 20),
+        ],
+    );
+
+    // Two observations at the same centre near i32::MAX: both deltas agree,
+    // so the consensus passes and the huge jump is clamped to max_scroll_jump.
+    let tracks = tracker.update(
+        1,
+        &[
+            obs("a", i32::MAX - 100, 0, 20, 20),
+            obs("b", i32::MAX - 100, 0, 20, 20),
+        ],
+    );
+
+    assert_eq!(tracks.len(), 2);
+    assert!(tracks.iter().all(TrackedElement::is_new));
+    assert_eq!(
+        tracker.last_scroll_delta(),
+        Point::new(400, 0),
+        "the enormous jump is clamped to max_scroll_jump"
+    );
+}
+
+#[test]
+fn extreme_benign_geometries_keep_stable_tracks() {
+    let mut tracker = StabilityTracker::default();
+    let wide = Observation::new(
+        Rect::new(-10, -10, u32::MAX, u32::MAX),
+        label_hash("wide"),
+        0.9,
+    );
+    let high = Observation::new(
+        Rect::new(i32::MAX - 64, i32::MAX - 64, 32, 32),
+        label_hash("high"),
+        0.9,
+    );
+    let low = Observation::new(
+        Rect::new(i32::MIN, i32::MIN, 32, 32),
+        label_hash("low"),
+        0.9,
+    );
+
+    let first = tracker.update(0, &[wide.clone(), high.clone(), low.clone()]);
+    assert_eq!(first.len(), 3);
+    let ids: Vec<StableId> = first.iter().map(TrackedElement::stable_id).collect();
+
+    let second = tracker.update(1, &[wide, high, low]);
+    assert_eq!(second.len(), 3);
+    let second_ids: Vec<StableId> = second.iter().map(TrackedElement::stable_id).collect();
+
+    assert_eq!(
+        second_ids, ids,
+        "static extreme rects keep their identities"
+    );
+    assert_eq!(tracker.last_scroll_delta(), Point::default());
+}
