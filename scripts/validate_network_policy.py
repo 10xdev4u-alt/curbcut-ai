@@ -87,6 +87,7 @@ REQUIRED_PHRASES = (
     "no screen content",
     "update::dial",
     "broken install",
+    "stopped only by the runtime switch",
 )
 
 OVERCLAIMS = (
@@ -95,6 +96,8 @@ OVERCLAIMS = (
     "per-user opt-in exists",
     "off by default until the user",
     "fully offline",
+    "either one alone is enough",
+    "either one is enough",
     "kill switch is a user control",
     "user opt-in is shipped",
     "wcag compliant",
@@ -491,6 +494,28 @@ CASES: tuple[dict[str, object], ...] = (
             ),
         ],
         "expect": "command.rs no longer contains 'crate::network::network_status(input, out, err)'",
+    },
+    {
+        "label": "gate-equivalence overclaim copied into a consumer",
+        "edit": [
+            (
+                SECURITY,
+                "Accessibility semantics are read-only by default",
+                "Either one is enough to stop a connection. Accessibility semantics are read-only by default",
+            )
+        ],
+        "expect": "SECURITY.md overclaims 'either one is enough'",
+    },
+    {
+        "label": "honest update-check exception wording removed",
+        "edit": [
+            (
+                POLICY,
+                "is stopped only by the runtime switch",
+                "is stopped by either gate",
+            )
+        ],
+        "expect": "NETWORK_POLICY.md no longer states 'stopped only by the runtime switch'",
     },
 )
 
