@@ -172,7 +172,7 @@ fn truncate(text: &str) -> String {
 pub fn usage() -> &'static str {
     "usage: curbcut-cli <command>
 
-commands (forget-*/network-revoke: process-local RAM only):
+commands (forget-*/network-*: stdin; process-local RAM only):
   status
   dump redacted dump
   bench benchmark
@@ -182,7 +182,7 @@ commands (forget-*/network-revoke: process-local RAM only):
   forget-inbox clear
   forget-inbox-entry remove one
   network-status inspect
-  network-revoke print revoke recipe
+  network-revoke print recipe
   vpat draft VPAT
   limitations
   panic
@@ -386,16 +386,31 @@ mod tests {
     }
 
     #[test]
-    fn help_states_the_process_local_scope_of_forget_and_revoke() {
+    fn help_states_the_stdin_and_process_local_scope_of_every_stdin_command() {
         let text = usage();
         assert!(
-            text.contains("forget-*/network-revoke: process-local RAM only"),
+            text.contains("forget-*/network-*: stdin; process-local RAM only"),
             "{text}"
         );
-        assert!(
-            text.contains("network-revoke print revoke recipe"),
-            "{text}"
-        );
+        assert!(text.contains("stdin"), "{text}");
+        assert!(text.contains("network-revoke print recipe"), "{text}");
+        // Every command that reads stdin is named in help and covered by the
+        // header's forget-*/network-* globs.
+        for token in [
+            "forget-layouts",
+            "forget-layouts-app",
+            "forget-simplifications",
+            "forget-inbox",
+            "forget-inbox-entry",
+            "network-status",
+            "network-revoke",
+        ] {
+            assert!(text.contains(token), "{token} missing from help");
+            assert!(
+                token.starts_with("forget-") || token.starts_with("network-"),
+                "{token} is not covered by the header"
+            );
+        }
     }
 
     #[test]
