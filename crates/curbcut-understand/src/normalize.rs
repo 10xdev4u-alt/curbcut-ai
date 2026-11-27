@@ -49,13 +49,14 @@ const TENS: [&str; 10] = [
     "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
 ];
 
-const SCALES: [&str; 6] = [
+const SCALES: [&str; 7] = [
     "",
     "thousand",
     "million",
     "billion",
     "trillion",
     "quadrillion",
+    "quintillion",
 ];
 
 /// Spells an integer in words.
