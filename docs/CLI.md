@@ -17,6 +17,7 @@ than panicking in the argument iterator.
 | `dump` | redacted graph dump | 0 |
 | `bench` | `bench iterations=… bytes=… elapsed_ns=…` | 0 |
 | `forget-layouts` | `deleted layouts=N`, `remaining layouts=0`, scope and reach lines | 0 |
+| `forget-layouts-app` | `deleted layouts=N`, `remaining layouts=M`, scope and reach lines | 0 |
 | `forget-simplifications` | `deleted feedback entries=N`, `remaining feedback entries=0`, scope and reach lines | 0 |
 | `forget-inbox` | `deleted inbox entries=N`, `remaining inbox entries=0`, scope and reach lines | 0 |
 | `forget-inbox-entry` | `removed inbox entries=N`, `remaining inbox entries=M`, scope and reach lines | 0 |
@@ -54,6 +55,28 @@ running app's memory, reads and writes no file, and does not delete any other
 class. It is not an in-app deletion control, sets no maximum lifetime, and does
 not close F-10. See [`DATA_INVENTORY.md`](DATA_INVENTORY.md) §Until-deleted
 classes.
+
+`forget-layouts-app` reads the same entry lines as `forget-layouts`, followed
+by a final `<user:u64> <app-slug>` line selecting one user's layouts for one
+app. It builds one `LayoutMemory` from the entry lines and calls
+`LayoutMemory::reset_app(&UserId(user), &AppId::new(slug))`:
+
+```bash
+printf '1 mail 7\n1 mail 8\n2 chat 9\n1 mail\n' | cargo run -q --bin curbcut-cli -- forget-layouts-app
+# deleted layouts=2
+# remaining layouts=1
+# scope=process-local RAM only
+# reach=no running app or store file
+```
+
+Duplicate keys collapse before the reset, so `N` counts the distinct layouts
+dropped for that one user and app and `M` counts the layouts kept for other
+users and apps. The selector line counts toward the 4096-line cap. Empty stdin
+exits 2 with `error: no layout selector`; a malformed selector reports its line
+number only as `error: malformed layout selector line N`, echoing no user or
+slug. A selector that matches nothing succeeds with `deleted layouts=0`.
+Like `forget-layouts`, this is **process-local, RAM-only**: it reaches no
+running app and reads or writes no store file.
 
 `forget-simplifications` reads `<hash:u64> <accept|reject>` lines from stdin,
 builds a `LearnedSimplification` with capacity 4096, counts its entries with
@@ -104,11 +127,12 @@ succeeds with `removed inbox entries=0`. This command is **process-local,
 RAM-only** and cannot reach a running app or store file: it builds a fresh
 inbox from stdin, removes one entry from that inbox, and writes nothing.
 
-The inbox files every line, so duplicate lines count separately. All four
+The inbox files every line, so duplicate lines count separately. All five
 deletion commands skip blank lines, accept CRLF, and stop at 4096 non-blank
 lines. A malformed line reports its line number only and exits 2; no hash,
-slug, kind, or coordinate is echoed. For the three clear-all commands, empty
-stdin is a successful zero deletion; `forget-inbox-entry` needs an id. Invalid
+slug, kind, window, or coordinate is echoed. For the three clear-all commands,
+empty stdin is a successful zero deletion; the two remove-one commands
+(`forget-inbox-entry` and `forget-layouts-app`) need a final selector. Invalid
 UTF-8 stdin exits 2.
 
 These commands are process-local and RAM-only affordances for DC-14, DC-15,

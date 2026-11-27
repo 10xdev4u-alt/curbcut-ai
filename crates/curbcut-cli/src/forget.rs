@@ -2,8 +2,10 @@
 //!
 //! [`forget_layouts`], [`forget_simplifications`], and [`forget_inbox`] build
 //! real in-memory data structures from user-supplied stdin lines and clear
-//! them with their real clear/reset methods. [`forget_inbox_entry`] files the
-//! same lines and removes one by its `InboxId` with the real `Inbox::remove`.
+//! them with their real clear/reset methods. [`forget_layouts_app`] builds the
+//! same layout memory and resets one user's layouts for one app with
+//! `LayoutMemory::reset_app`. [`forget_inbox_entry`] files the same lines and
+//! removes one by its `InboxId` with the real `Inbox::remove`.
 //! They are **process-local and RAM-only**: they cannot reach a running app's
 //! memory and there is no store file to remove. Output is counts only; no key,
 //! hash, id, slug, kind, or coordinate is echoed.
@@ -126,6 +128,70 @@ pub fn forget_layouts(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::
     let _ = writeln!(out, "remaining layouts=0");
     let _ = writeln!(out, "scope=process-local RAM only");
     let _ = writeln!(out, "reach=no running app or store file");
+    EXIT_OK
+}
+
+/// Removes one user's layouts for one app from a process-local memory.
+///
+/// The nonblank lines before the last are entry lines in the same format as
+/// [`forget_layouts`]; the last nonblank line is a two-field
+/// `<user:u64> <app-slug>` selector selecting which user and app to reset.
+/// Both kinds of line count toward [`MAX_LINES`]. Empty stdin exits with
+/// [`EXIT_USAGE`] and `error: no layout selector`. A malformed entry or
+/// selector reports a line number only and exits with [`EXIT_USAGE`]. An
+/// unknown selector succeeds with zero removals and leaves the count
+/// unchanged. Output is counts only; no user, slug, window, or key is echoed.
+pub fn forget_layouts_app(input: &str, out: &mut dyn fmt::Write, err: &mut dyn fmt::Write) -> i32 {
+    let mut lines: Vec<(usize, &str)> = Vec::new();
+    for (index, raw) in input.lines().enumerate() {
+        let line = raw.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            continue;
+        }
+        lines.push((index + 1, line));
+        if lines.len() > MAX_LINES {
+            let _ = writeln!(err, "error: too many layout lines");
+            return EXIT_USAGE;
+        }
+    }
+
+    let Some(&(selector_number, selector_line)) = lines.last() else {
+        let _ = writeln!(err, "error: no layout selector");
+        return EXIT_USAGE;
+    };
+    let fields: Vec<&str> = selector_line.split_whitespace().collect();
+    let [user, slug] = fields.as_slice() else {
+        return malformed("layout selector", selector_number, err);
+    };
+    let user: u64 = match user.parse() {
+        Ok(value) => value,
+        Err(_) => return malformed("layout selector", selector_number, err),
+    };
+
+    let mut memory = LayoutMemory::new();
+    for &(number, line) in &lines[..lines.len() - 1] {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        let [entry_user, slug, window] = fields.as_slice() else {
+            return malformed("layout", number, err);
+        };
+        let entry_user: u64 = match entry_user.parse() {
+            Ok(value) => value,
+            Err(_) => return malformed("layout", number, err),
+        };
+        let window: u64 = match window.parse() {
+            Ok(value) => value,
+            Err(_) => return malformed("layout", number, err),
+        };
+        let key = LayoutKey::new(UserId(entry_user), AppId::new(slug), WindowId(window));
+        memory.remember(key, LayoutChoice::default());
+    }
+
+    let deleted = memory.reset_app(&UserId(user), &AppId::new(slug));
+    let remaining = memory.len();
+    let _ = writeln!(out, "deleted layouts={deleted}");
+    let _ = writeln!(out, "remaining layouts={remaining}");
+    let _ = writeln!(out, "{SCOPE}");
+    let _ = writeln!(out, "{REACH}");
     EXIT_OK
 }
 
@@ -297,6 +363,13 @@ mod tests {
         let mut out = String::new();
         let mut err = String::new();
         let code = forget_inbox_entry(input, &mut out, &mut err);
+        (code, out, err)
+    }
+
+    fn run_layouts_app(input: &str) -> (i32, String, String) {
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = forget_layouts_app(input, &mut out, &mut err);
         (code, out, err)
     }
 
@@ -533,5 +606,116 @@ mod tests {
             out.contains(&format!("remaining inbox entries={}", MAX_LINES - 2)),
             "{out}"
         );
+    }
+
+    #[test]
+    fn layouts_app_forgets_only_the_selected_app_and_prints_counts_alone() {
+        let (code, out, err) = run_layouts_app("1 mail 7\n1 mail 8\n2 chat 9\n1 mail\n");
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert_eq!(
+            out,
+            "deleted layouts=2\nremaining layouts=1\n\
+             scope=process-local RAM only\nreach=no running app or store file\n"
+        );
+        for token in ["mail", "chat", "UserId", "WindowId", "7", "8", "9"] {
+            assert!(!out.contains(token), "{token}: {out}");
+        }
+    }
+
+    #[test]
+    fn layouts_app_accepts_crlf_and_blank_lines() {
+        let input = "1 mail 7\r\n\r\n2 chat 8\r\n\r\n1 mail\r\n\r\n";
+        let (code, out, err) = run_layouts_app(input);
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("deleted layouts=1"), "{out}");
+        assert!(out.contains("remaining layouts=1"), "{out}");
+    }
+
+    #[test]
+    fn layouts_app_collapses_duplicate_keys_before_resetting() {
+        let input = "1 mail 7\n1 mail 7\n1 mail 8\n1 mail\n";
+        let (code, out, err) = run_layouts_app(input);
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("deleted layouts=2"), "{out}");
+        assert!(out.contains("remaining layouts=0"), "{out}");
+    }
+
+    #[test]
+    fn layouts_app_unknown_selector_removes_nothing_and_keeps_the_count() {
+        let entries = "1 mail 7\n2 mail 8\n3 chat 9\n";
+        for selector in ["9 other\n", "9 mail\n", "1 chat\n"] {
+            let (code, out, err) = run_layouts_app(&format!("{entries}{selector}"));
+            assert_eq!(code, EXIT_OK, "selector {selector:?}: {err}");
+            assert!(
+                out.contains("deleted layouts=0"),
+                "selector {selector:?}: {out}"
+            );
+            assert!(
+                out.contains("remaining layouts=3"),
+                "selector {selector:?}: {out}"
+            );
+            for token in ["mail", "chat", "other"] {
+                assert!(!out.contains(token), "{token}: {out}");
+                assert!(!err.contains(token), "{token}: {err}");
+            }
+        }
+    }
+
+    #[test]
+    fn layouts_app_malformed_selector_reports_its_number_only() {
+        for (input, number, secret) in [
+            ("1 mail 7\nnope\n", 2, "nope"),
+            ("1 mail 7\n1 mail 7 7\n", 2, "1 mail 7 7"),
+            ("1 mail 7\nx mail\n", 2, "x mail"),
+            ("1 mail 7\n1\n", 2, "1"),
+            ("just three fields here\n", 1, "just three fields here"),
+        ] {
+            let (code, out, err) = run_layouts_app(input);
+            assert_eq!(code, EXIT_USAGE, "input {input:?}");
+            assert!(out.is_empty(), "input {input:?}: {out}");
+            assert_eq!(
+                err,
+                format!("error: malformed layout selector line {number}\n"),
+                "input {input:?}"
+            );
+            assert!(!err.contains(secret), "{err}");
+        }
+    }
+
+    #[test]
+    fn layouts_app_malformed_entry_reports_its_number_only() {
+        let (code, out, err) = run_layouts_app("1 mail 7\nnope mail 8\n1 mail\n");
+        assert_eq!(code, EXIT_USAGE);
+        assert!(out.is_empty(), "{out}");
+        assert_eq!(err, "error: malformed layout line 2\n");
+        assert!(!err.contains("nope"), "{err}");
+    }
+
+    #[test]
+    fn layouts_app_without_a_selector_is_a_content_free_usage_error() {
+        let (code, out, err) = run_layouts_app("");
+        assert_eq!(code, EXIT_USAGE);
+        assert!(out.is_empty(), "{out}");
+        assert_eq!(err, "error: no layout selector\n");
+
+        let (code, out, err) = run_layouts_app("\r\n\n \n");
+        assert_eq!(code, EXIT_USAGE);
+        assert!(out.is_empty(), "{out}");
+        assert_eq!(err, "error: no layout selector\n");
+    }
+
+    #[test]
+    fn layouts_app_counts_the_selector_line_toward_the_cap() {
+        let entries: String = (0..MAX_LINES).map(|_| "1 mail 7\n").collect();
+        let (code, out, err) = run_layouts_app(&format!("{entries}1 mail\n"));
+        assert_eq!(code, EXIT_USAGE);
+        assert!(out.is_empty(), "{out}");
+        assert_eq!(err, "error: too many layout lines\n");
+
+        let entries: String = (0..MAX_LINES - 1).map(|_| "1 mail 7\n").collect();
+        let (code, out, err) = run_layouts_app(&format!("{entries}1 mail\n"));
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("deleted layouts=1"), "{out}");
+        assert!(out.contains("remaining layouts=0"), "{out}");
     }
 }

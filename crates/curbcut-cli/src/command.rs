@@ -38,6 +38,8 @@ pub enum Command {
     Bench,
     /// Delete process-local layouts supplied on stdin.
     ForgetLayouts,
+    /// Delete one user's layouts for one app supplied on stdin.
+    ForgetLayoutsApp,
     /// Delete process-local feedback entries supplied on stdin.
     ForgetSimplifications,
     /// Delete process-local inbox entries supplied on stdin.
@@ -78,6 +80,7 @@ impl Command {
             "dump" => Ok(Self::Dump),
             "bench" => Ok(Self::Bench),
             "forget-layouts" => Ok(Self::ForgetLayouts),
+            "forget-layouts-app" => Ok(Self::ForgetLayoutsApp),
             "forget-simplifications" => Ok(Self::ForgetSimplifications),
             "forget-inbox" => Ok(Self::ForgetInbox),
             "forget-inbox-entry" => Ok(Self::ForgetInboxEntry),
@@ -105,9 +108,10 @@ impl Command {
     /// Runs the command with input for stdin-driven commands.
     ///
     /// Errors go to `err`; output goes to `out`. Only [`Command::ForgetLayouts`],
-    /// [`Command::ForgetSimplifications`], [`Command::ForgetInbox`],
-    /// [`Command::ForgetInboxEntry`], [`Command::NetworkStatus`], and
-    /// [`Command::NetworkRevoke`] read `input`; every other command ignores it.
+    /// [`Command::ForgetLayoutsApp`], [`Command::ForgetSimplifications`],
+    /// [`Command::ForgetInbox`], [`Command::ForgetInboxEntry`],
+    /// [`Command::NetworkStatus`], and [`Command::NetworkRevoke`] read `input`;
+    /// every other command ignores it.
     pub fn execute_with_input(
         &self,
         out: &mut dyn fmt::Write,
@@ -131,6 +135,7 @@ impl Command {
                 EXIT_OK
             }
             Self::ForgetLayouts => crate::forget::forget_layouts(input, out, err),
+            Self::ForgetLayoutsApp => crate::forget::forget_layouts_app(input, out, err),
             Self::ForgetSimplifications => crate::forget::forget_simplifications(input, out, err),
             Self::ForgetInbox => crate::forget::forget_inbox(input, out, err),
             Self::ForgetInboxEntry => crate::forget::forget_inbox_entry(input, out, err),
@@ -172,6 +177,7 @@ commands (forget-*/network-revoke: process-local RAM only):
   dump redacted dump
   bench benchmark
   forget-layouts clear
+  forget-layouts-app clear one
   forget-simplifications clear
   forget-inbox clear
   forget-inbox-entry remove one
@@ -235,6 +241,7 @@ pub fn run(args: &[String]) -> i32 {
     let code = match Command::parse(args) {
         Ok(
             Command::ForgetLayouts
+            | Command::ForgetLayoutsApp
             | Command::ForgetSimplifications
             | Command::ForgetInbox
             | Command::ForgetInboxEntry
@@ -355,6 +362,27 @@ mod tests {
             Ok(Command::ForgetInboxEntry)
         );
         assert!(usage().contains("forget-inbox-entry"), "{}", usage());
+    }
+
+    #[test]
+    fn forget_layouts_app_parses_dispatches_and_appears_in_help() {
+        assert_eq!(
+            Command::parse(&["forget-layouts-app".to_string()]),
+            Ok(Command::ForgetLayoutsApp)
+        );
+        assert!(usage().contains("forget-layouts-app"), "{}", usage());
+        let args = vec!["forget-layouts-app".to_string()];
+        let mut out = String::new();
+        let mut err = String::new();
+        let code = run_with_input_to(&args, &mut out, &mut err, "1 mail 7\n1 chat 8\n1 mail\n");
+        assert_eq!(code, EXIT_OK, "{err}");
+        assert!(out.contains("deleted layouts=1"), "{out}");
+        assert!(out.contains("remaining layouts=1"), "{out}");
+    }
+
+    #[test]
+    fn help_stays_under_the_byte_ceiling() {
+        assert!(usage().len() < 450, "help was {} bytes", usage().len());
     }
 
     #[test]
