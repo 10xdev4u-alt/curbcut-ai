@@ -144,11 +144,17 @@ impl MappingRow {
         if !text.ends_with('.') {
             text.push('.');
         }
-        text.push_str(&format!(
-            " Verified by {} test: {}.",
-            self.kind.as_str(),
-            self.test
-        ));
+        match self.kind {
+            TestKind::Automated => {
+                text.push_str(&format!(" Verified by automated test: {}.", self.test));
+            }
+            TestKind::Manual => {
+                text.push_str(&format!(
+                    " Manual procedure only — no result recorded: {}.",
+                    self.test
+                ));
+            }
+        }
         text
     }
 }
@@ -202,7 +208,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "1.3.3 Sensory Characteristics",
         level: Level::A,
         behavior: "We never rely on shape/color alone; labels are always textual.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#133-sensory-characteristics",
         kind: TestKind::Manual,
@@ -211,7 +217,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "1.4.1 Use of Color",
         level: Level::A,
         behavior: "Our UI never uses color alone; patterns and labels accompany color.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#141-use-of-color",
         kind: TestKind::Manual,
@@ -229,7 +235,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "1.4.4 Resize Text",
         level: Level::Aa,
         behavior: "Our UI scales; the overlay does not block app zoom.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#144-resize-text",
         kind: TestKind::Manual,
@@ -310,7 +316,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "2.4.1 Bypass Blocks",
         level: Level::A,
         behavior: "The icon grid and simplified view are a bypass.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#241-bypass-blocks",
         kind: TestKind::Manual,
@@ -319,7 +325,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "2.4.2 Page Titled",
         level: Level::A,
         behavior: "We use the app/window title in the overlay header.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#242-page-titled",
         kind: TestKind::Manual,
@@ -337,7 +343,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "2.4.6 Headings and Labels",
         level: Level::Aa,
         behavior: "All our controls have visible labels and headings.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#246-headings-and-labels",
         kind: TestKind::Manual,
@@ -346,7 +352,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "2.4.7 Focus Visible",
         level: Level::Aa,
         behavior: "Visible focus ring, ≥ 3:1.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#247-focus-visible",
         kind: TestKind::Manual,
@@ -364,7 +370,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "2.5.7 Dragging Movements",
         level: Level::Aa,
         behavior: "We do not introduce dragging; our controls are click/keyboard.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#257-dragging-movements",
         kind: TestKind::Manual,
@@ -418,7 +424,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.2.1 On Focus",
         level: Level::A,
         behavior: "Our controls do not auto-submit or navigate on focus.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#321-on-focus",
         kind: TestKind::Manual,
@@ -427,7 +433,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.2.2 On Input",
         level: Level::A,
         behavior: "Our settings apply on explicit action, with undo.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#322-on-input",
         kind: TestKind::Manual,
@@ -436,7 +442,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.2.3 Consistent Navigation",
         level: Level::Aa,
         behavior: "The overlay's navigation is identical across apps.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#323-consistent-navigation",
         kind: TestKind::Manual,
@@ -445,7 +451,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.2.4 Consistent Identification",
         level: Level::Aa,
         behavior: "Same words for the same actions everywhere.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#324-consistent-identification",
         kind: TestKind::Manual,
@@ -454,7 +460,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.2.6 Consistent Help",
         level: Level::A,
         behavior: "Help is always in the same place (the \"?\" tile).",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#326-consistent-help",
         kind: TestKind::Manual,
@@ -463,7 +469,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.3.1 Error Identification",
         level: Level::A,
         behavior: "We surface validation errors in the simplified view.",
-        status: Status::Partial,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#331-error-identification",
         kind: TestKind::Manual,
@@ -472,7 +478,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.3.2 Labels or Instructions",
         level: Level::A,
         behavior: "Our controls have visible labels and inline help.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#332-labels-or-instructions",
         kind: TestKind::Manual,
@@ -481,7 +487,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.3.3 Error Suggestion",
         level: Level::Aa,
         behavior: "We offer \"show original\" and \"help\" near errors.",
-        status: Status::Partial,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#333-error-suggestion",
         kind: TestKind::Manual,
@@ -490,7 +496,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.3.7 Redundant Entry",
         level: Level::A,
         behavior: "One-step mode keeps answers visible; we do not force re-entry.",
-        status: Status::Partial,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#337-redundant-entry",
         kind: TestKind::Manual,
@@ -499,7 +505,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "3.3.8 Accessible Authentication",
         level: Level::Aa,
         behavior: "We do not add CAPTCHAs or memory-heavy auth.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#338-accessible-authentication",
         kind: TestKind::Manual,
@@ -517,7 +523,7 @@ pub const WCAG: &[MappingRow] = &[
         criterion: "4.1.3 Status Messages",
         level: Level::Aa,
         behavior: "Our status changes are announced to screen readers.",
-        status: Status::Supports,
+        status: Status::NotAssessed,
         note: "",
         test: "docs/A11Y_AUDIT.md#413-status-messages",
         kind: TestKind::Manual,
@@ -580,9 +586,9 @@ pub const COGA: &[CogaRow] = &[
 pub const LIMITATIONS: &[&str] = &[
     "We cannot see protected/DRM content or secure desktops.",
     "We cannot reach into a native app's internals; we cover pixels, not code.",
-    "Detection is probabilistic; we publish mAP and CER and a per-app confidence indicator.",
+    "Detection is probabilistic; no mAP or CER result is published — the only published benchmark is redaction throughput (see `docs/DATASET.md`).",
     "Simplification can be wrong; we check meaning and always show the original.",
-    "We do not support every language equally; we publish the language matrix.",
+    "We do not support every language equally; we publish no language matrix. The shipped jargon entries are English-only; other locales need user-supplied entries.",
     "Linux Wayland support depends on the portal; some distros are beta.",
     "We are not a screen reader and do not replace one.",
     "We are not a compliance tool and do not make apps conform.",

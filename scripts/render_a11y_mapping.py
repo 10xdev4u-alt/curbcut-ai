@@ -194,7 +194,9 @@ def remark(row: dict[str, str]) -> str:
         text += ". " + capitalize(row["note"])
     if not text.endswith("."):
         text += "."
-    return f"{text} Verified by {row['kind']} test: {row['test']}."
+    if row["kind"] == "manual":
+        return f"{text} Manual procedure only — no result recorded: {row['test']}."
+    return f"{text} Verified by automated test: {row['test']}."
 
 
 def render_wcag_table(rows: list[dict[str, str]]) -> str:
@@ -474,6 +476,12 @@ pub const LIMITATIONS: &[&str] = &[
     assert row["kind"] == "automated", row
     assert status_cell(row) == "Partially supports; a qualifier", status_cell(row)
     assert remark(row).endswith("crates/example/tests.rs#the_test."), remark(row)
+    assert "Verified by automated test:" in remark(row), remark(row)
+    manual = {**row, "kind": "manual"}
+    assert remark(manual).endswith(
+        "Manual procedure only — no result recorded: crates/example/tests.rs#the_test."
+    ), remark(manual)
+    assert "Verified by manual test" not in remark(manual), remark(manual)
 
     # A Rust `\\` escape decodes to one backslash, not two.
     escaped = parse_rows(
