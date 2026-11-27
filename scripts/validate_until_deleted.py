@@ -75,6 +75,7 @@ CLASSES = {
         "not wired",
         "manually",
         "forget-layouts",
+        "forget-layouts-app",
     ),
     "Learned simplifications (DC-15)": (
         "clear",
@@ -228,6 +229,8 @@ def validate(root: Path) -> list[str]:
     cli_rs = documents[CLI_RS]
     if '"forget-layouts" =>' not in cli_rs:
         errors.append("CLI no longer parses forget-layouts")
+    if '"forget-layouts-app" =>' not in cli_rs:
+        errors.append("CLI no longer parses forget-layouts-app")
     for token in ("forget-simplifications", "forget-inbox", "forget-inbox-entry"):
         if f'"{token}" =>' not in cli_rs:
             errors.append(f"CLI no longer parses {token}")
@@ -246,9 +249,15 @@ def validate(root: Path) -> list[str]:
         )
         if not present:
             errors.append(f"forget.rs lost {function!r}")
+    # `pub fn forget_layouts` is a prefix of the newer function name, so an
+    # exact signature is required before renaming the app-scoped one counts.
+    if not re.search(r"^pub fn forget_layouts_app\(", forget_rs, re.MULTILINE):
+        errors.append("forget.rs lost 'pub fn forget_layouts_app'")
     cli_doc = flatten(documents[CLI_DOC])
     if "forget-layouts" not in cli_doc:
         errors.append("CLI.md no longer documents forget-layouts")
+    if "forget-layouts-app" not in cli_doc:
+        errors.append("CLI.md no longer documents forget-layouts-app")
     if "process-local, ram-only" not in cli_doc:
         errors.append("CLI.md no longer states the deletion is process-local")
     for token in ("forget-simplifications", "forget-inbox", "forget-inbox-entry"):
@@ -258,6 +267,8 @@ def validate(root: Path) -> list[str]:
     for token in ("forget-simplifications", "forget-inbox", "forget-inbox-entry"):
         if f"`{token}` reads" not in cli_doc_raw:
             errors.append(f"CLI.md no longer documents the {token} stdin contract")
+    if "`forget-layouts-app` reads" not in cli_doc_raw:
+        errors.append("CLI.md no longer documents the forget-layouts-app stdin contract")
     if "forget-inbox-entry" not in documents[INBOX_DOC]:
         errors.append("INTERRUPTION_INBOX.md no longer mentions forget-inbox-entry")
 
@@ -437,6 +448,21 @@ CASES: tuple[dict[str, object], ...] = (
         "label": "CLI.md forget-inbox-entry stdin contract removed",
         "edit": [(CLI_DOC, "`forget-inbox-entry` reads", "`forget-inbox-entry-old` reads")],
         "expect": "no longer documents the forget-inbox-entry stdin contract",
+    },
+    {
+        "label": "forget-layouts-app parse arm removed",
+        "edit": [(CLI_RS, '"forget-layouts-app" =>', '"forget-layouts-app-old" =>')],
+        "expect": "CLI no longer parses forget-layouts-app",
+    },
+    {
+        "label": "forget.rs forget_layouts_app function renamed",
+        "edit": [(FORGET_RS, "pub fn forget_layouts_app", "pub fn forget_layouts_app_old")],
+        "expect": "forget.rs lost 'pub fn forget_layouts_app'",
+    },
+    {
+        "label": "CLI.md forget-layouts-app stdin contract removed",
+        "edit": [(CLI_DOC, "`forget-layouts-app` reads", "`forget-layouts-app-old` reads")],
+        "expect": "no longer documents the forget-layouts-app stdin contract",
     },
 )
 

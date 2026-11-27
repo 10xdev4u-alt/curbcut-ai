@@ -457,3 +457,93 @@ fn non_utf8_arguments_exit_two_and_do_not_panic() {
         assert!(!err.contains("panicked"), "bytes {bytes:?}: {err}");
     }
 }
+
+#[test]
+fn forget_layouts_app_forgets_one_app_and_keeps_the_other() {
+    let output = run_with_input(
+        &[OsStr::new("forget-layouts-app")],
+        "11 ccmail 4242\n11 ccmail 4343\n11 cchidden 5151\n11 cchidden 6161\n11 ccmail\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(stderr(&output).is_empty(), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("deleted layouts=2"), "{text}");
+    assert!(text.contains("remaining layouts=2"), "{text}");
+    assert!(text.contains("scope=process-local RAM only"), "{text}");
+    assert!(
+        text.contains("reach=no running app or store file"),
+        "{text}"
+    );
+    let combined = format!("{text}{}", stderr(&output));
+    for token in [
+        "ccmail", "cchidden", "4242", "4343", "5151", "6161", "UserId", "WindowId",
+    ] {
+        assert!(!combined.contains(token), "{token}: {combined}");
+    }
+}
+
+#[test]
+fn forget_layouts_app_unknown_selector_removes_zero() {
+    let output = run_with_input(
+        &[OsStr::new("forget-layouts-app")],
+        "11 ccmail 4242\n11 ccmail 4343\n99 ccmail\n",
+    );
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    let text = stdout(&output);
+    assert!(text.contains("deleted layouts=0"), "{text}");
+    assert!(text.contains("remaining layouts=2"), "{text}");
+    let combined = format!("{text}{}", stderr(&output));
+    for token in ["ccmail", "4242", "4343", "99"] {
+        assert!(!combined.contains(token), "{token}: {combined}");
+    }
+}
+
+#[test]
+fn forget_layouts_app_malformed_selector_exits_two_with_a_line_number_only() {
+    let output = run_with_input(
+        &[OsStr::new("forget-layouts-app")],
+        "11 ccmail 4242\n11 ccmail 4343\nccsecret-selector\n",
+    );
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert_eq!(stderr(&output), "error: malformed layout selector line 3\n");
+    assert!(
+        !stderr(&output).contains("ccsecret-selector"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn forget_layouts_app_without_a_selector_exits_two() {
+    let output = run_with_input(&[OsStr::new("forget-layouts-app")], "");
+    assert_eq!(output.status.code(), Some(2));
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert_eq!(stderr(&output), "error: no layout selector\n");
+}
+
+#[test]
+fn forget_layouts_app_rejects_invalid_utf8_stdin() {
+    let input = [
+        b'1', b' ', b'm', b'a', b'i', b'l', b' ', b'7', b'\n', 0xff, b'\n',
+    ];
+    let output = run_with_bytes(&[OsStr::new("forget-layouts-app")], &input);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr(&output).contains("stdin is not valid UTF-8"),
+        "{}",
+        stderr(&output)
+    );
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn help_lists_forget_layouts_app() {
+    let output = run(&[OsStr::new("--help")]);
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("forget-layouts-app"),
+        "{}",
+        stdout(&output)
+    );
+}
