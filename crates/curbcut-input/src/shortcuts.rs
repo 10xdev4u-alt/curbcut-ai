@@ -11,14 +11,16 @@
 //!   the same chord, and every default chord is valid.
 //! - **A chord is a set, not a sequence.** `Ctrl+Shift+D` and
 //!   `Shift+Ctrl+D` are the same chord, so lookup is order-independent and
-//!   case-insensitive.
+//!   case-insensitive. Synonyms share one canonical spelling, so
+//!   `Esc`/`Escape`, `Enter`/`Return`, and `F1`/`F01` also name the same key
+//!   for lookup, conflict checks, and defaults.
 //! - **A taken chord is rejected.** `rebind` refuses a chord another action
 //!   already uses, so a conflict can only exist if it is introduced directly.
 //!
 //! The platform layer maps a pressed chord to a [`ShortcutAction`] with
 //! [`ShortcutCatalog::action_for`] and never has to know the defaults.
 
-use curbcut_core::config::Shortcut;
+use curbcut_core::config::{canonical_key, Shortcut};
 use curbcut_core::error::CurbCutError;
 
 /// A global action that can have a shortcut.
@@ -278,9 +280,13 @@ fn chord(keys: &[&str]) -> Shortcut {
     }
 }
 
-/// Lowercases, sorts, and deduplicates key names.
+/// Canonicalizes key names, then sorts and deduplicates them.
+///
+/// Every comparison path (lookup, rebind conflicts, conflict reports, and
+/// defaults) uses this, so synonyms cannot be validated as one key but
+/// compared as another.
 fn normalize(keys: &Shortcut) -> Vec<String> {
-    let mut normalized: Vec<String> = keys.keys.iter().map(|key| key.to_lowercase()).collect();
+    let mut normalized: Vec<String> = keys.keys.iter().map(|key| canonical_key(key)).collect();
     normalized.sort_unstable();
     normalized.dedup();
     normalized

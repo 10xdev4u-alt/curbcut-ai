@@ -10,7 +10,8 @@ having to know the defaults. `CC-081`.
 1. **Defaults do not conflict.** The default catalog has no two actions on the
    same chord, and every default chord is valid.
 2. **A chord is a set, not a sequence.** `Ctrl+Shift+D` and `Shift+Ctrl+D` are
-   the same chord, so lookup is order-independent and case-insensitive.
+   the same chord: lookup is order-independent, case-insensitive, and treats
+   documented synonyms as one key (`Esc`/`Escape`, `Enter`/`Return`, `F1`/`F01`).
 3. **A taken chord is rejected.** `ShortcutCatalog::rebind` refuses a chord
    another action already uses, so a conflict can only exist if it is
    introduced directly.

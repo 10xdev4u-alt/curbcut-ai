@@ -347,3 +347,117 @@ fn core_knows_every_default_key() {
     assert!(!is_known_key("f13"));
     assert!(!is_known_key("banana"));
 }
+
+#[test]
+fn rebinding_to_a_synonym_of_a_taken_chord_is_rejected() {
+    let mut catalog = ShortcutCatalog::defaults();
+
+    let escape = chord(&["ctrl", "shift", "escape"]);
+    let error = catalog
+        .rebind(ShortcutAction::Profiles, escape.clone())
+        .expect_err("escape is the esc key that Panic owns");
+    assert_eq!(
+        error,
+        ShortcutError::Conflict {
+            other: ShortcutAction::Panic,
+            keys: escape,
+        }
+    );
+    assert!(
+        catalog.is_default(ShortcutAction::Profiles),
+        "the rejected rebind must not change the binding"
+    );
+
+    let returned = chord(&["ctrl", "shift", "return"]);
+    let error = catalog
+        .rebind(ShortcutAction::Profiles, returned.clone())
+        .expect_err("return is the enter key that ReadFromHere owns");
+    assert_eq!(
+        error,
+        ShortcutError::Conflict {
+            other: ShortcutAction::ReadFromHere,
+            keys: returned,
+        }
+    );
+    assert!(catalog.is_default(ShortcutAction::Profiles));
+}
+
+#[test]
+fn conflicts_reports_synonym_spellings() {
+    let catalog = ShortcutCatalog {
+        bindings: vec![
+            (ShortcutAction::Panic, chord(&["ctrl", "shift", "esc"])),
+            (
+                ShortcutAction::Profiles,
+                chord(&["CTRL", "Shift", "ESCAPE"]),
+            ),
+        ],
+    };
+
+    assert_eq!(
+        catalog.conflicts(),
+        vec![(
+            ShortcutAction::Panic,
+            ShortcutAction::Profiles,
+            chord(&["ctrl", "shift", "esc"]),
+        )]
+    );
+}
+
+#[test]
+fn action_for_matches_synonym_spellings() {
+    let catalog = ShortcutCatalog::defaults();
+
+    assert_eq!(
+        catalog.action_for(&chord(&["ctrl", "shift", "escape"])),
+        Some(ShortcutAction::Panic),
+        "escape must resolve to the esc binding"
+    );
+    assert_eq!(
+        catalog.action_for(&chord(&["SHIFT", "Return", "ctrl"])),
+        Some(ShortcutAction::ReadFromHere),
+        "return must resolve to the enter binding"
+    );
+}
+
+#[test]
+fn function_key_synonyms_are_the_same_chord() {
+    let mut catalog = ShortcutCatalog::defaults();
+    catalog
+        .rebind(ShortcutAction::Profiles, chord(&["f1"]))
+        .expect("f1 is free");
+
+    assert_eq!(
+        catalog.action_for(&chord(&["f01"])),
+        Some(ShortcutAction::Profiles),
+        "f01 and f1 are the same key"
+    );
+    assert_eq!(
+        catalog.action_for(&chord(&["F001"])),
+        Some(ShortcutAction::Profiles),
+        "case and leading zeros both collapse"
+    );
+
+    let error = catalog
+        .rebind(ShortcutAction::Inbox, chord(&["f0001"]))
+        .expect_err("f0001 is f1");
+    assert_eq!(
+        error,
+        ShortcutError::Conflict {
+            other: ShortcutAction::Profiles,
+            keys: chord(&["f0001"]),
+        }
+    );
+}
+
+#[test]
+fn is_default_accepts_synonym_spellings() {
+    let mut catalog = ShortcutCatalog::defaults();
+    catalog
+        .rebind(ShortcutAction::Panic, chord(&["CTRL", "Shift", "Escape"]))
+        .expect("this is the same chord as the default");
+    assert!(
+        catalog.is_default(ShortcutAction::Panic),
+        "a synonym spelling still names the default chord"
+    );
+}
