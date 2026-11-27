@@ -297,3 +297,94 @@ fn the_documented_rules_match_the_code() {
         );
     }
 }
+
+#[test]
+fn an_initialism_does_not_split_a_sentence() {
+    let source = "The U.S. President spoke today. It was brief.";
+    let chunks = chunk_text(source);
+    assert_eq!(
+        texts(&chunks, source),
+        vec!["The U.S. President spoke today.", "It was brief."]
+    );
+
+    let source = "A.B. testing. Next.";
+    let chunks = chunk_text(source);
+    assert_eq!(texts(&chunks, source), vec!["A.B. testing.", "Next."]);
+}
+
+#[test]
+fn a_two_letter_initialism_does_not_split_a_sentence() {
+    let source = "Ph.D. students. More.";
+    let chunks = chunk_text(source);
+    assert_eq!(texts(&chunks, source), vec!["Ph.D. students.", "More."]);
+}
+
+#[test]
+fn the_sentence_ends_at_the_real_period_after_an_initialism() {
+    let source = "The U.S. President spoke. Next item follows.";
+    let chunks = chunk_text(source);
+    assert_eq!(
+        texts(&chunks, source),
+        vec!["The U.S. President spoke.", "Next item follows."]
+    );
+}
+
+#[test]
+fn a_known_abbreviation_followed_by_a_capital_keeps_its_boundary() {
+    let source = "Dr. Smith left. Then he slept.";
+    let chunks = chunk_text(source);
+    assert_eq!(
+        texts(&chunks, source),
+        vec!["Dr. Smith left.", "Then he slept."]
+    );
+}
+
+#[test]
+fn ordinary_sentence_splitting_is_unchanged() {
+    let source = "Alpha. Beta! Gamma?";
+    let chunks = chunk_text(source);
+    assert_eq!(texts(&chunks, source), vec!["Alpha.", "Beta!", "Gamma?"]);
+}
+
+#[test]
+fn chunks_stay_non_empty_and_non_overlapping_on_a_long_input() {
+    let unit = "The U.S. President spoke today. It was brief. ";
+    let repeats = 50_000 / unit.len() + 1;
+    let source = unit.repeat(repeats);
+    assert!(source.len() >= 50_000);
+
+    let chunks = chunk_text(&source);
+    assert_eq!(ids(&chunks), (0..chunks.len() as u64).collect::<Vec<_>>());
+    let mut previous_end = 0_usize;
+    for chunk in &chunks {
+        assert!(!chunk.is_empty(), "no empty chunk");
+        assert!(chunk.start() >= previous_end, "chunks do not overlap");
+        assert!(
+            source.get(chunk.start()..chunk.end()).is_some(),
+            "char boundaries"
+        );
+        previous_end = chunk.end();
+    }
+    assert!(previous_end <= source.len());
+}
+
+#[test]
+fn the_initialism_period_helper_matches_the_whole_run() {
+    let text = "The U.S. President";
+    let internal = text.find("U.").expect("found") + 1;
+    let closing = text.find("S.").expect("found") + 1;
+    assert!(is_initialism_period(text, internal));
+    assert!(is_initialism_period(text, closing));
+
+    let text = "Ph.D. students";
+    let internal = text.find("Ph.").expect("found") + "Ph.".len() - 1;
+    assert!(is_initialism_period(text, internal));
+    let closing = text.find("D.").expect("found") + 1;
+    assert!(
+        !is_initialism_period(text, closing),
+        "lowercase continuation"
+    );
+
+    assert!(!is_initialism_period("He aims. Then", 7));
+    assert!(!is_initialism_period("Pi is 3.14 today.", 7));
+}
