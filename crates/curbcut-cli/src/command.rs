@@ -167,24 +167,24 @@ fn truncate(text: &str) -> String {
 pub fn usage() -> &'static str {
     "usage: curbcut-cli <command>
 
-commands:
-  status    status
-  dump      redacted dump
-  bench     benchmark
-  forget-layouts  clear
-  forget-simplifications  clear
-  forget-inbox  clear
-  forget-inbox-entry  remove one
-  network-status  inspect
-  network-revoke  revoke
-  vpat      draft VPAT
-  limitations  limitations
-  panic     panic
-  help      this text
+commands (forget-*/network-revoke: process-local RAM only):
+  status
+  dump redacted dump
+  bench benchmark
+  forget-layouts clear
+  forget-simplifications clear
+  forget-inbox clear
+  forget-inbox-entry remove one
+  network-status inspect
+  network-revoke print revoke recipe
+  vpat draft VPAT
+  limitations
+  panic
+  help
 
 exit codes:
-  0   success
-  2   bad arguments
+  0 success
+  2 bad arguments
   101 panic
 "
 }
@@ -355,6 +355,19 @@ mod tests {
             Ok(Command::ForgetInboxEntry)
         );
         assert!(usage().contains("forget-inbox-entry"), "{}", usage());
+    }
+
+    #[test]
+    fn help_states_the_process_local_scope_of_forget_and_revoke() {
+        let text = usage();
+        assert!(
+            text.contains("forget-*/network-revoke: process-local RAM only"),
+            "{text}"
+        );
+        assert!(
+            text.contains("network-revoke print revoke recipe"),
+            "{text}"
+        );
     }
 
     #[test]
