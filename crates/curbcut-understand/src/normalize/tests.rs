@@ -27,6 +27,34 @@ fn large_integers_use_scales() {
 }
 
 #[test]
+fn integers_at_the_top_of_the_i64_range_do_not_panic() {
+    assert_eq!(spell_integer(1_000_000_000_000_000_000), "one quintillion");
+    assert_eq!(
+        spell_integer(i64::MAX),
+        "nine quintillion two hundred twenty-three quadrillion three hundred \
+         seventy-two trillion thirty-six billion eight hundred fifty-four million \
+         seven hundred seventy-five thousand eight hundred seven"
+    );
+    assert_eq!(
+        spell_integer(i64::MIN),
+        "minus nine quintillion two hundred twenty-three quadrillion three hundred \
+         seventy-two trillion thirty-six billion eight hundred fifty-four million \
+         seven hundred seventy-five thousand eight hundred eight"
+    );
+}
+
+#[test]
+fn a_quintillion_decimal_does_not_panic() {
+    assert_eq!(spell_number(1e18, 0), "one quintillion");
+}
+
+#[test]
+fn a_quintillion_amount_of_money_does_not_panic() {
+    let parsed = Money::parse("1000000000000000000 USD").expect("the code form");
+    assert_eq!(parsed.speak(), "one quintillion dollars");
+}
+
+#[test]
 fn decimals_are_spelled_digit_by_digit() {
     assert_eq!(spell_number(2.5, 1), "two point five");
     assert_eq!(

@@ -160,6 +160,42 @@ fn a_huge_rectangle_does_not_overflow() {
 }
 
 #[test]
+fn an_extreme_top_coordinate_does_not_overflow() {
+    let detector = InterruptionDetector::new(Rect::new(0, 1, 1920, 1080));
+    let surface = Surface {
+        rect: Rect::new(100, i32::MIN, 400, 200),
+        dismissible: false,
+        mentions_cookie: true,
+        has_alert: false,
+    };
+    assert_eq!(detector.classify(&surface), InterruptionKind::Toast);
+}
+
+#[test]
+fn an_extreme_bottom_coordinate_does_not_overflow() {
+    let detector = InterruptionDetector::new(Rect::new(0, -2000, 1920, 100));
+    let surface = Surface {
+        rect: Rect::new(100, i32::MAX - 200, 400, 200),
+        dismissible: false,
+        mentions_cookie: true,
+        has_alert: false,
+    };
+    assert_eq!(detector.classify(&surface), InterruptionKind::CookieNotice);
+}
+
+#[test]
+fn an_extreme_bottom_edge_distance_does_not_overflow() {
+    let detector = InterruptionDetector::new(Rect::new(0, -100, 1920, 50));
+    let surface = Surface {
+        rect: Rect::new(100, i32::MAX - 200, 400, 200),
+        dismissible: false,
+        mentions_cookie: true,
+        has_alert: false,
+    };
+    assert_eq!(detector.classify(&surface), InterruptionKind::CookieNotice);
+}
+
+#[test]
 fn a_bottom_bar_without_a_cookie_word_is_a_banner() {
     let region = Region {
         kind: RegionKind::Floating,

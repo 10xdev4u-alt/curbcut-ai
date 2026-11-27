@@ -198,10 +198,15 @@ impl InterruptionDetector {
         let area_ratio = surface.rect.area() as f32 / screen.area() as f32;
         let width_ratio = surface.rect.width as f32 / screen.width as f32;
         let height_ratio = surface.rect.height as f32 / screen.height as f32;
-        let near_top = (surface.rect.y - screen.y) as f32 / screen.height as f32
-            <= self.config.edge_margin_ratio;
-        let near_bottom = (screen.bottom() - surface.rect.bottom()) as f32 / screen.height as f32
-            <= self.config.edge_margin_ratio;
+        // Edge gaps are computed in i64 so extreme i32 coordinates cannot
+        // overflow. A negative gap means the surface is off-screen, already at
+        // that edge, so it counts as zero.
+        let top_distance = (i64::from(surface.rect.y) - i64::from(screen.y)).max(0);
+        let bottom_distance =
+            (i64::from(screen.bottom()) - i64::from(surface.rect.bottom())).max(0);
+        let near_top = top_distance as f32 / screen.height as f32 <= self.config.edge_margin_ratio;
+        let near_bottom =
+            bottom_distance as f32 / screen.height as f32 <= self.config.edge_margin_ratio;
 
         if surface.mentions_cookie && (near_bottom || width_ratio >= self.config.banner_width_ratio)
         {
