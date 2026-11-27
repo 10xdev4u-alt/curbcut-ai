@@ -109,6 +109,8 @@ not current behaviour, until a mechanism exists. `CC-200`.
 `7-days` stays in DC-26's Retention cell because it is the declared rule for
 that planned class; the "Enforced today" column states that nothing enforces it
 yet. Telemetry (DC-25) is separately `never-stored`; see `docs/TELEMETRY.md`.
+The evidence gate for #216 and the open work it tracks are in
+[`docs/CONFIRM.md`](CONFIRM.md) §Open work and tracking.
 
 ## D. User-input, biometric, and control classes
 
